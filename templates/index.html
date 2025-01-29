@@ -1,12 +1,74 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Welcome, {{ user }}!</h2>
-<p>Below are some useful links:</p>
-<ul>
-    <li><a href="https://example.com/sonarr" target="_blank">Sonarr</a></li>
-    <li><a href="https://example.com/radarr" target="_blank">Radarr</a></li>
-    <li><a href="https://example.com/nzbget" target="_blank">NZBGet</a></li>
-    <li><a href="https://portainer.example.com" target="_blank">Portainer</a></li>
-    <!-- Add more links or subfolders here -->
-</ul>
+
+<nav class="internal-nav">
+  <a href="{{ url_for('settings') }}">Settings</a>
+</nav>
+
+<!-- Useful Services / Subdomain Links -->
+<section class="links-section">
+    <h3>Useful Services</h3>
+    <ul>
+      <li><a href="https://example.com/sonarr" target="_blank">Sonarr</a></li>
+      <li><a href="https://example.com/radarr" target="_blank">Radarr</a></li>
+      <li><a href="https://example.com/nzbget" target="_blank">NZBGet</a></li>
+      <li><a href="https://portainer.example.com" target="_blank">Portainer</a></li>
+      <!-- Add more links if desired -->
+    </ul>
+  </section>
+
+<!-- 7-Day Forecast -->
+{% if daily_forecasts and daily_forecasts|length > 0 %}
+<div class="card">
+  <h3>7-Day Forecast for {{ city_name|title }}</h3>
+  <div class="forecast-grid">
+    {% for day in daily_forecasts %}
+    <div class="forecast-day">
+      <p class="date">{{ day.date_str }}</p>
+      <img src="{{ day.icon_url }}" alt="Forecast Icon" style="max-width: 60px;">
+      <p>{{ day.description|title }}</p>
+      <p>Min: {{ day.temp_min }}°C | Max: {{ day.temp_max }}°C</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Stock Card -->
+{% if stock_symbol and stock_price %}
+<div class="card">
+  <h3>Stock Quote</h3>
+  <p>{{ stock_symbol }}: ${{ stock_price }}</p>
+</div>
+{% endif %}
+
+<!-- Random Quote -->
+{% if quote_text %}
+<div class="card">
+  <h3>Quote of the Moment</h3>
+  <blockquote>"{{ quote_text }}"</blockquote>
+  <p>- {{ quote_author }}</p>
+</div>
+{% endif %}
+
+<!-- Random Joke -->
+{% if joke_setup and joke_punchline %}
+<div class="card">
+  <h3>Need a Laugh?</h3>
+  <p><strong>{{ joke_setup }}</strong></p>
+  <p>{{ joke_punchline }}</p>
+</div>
+{% endif %}
+
+<!-- Random Dog Photo -->
+{% if dog_image_url %}
+<div class="card">
+  <h3>Random Dog of the Day</h3>
+  <img src="{{ dog_image_url }}" alt="Random Dog" style="max-width: 100%; height: auto;">
+</div>
+{% endif %}
+
+
+
 {% endblock %}

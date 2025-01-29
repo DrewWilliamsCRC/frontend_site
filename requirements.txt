@@ -1,2 +1,5 @@
-Flask==2.2.3
-Werkzeug==2.2.3
+Flask
+Werkzeug
+requests
+pandas
+numpy
