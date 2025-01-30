@@ -6,6 +6,14 @@
   <a href="{{ url_for('settings') }}">Settings</a>
 </nav>
 
+<!-- Random Dog Photo -->
+{% if dog_image_url %}
+<div class="card">
+  <h3>Random Dog of the Day</h3>
+  <img src="{{ dog_image_url }}" alt="Random Dog" style="max-width: 100%; height: auto;">
+</div>
+{% endif %}
+
 <!-- Useful Services / Subdomain Links -->
 <section class="links-section">
     <h3>Useful Services</h3>
@@ -39,95 +47,6 @@
     {% endfor %}
   </div>
 </div>
-{% endif %}
-
-<!-- Stock Card -->
-{% if stock_symbol and stock_price %}
-<div class="card">
-  <h3>Stock Quote</h3>
-  <p>{{ stock_symbol }}: ${{ stock_price }}</p>
-</div>
-{% endif %}
-
-<!-- Optional: Stock Chart -->
-{% if stock_symbol and stock_history.dates and stock_history.dates|length > 0 %}
-<div class="card">
-  <h3>{{ stock_symbol }} - Last 30 Days</h3>
-  <canvas id="stockChart" width="600" height="400"></canvas>
-</div>
-{% endif %}
-
-<!-- Random Quote -->
-{% if quote_text %}
-<div class="card">
-  <h3>Quote of the Moment</h3>
-  <blockquote>"{{ quote_text }}"</blockquote>
-  <p>- {{ quote_author }}</p>
-</div>
-{% endif %}
-
-<!-- Random Joke -->
-{% if joke_setup and joke_punchline %}
-<div class="card">
-  <h3>Need a Laugh?</h3>
-  <p><strong>{{ joke_setup }}</strong></p>
-  <p>{{ joke_punchline }}</p>
-</div>
-{% endif %}
-
-<!-- Random Dog Photo -->
-{% if dog_image_url %}
-<div class="card">
-  <h3>Random Dog of the Day</h3>
-  <img src="{{ dog_image_url }}" alt="Random Dog" style="max-width: 100%; height: auto;">
-</div>
-{% endif %}
-
-<!-- Include Chart.js and build chart if stock_history data is present -->
-{% if stock_symbol and stock_history.dates and stock_history.dates|length > 0 %}
-<!-- Load Chart.js (via a CDN) -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<script>
-  // Data passed from Flask, converted to JSON for JavaScript
-  const stockDates = {{ stock_history.dates|tojson }};
-  const stockPrices = {{ stock_history.prices|tojson }};
-
-  const ctx = document.getElementById('stockChart').getContext('2d');
-  const stockChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: stockDates,
-      datasets: [{
-        label: 'Daily Close',
-        data: stockPrices,
-        borderColor: 'rgb(75, 192, 192)',
-        fill: false,
-        tension: 0.1,
-        pointRadius: 3
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        x: {
-          display: true,
-          title: {
-            display: true,
-            text: 'Date'
-          }
-        },
-        y: {
-          display: true,
-          title: {
-            display: true,
-            text: 'Price (USD)'
-          }
-        }
-      }
-    }
-  });
-</script>
 {% endif %}
 
 {% endblock %}
