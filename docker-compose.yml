@@ -1,21 +1,18 @@
-version: '3'
 services:
-  flask_app:
-    build: .
-    container_name: frontend
-    
-    # Persist the database by mounting a local "data" folder into the container
-    volumes:
-      - ./data:/app/data  # Everything in ./data on the host => /app/data in container
-
-    # Publish port 5001 on the host, so you can access http://localhost:5001
-    ports:
-      - "5001:5001"
-
-    # Automatically restart unless you deliberately stop it
+  code-server:
+    image: codercom/code-server:latest
+    container_name: code-server
     restart: unless-stopped
-    
-    # Optional environment variables if you need them (example):
-    # environment:
-    #   - FLASK_ENV=production
-    #   - SECRET_KEY=SUPER_SECURE_KEY
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./code-server-data:/home/coder/.local/share/code-server  # Persist user data
+      - ./config:/home/coder/.config/code-server  # Persist configuration
+      - /var/run/docker.sock:/var/run/docker.sock  # Enable Docker access
+      - ./workspace:/home/coder/workspace  # Workspace files
+      - ./projects:/home/coder/projects  # Workspace files
+
+    environment:
+      - TZ=UTC
+      - AUTH=none  # Disable authentication (optional)
+    user: "1000:1000"
