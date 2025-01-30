@@ -20,10 +20,10 @@ cache = Cache(app, config={
     'CACHE_DEFAULT_TIMEOUT': 300  # 5 minutes
 })
 
-DB_NAME = 'users.db'
+DB_NAME = '/app/data/users.db'
 
 # --- Hard-coded API Keys ---
-OWM_API_KEY = "1fef9413c0c77c739ef23d222e05db76"
+OWM_API_KEY = "f869c65af9d218710883f3321b2cf709"
 
 def init_db():
     """
@@ -218,17 +218,35 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+
         with sqlite3.connect(DB_NAME) as conn:
             cur = conn.cursor()
             cur.execute("SELECT password_hash FROM users WHERE username=?", (username,))
             row = cur.fetchone()
+
         if row:
             stored_hash = row[0]
             if check_password_hash(stored_hash, password):
+                # Valid login
                 session['user'] = username
                 flash("Login successful!", "success")
                 return redirect(url_for('home'))
-        flash("Invalid credentials. Please try again.", "danger")
+            else:
+                # Wrong password => 401 Unauthorized
+                # (also log this attempt if you want to parse it from your Flask log)
+                app.logger.warning(
+                    f"Failed login attempt for existing user {username} from {request.remote_addr}"
+                )
+                # Return a 401, which is critical for Fail2ban detection if using NGINX logs
+                return "Invalid credentials", 401
+        else:
+            # No such user in DB => 401 Unauthorized
+            app.logger.warning(
+                f"Failed login attempt for non-existent user {username} from {request.remote_addr}"
+            )
+            return "Invalid credentials", 401
+
+    # If GET request, just show the login form
     return render_template('login.html')
 
 

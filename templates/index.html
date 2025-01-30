@@ -42,7 +42,7 @@
       <p class="date">{{ day.date_str }}</p>
       <img src="{{ day.icon_url }}" alt="Forecast Icon" style="max-width: 60px;">
       <p>{{ day.description|title }}</p>
-      <p>Min: {{ day.temp_min }}°F | Max: {{ day.temp_max }}°F</p>
+      <p>Low: {{ day.temp_min }}°F | High: {{ day.temp_max }}°F</p>
     </div>
     {% endfor %}
   </div>
