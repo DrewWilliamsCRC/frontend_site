@@ -3,3 +3,4 @@ Werkzeug
 requests
 pandas
 numpy
+flask-caching

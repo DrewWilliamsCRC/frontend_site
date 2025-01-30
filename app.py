@@ -3,14 +3,24 @@ import sqlite3
 import random
 import requests
 import datetime
+import time
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# NEW: Import Flask-Caching
+from flask_caching import Cache
+
 app = Flask(__name__)
 app.secret_key = 'CHANGE_ME_TO_SOMETHING_SECURE'  # Replace with your own secret key.
 
-DB_NAME = 'data/users.db'
+# Initialize cache: In-memory by default, 5-minute default timeout
+cache = Cache(app, config={
+    'CACHE_TYPE': 'SimpleCache',
+    'CACHE_DEFAULT_TIMEOUT': 300  # 5 minutes
+})
+
+DB_NAME = 'users.db'
 
 # --- Hard-coded API Keys ---
 OWM_API_KEY = "1fef9413c0c77c739ef23d222e05db76"
@@ -69,38 +79,87 @@ def get_user_settings(username):
         return (default_city, default_stock)
 
 
-def get_coordinates_for_city(city_name):
+@cache.memoize(timeout=300)  # Cache for 5 minutes
+def fetch_random_quote():
     """
-    Uses OpenWeatherMap Geocoding API to get (lat, lon) for a city (hard-coded OWM_API_KEY).
-    Returns (lat, lon) or (None, None) on failure.
+    Fetch a random quote from https://type.fit/api/quotes,
+    return (text, author).
     """
-    url = f"http://api.openweathermap.org/geo/1.0/direct?q={city_name}&limit=1&appid={OWM_API_KEY}"
-    try:
-        resp = requests.get(url, timeout=5)
-        resp.raise_for_status()
-        data = resp.json()
-        if data and len(data) > 0:
-            return (data[0]["lat"], data[0]["lon"])
-    except Exception as e:
-        print(f"[ERROR] Geocoding city '{city_name}' failed: {e}")
-    return (None, None)
+    r = requests.get("https://type.fit/api/quotes", timeout=5)
+    r.raise_for_status()
+    all_quotes = r.json()
+    chosen_quote = random.choice(all_quotes) if all_quotes else {}
+    text = chosen_quote.get("text", "No quote available.")
+    author = chosen_quote.get("author", "Unknown")
+    return text, author
 
 
+@cache.memoize(timeout=300)  # Cache for 5 minutes
+def fetch_random_joke():
+    """
+    Fetch a random joke from https://official-joke-api.appspot.com/random_joke,
+    return (setup, punchline).
+    """
+    r = requests.get("https://official-joke-api.appspot.com/random_joke", timeout=5)
+    r.raise_for_status()
+    data = r.json()
+    return data.get("setup"), data.get("punchline")
+
+
+@cache.memoize(timeout=300)  # Cache for 5 minutes
+def fetch_random_dog():
+    """
+    Fetch a random dog image from https://dog.ceo/api/breeds/image/random,
+    return the image URL.
+    """
+    r = requests.get("https://dog.ceo/api/breeds/image/random", timeout=5)
+    r.raise_for_status()
+    data = r.json()
+    return data.get("message")
+
+
+@cache.memoize(timeout=300)  # Cache for 5 minutes
+def get_stock_price(symbol):
+    """
+    Fetches the current stock price using Alpha Vantage (GLOBAL_QUOTE).
+    Hard-coded ALPHA_VANTAGE_KEY = 'C60CDZU1P1BU27RK'.
+    Returns a float (e.g. 124.56) or None on failure.
+    """
+    base_url = "https://www.alphavantage.co/query"
+    params = {
+        "function": "GLOBAL_QUOTE",
+        "symbol": symbol,
+        "apikey": ALPHA_VANTAGE_KEY
+    }
+    r = requests.get(base_url, params=params, timeout=5)
+    r.raise_for_status()
+    data = r.json()
+    global_quote = data.get("Global Quote", {})
+    price_str = global_quote.get("05. price")
+    if price_str:
+        return round(float(price_str), 2)
+    return None
+
+
+@cache.memoize(timeout=300)  # Cache for 5 minutes
 def get_weekly_forecast(lat, lon):
     """
-    Calls OWM One Call API for daily forecast (up to 7 days) given lat/lon.
-    Returns the first 5 of those days as a list of daily forecast dicts, each with:
+    Calls OWM One Call API for daily forecast (up to 7 days),
+    but we'll slice to the first 5 days for a "5-day" forecast.
+    Returns a list of daily forecast dicts, each with:
       - date_str (string like "Jan 25")
       - icon_url
       - description
       - temp_min
       - temp_max
     or an empty list on failure.
+    *Units changed to imperial for Fahrenheit*
     """
     url = (
         f"http://api.openweathermap.org/data/3.0/onecall"
         f"?lat={lat}&lon={lon}&exclude=current,minutely,hourly,alerts"
-        f"&units=imperial&appid={OWM_API_KEY}"
+        f"&units=imperial"  # <--- For Fahrenheit
+        f"&appid={OWM_API_KEY}"
     )
     forecast_list = []
     try:
@@ -108,7 +167,7 @@ def get_weekly_forecast(lat, lon):
         resp.raise_for_status()
         data = resp.json()
         if "daily" in data:
-            # Slice to first 5 days
+            # Take the first 5 days
             daily_data = data["daily"][:5]
             for day in daily_data:
                 dt = day["dt"]  # Unix timestamp
@@ -117,7 +176,7 @@ def get_weekly_forecast(lat, lon):
                 icon_code = day["weather"][0]["icon"]
                 icon_url = f"https://openweathermap.org/img/wn/{icon_code}@2x.png"
                 description = day["weather"][0].get("description", "")
-                # Temps
+                # Temps (F)
                 temp_min = round(day["temp"]["min"], 1)
                 temp_max = round(day["temp"]["max"], 1)
 
@@ -133,77 +192,6 @@ def get_weekly_forecast(lat, lon):
     return forecast_list
 
 
-def get_stock_price(symbol):
-    """
-    Fetches the current stock price using Alpha Vantage (GLOBAL_QUOTE).
-    Hard-coded ALPHA_VANTAGE_KEY = 'C60CDZU1P1BU27RK'.
-    Returns a float (e.g. 124.56) or None on failure.
-    """
-    base_url = "https://www.alphavantage.co/query"
-    params = {
-        "function": "GLOBAL_QUOTE",
-        "symbol": symbol,
-        "apikey": ALPHA_VANTAGE_KEY
-    }
-    try:
-        r = requests.get(base_url, params=params, timeout=5)
-        r.raise_for_status()
-        data = r.json()
-        # Data structure is typically: { "Global Quote": { "01. symbol": "AAPL", "05. price": "130.48", ... }}
-        global_quote = data.get("Global Quote", {})
-        price_str = global_quote.get("05. price")
-        if price_str:
-            return round(float(price_str), 2)
-    except Exception as e:
-        print(f"[ERROR] Stock fetch for {symbol} failed: {e}")
-    return None
-
-
-# ADDED: New helper to get historical stock data
-def get_stock_history(symbol, days=30):
-    """
-    Fetch daily historical stock data for the given symbol from Alpha Vantage.
-    Returns a dict with:
-       {
-         'dates': [date1, date2, ...],
-         'prices': [price1, price2, ...]
-       }
-    for the last `days` trading days (if available).
-    """
-    base_url = "https://www.alphavantage.co/query"
-    params = {
-        "function": "TIME_SERIES_DAILY",
-        "symbol": symbol,
-        "apikey": ALPHA_VANTAGE_KEY,
-        "outputsize": "compact",  # ~100 recent data points
-    }
-    try:
-        r = requests.get(base_url, params=params, timeout=5)
-        r.raise_for_status()
-        data = r.json()
-
-        time_series = data.get("Time Series (Daily)", {})
-        rows = []
-        for date_str, daily_data in time_series.items():
-            close_price = float(daily_data["4. close"])
-            rows.append((date_str, close_price))
-
-        # Sort rows by date ascending
-        rows.sort(key=lambda x: x[0])
-
-        # If you only want the most recent `days`, slice from the end
-        if len(rows) > days:
-            rows = rows[-days:]
-
-        dates = [r[0] for r in rows]
-        prices = [r[1] for r in rows]
-        return {"dates": dates, "prices": prices}
-
-    except Exception as e:
-        print(f"[ERROR] Historical stock fetch for {symbol} failed: {e}")
-        return {"dates": [], "prices": []}
-
-
 # -----------------------------------------------------------------------------------
 # Routes
 # -----------------------------------------------------------------------------------
@@ -216,9 +204,8 @@ def home():
       - random quote
       - random joke
       - random dog picture
-      - stock quote (Alpha Vantage)
-      - 7-day weather forecast (OWM One Call)
-      - stock price chart (Chart.js)
+      - stock quote
+      - 5-day weather forecast
     """
     if 'user' not in session:
         return redirect(url_for('login'))
@@ -226,52 +213,21 @@ def home():
     username = session['user']
     city_name, stock_symbol = get_user_settings(username)
 
-    # Prepare variables for template
-    quote_text = quote_author = None
-    joke_setup = joke_punchline = None
-    dog_image_url = None
-    stock_price = None
-    daily_forecasts = []
-
     # 1) Random Quote
-    try:
-        r = requests.get("https://type.fit/api/quotes", timeout=5)
-        r.raise_for_status()
-        all_quotes = r.json()
-        if all_quotes:
-            chosen_quote = random.choice(all_quotes)
-            quote_text = chosen_quote.get("text", "")
-            quote_author = chosen_quote.get("author", "Unknown")
-    except Exception as e:
-        print(f"[ERROR] Quote fetch failed: {e}")
+    quote_text, quote_author = fetch_random_quote()
 
     # 2) Random Joke
-    try:
-        joke_r = requests.get("https://official-joke-api.appspot.com/random_joke", timeout=5)
-        joke_r.raise_for_status()
-        jdata = joke_r.json()
-        joke_setup = jdata.get("setup")
-        joke_punchline = jdata.get("punchline")
-    except Exception as e:
-        print(f"[ERROR] Joke fetch failed: {e}")
+    joke_setup, joke_punchline = fetch_random_joke()
 
     # 3) Random Dog Picture
-    try:
-        dog_r = requests.get("https://dog.ceo/api/breeds/image/random", timeout=5)
-        dog_r.raise_for_status()
-        ddata = dog_r.json()
-        dog_image_url = ddata.get("message")
-    except Exception as e:
-        print(f"[ERROR] Dog fetch failed: {e}")
+    dog_image_url = fetch_random_dog()
 
-    # 4) Current Stock Quote
+    # 4) Stock Quote (cached)
     stock_price = get_stock_price(stock_symbol)
 
-    # 4b) Historical Data for Chart.js
-    stock_history = get_stock_history(stock_symbol, days=30)
-
-    # 5) 7-day Weather Forecast
+    # 5) 5-day Weather Forecast (cached)
     lat, lon = get_coordinates_for_city(city_name)
+    daily_forecasts = []
     if lat is not None and lon is not None:
         daily_forecasts = get_weekly_forecast(lat, lon)
     else:
@@ -290,11 +246,27 @@ def home():
 
         stock_symbol=stock_symbol,
         stock_price=stock_price,
-        # Pass the new historical data:
-        stock_history=stock_history,
-
         daily_forecasts=daily_forecasts
     )
+
+
+def get_coordinates_for_city(city_name):
+    """
+    Uses OpenWeatherMap Geocoding API to get (lat, lon) for a city (OWM_API_KEY).
+    Returns (lat, lon) or (None, None) on failure.
+    We won't decorate this with cache.memoize by default, but you could
+    if you prefer to cache geocoding results as well.
+    """
+    url = f"http://api.openweathermap.org/geo/1.0/direct?q={city_name}&limit=1&appid={OWM_API_KEY}"
+    try:
+        resp = requests.get(url, timeout=5)
+        resp.raise_for_status()
+        data = resp.json()
+        if data and len(data) > 0:
+            return (data[0]["lat"], data[0]["lon"])
+    except Exception as e:
+        print(f"[ERROR] Geocoding city '{city_name}' failed: {e}")
+    return (None, None)
 
 
 @app.route('/settings', methods=['GET', 'POST'])
