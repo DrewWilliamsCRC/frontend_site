@@ -16,6 +16,7 @@ DB_NAME = 'users.db'
 OWM_API_KEY = "1fef9413c0c77c739ef23d222e05db76"
 ALPHA_VANTAGE_KEY = "C60CDZU1P1BU27RK"
 
+
 def init_db():
     """Initialize the DB, ensuring 'users' table has city_name & stock_symbol columns."""
     with sqlite3.connect(DB_NAME) as conn:
@@ -40,7 +41,9 @@ def init_db():
 
     print("Database initialized or updated.")
 
+
 init_db()
+
 
 # -----------------------------------------------------------------------------------
 # Helper functions
@@ -65,6 +68,7 @@ def get_user_settings(username):
     else:
         return (default_city, default_stock)
 
+
 def get_coordinates_for_city(city_name):
     """
     Uses OpenWeatherMap Geocoding API to get (lat, lon) for a city (hard-coded OWM_API_KEY).
@@ -81,10 +85,11 @@ def get_coordinates_for_city(city_name):
         print(f"[ERROR] Geocoding city '{city_name}' failed: {e}")
     return (None, None)
 
+
 def get_weekly_forecast(lat, lon):
     """
-    Calls OWM One Call API for daily forecast (7 days) given lat/lon (hard-coded OWM_API_KEY).
-    Returns a list of daily forecast dicts, each with:
+    Calls OWM One Call API for daily forecast (up to 7 days) given lat/lon.
+    Returns the first 5 of those days as a list of daily forecast dicts, each with:
       - date_str (string like "Jan 25")
       - icon_url
       - description
@@ -92,16 +97,20 @@ def get_weekly_forecast(lat, lon):
       - temp_max
     or an empty list on failure.
     """
-    url = (f"http://api.openweathermap.org/data/3.0/onecall"
-           f"?lat={lat}&lon={lon}&exclude=current,minutely,hourly,alerts"
-           f"&units=metric&appid={OWM_API_KEY}")
+    url = (
+        f"http://api.openweathermap.org/data/3.0/onecall"
+        f"?lat={lat}&lon={lon}&exclude=current,minutely,hourly,alerts"
+        f"&units=imperial&appid={OWM_API_KEY}"
+    )
     forecast_list = []
     try:
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
         data = resp.json()
         if "daily" in data:
-            for day in data["daily"]:
+            # Slice to first 5 days
+            daily_data = data["daily"][:5]
+            for day in daily_data:
                 dt = day["dt"]  # Unix timestamp
                 date_str = datetime.datetime.utcfromtimestamp(dt).strftime("%b %d")
                 # Weather icon & desc
@@ -122,6 +131,7 @@ def get_weekly_forecast(lat, lon):
     except Exception as e:
         print(f"[ERROR] Failed to fetch daily forecast: {e}")
     return forecast_list
+
 
 def get_stock_price(symbol):
     """
@@ -148,6 +158,52 @@ def get_stock_price(symbol):
         print(f"[ERROR] Stock fetch for {symbol} failed: {e}")
     return None
 
+
+# ADDED: New helper to get historical stock data
+def get_stock_history(symbol, days=30):
+    """
+    Fetch daily historical stock data for the given symbol from Alpha Vantage.
+    Returns a dict with:
+       {
+         'dates': [date1, date2, ...],
+         'prices': [price1, price2, ...]
+       }
+    for the last `days` trading days (if available).
+    """
+    base_url = "https://www.alphavantage.co/query"
+    params = {
+        "function": "TIME_SERIES_DAILY",
+        "symbol": symbol,
+        "apikey": ALPHA_VANTAGE_KEY,
+        "outputsize": "compact",  # ~100 recent data points
+    }
+    try:
+        r = requests.get(base_url, params=params, timeout=5)
+        r.raise_for_status()
+        data = r.json()
+
+        time_series = data.get("Time Series (Daily)", {})
+        rows = []
+        for date_str, daily_data in time_series.items():
+            close_price = float(daily_data["4. close"])
+            rows.append((date_str, close_price))
+
+        # Sort rows by date ascending
+        rows.sort(key=lambda x: x[0])
+
+        # If you only want the most recent `days`, slice from the end
+        if len(rows) > days:
+            rows = rows[-days:]
+
+        dates = [r[0] for r in rows]
+        prices = [r[1] for r in rows]
+        return {"dates": dates, "prices": prices}
+
+    except Exception as e:
+        print(f"[ERROR] Historical stock fetch for {symbol} failed: {e}")
+        return {"dates": [], "prices": []}
+
+
 # -----------------------------------------------------------------------------------
 # Routes
 # -----------------------------------------------------------------------------------
@@ -162,6 +218,7 @@ def home():
       - random dog picture
       - stock quote (Alpha Vantage)
       - 7-day weather forecast (OWM One Call)
+      - stock price chart (Chart.js)
     """
     if 'user' not in session:
         return redirect(url_for('login'))
@@ -207,8 +264,11 @@ def home():
     except Exception as e:
         print(f"[ERROR] Dog fetch failed: {e}")
 
-    # 4) Stock Quote via Alpha Vantage
+    # 4) Current Stock Quote
     stock_price = get_stock_price(stock_symbol)
+
+    # 4b) Historical Data for Chart.js
+    stock_history = get_stock_history(stock_symbol, days=30)
 
     # 5) 7-day Weather Forecast
     lat, lon = get_coordinates_for_city(city_name)
@@ -230,8 +290,12 @@ def home():
 
         stock_symbol=stock_symbol,
         stock_price=stock_price,
+        # Pass the new historical data:
+        stock_history=stock_history,
+
         daily_forecasts=daily_forecasts
     )
+
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
@@ -260,6 +324,7 @@ def settings():
         city_name, stock_symbol = get_user_settings(username)
         return render_template('settings.html', city_name=city_name, stock_symbol=stock_symbol)
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Login route."""
@@ -279,12 +344,14 @@ def login():
         flash("Invalid credentials. Please try again.", "danger")
     return render_template('login.html')
 
+
 @app.route('/logout')
 def logout():
     """Logout route."""
     session.pop('user', None)
     flash("Logged out successfully.", "info")
     return redirect(url_for('login'))
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -308,6 +375,7 @@ def register():
         except sqlite3.IntegrityError:
             flash("Username already exists. Choose another.", "danger")
     return render_template('register.html')
+
 
 if __name__ == '__main__':
     # Run on port 5001 instead of 5000

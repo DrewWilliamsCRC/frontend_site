@@ -10,25 +10,31 @@
 <section class="links-section">
     <h3>Useful Services</h3>
     <ul>
-      <li><a href="https://example.com/sonarr" target="_blank">Sonarr</a></li>
-      <li><a href="https://example.com/radarr" target="_blank">Radarr</a></li>
-      <li><a href="https://example.com/nzbget" target="_blank">NZBGet</a></li>
-      <li><a href="https://portainer.example.com" target="_blank">Portainer</a></li>
+      <li><a href="https://drewwilliams.biz/sonarr/" target="_blank">Sonarr</a></li>
+      <li><a href="https://drewwilliams.biz/radarr/" target="_blank">Radarr</a></li>
+      <li><a href="https://drewwilliams.biz/nzbget/" target="_blank">NZBGet</a></li>
+      <li><a href="https://portainer.drewwilliams.biz/" target="_blank">Portainer</a></li>
+      <li><a href="https://glances.drewwilliams.biz/" target="_blank">Glances</a></li>
+      <li><a href="https://homebridge.drewwilliams.biz/" target="_blank">Homebridge</a></li>
+      <li><a href="https://192.168.0.20:8443/manage/default/devices" target="_blank">Unifi Controller</a></li>
+      <li><a href="https://vscode.drewwilliams.biz/" target="_blank">code-server</a></li>
+      <li><a href="https://app.netdata.cloud/" target="_blank">NetData Console</a></li>
+      <li><a href="https://192.168.0.20:10000/" target="_blank">Webmin</a></li>
       <!-- Add more links if desired -->
     </ul>
-  </section>
+</section>
 
-<!-- 7-Day Forecast -->
+<!-- 5-Day Forecast -->
 {% if daily_forecasts and daily_forecasts|length > 0 %}
 <div class="card">
-  <h3>7-Day Forecast for {{ city_name|title }}</h3>
+  <h3>5-Day Forecast for {{ city_name|title }}</h3>
   <div class="forecast-grid">
     {% for day in daily_forecasts %}
     <div class="forecast-day">
       <p class="date">{{ day.date_str }}</p>
       <img src="{{ day.icon_url }}" alt="Forecast Icon" style="max-width: 60px;">
       <p>{{ day.description|title }}</p>
-      <p>Min: {{ day.temp_min }}°C | Max: {{ day.temp_max }}°C</p>
+      <p>Min: {{ day.temp_min }}°F | Max: {{ day.temp_max }}°F</p>
     </div>
     {% endfor %}
   </div>
@@ -40,6 +46,14 @@
 <div class="card">
   <h3>Stock Quote</h3>
   <p>{{ stock_symbol }}: ${{ stock_price }}</p>
+</div>
+{% endif %}
+
+<!-- Optional: Stock Chart -->
+{% if stock_symbol and stock_history.dates and stock_history.dates|length > 0 %}
+<div class="card">
+  <h3>{{ stock_symbol }} - Last 30 Days</h3>
+  <canvas id="stockChart" width="600" height="400"></canvas>
 </div>
 {% endif %}
 
@@ -69,6 +83,51 @@
 </div>
 {% endif %}
 
+<!-- Include Chart.js and build chart if stock_history data is present -->
+{% if stock_symbol and stock_history.dates and stock_history.dates|length > 0 %}
+<!-- Load Chart.js (via a CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<script>
+  // Data passed from Flask, converted to JSON for JavaScript
+  const stockDates = {{ stock_history.dates|tojson }};
+  const stockPrices = {{ stock_history.prices|tojson }};
+
+  const ctx = document.getElementById('stockChart').getContext('2d');
+  const stockChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: stockDates,
+      datasets: [{
+        label: 'Daily Close',
+        data: stockPrices,
+        borderColor: 'rgb(75, 192, 192)',
+        fill: false,
+        tension: 0.1,
+        pointRadius: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: {
+          display: true,
+          title: {
+            display: true,
+            text: 'Date'
+          }
+        },
+        y: {
+          display: true,
+          title: {
+            display: true,
+            text: 'Price (USD)'
+          }
+        }
+      }
+    }
+  });
+</script>
+{% endif %}
 
 {% endblock %}
