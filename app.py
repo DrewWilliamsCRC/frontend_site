@@ -10,7 +10,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'CHANGE_ME_TO_SOMETHING_SECURE'  # Replace with your own secret key.
 
-DB_NAME = 'users.db'
+DB_NAME = 'data/users.db'
 
 # --- Hard-coded API Keys ---
 OWM_API_KEY = "1fef9413c0c77c739ef23d222e05db76"
