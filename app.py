@@ -14,6 +14,11 @@ from flask_caching import Cache
 app = Flask(__name__)
 app.secret_key = 'CHANGE_ME_TO_SOMETHING_SECURE'  # Replace with your own secret key.
 
+# Ensure cookies are valid for any subdomain of drewwilliams.biz
+app.config.update({
+    'SESSION_COOKIE_DOMAIN': '.drewwilliams.biz'
+})
+
 # Initialize cache: In-memory by default, 5-minute default timeout
 cache = Cache(app, config={
     'CACHE_TYPE': 'SimpleCache',
@@ -134,6 +139,17 @@ def get_weekly_forecast(lat, lon):
 # -----------------------------------------------------------------------------------
 # Routes
 # -----------------------------------------------------------------------------------
+
+@app.route('/auth-check')
+def auth_check():
+    """
+    Internal endpoint for NGINX's auth_request directive.
+    Returns 200 if user is logged in, 401 if not.
+    """
+    if 'user' in session:
+        return '', 200
+    else:
+        return '', 401
 
 @app.route('/')
 def home():
