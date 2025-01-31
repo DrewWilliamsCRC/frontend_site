@@ -7,14 +7,12 @@ import time
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
-
-# Import Flask-Caching
 from flask_caching import Cache
 
 app = Flask(__name__)
 app.secret_key = 'CHANGE_ME_TO_SOMETHING_SECURE'  # Replace with your own secret key.
 
-# Ensure cookies are valid for any subdomain of drewwilliams.biz
+# Ensure cookies are valid for any subdomain if needed
 app.config.update({
     'SESSION_COOKIE_DOMAIN': '.drewwilliams.biz'
 })
@@ -33,7 +31,6 @@ OWM_API_KEY = "f869c65af9d218710883f3321b2cf709"
 def init_db():
     """
     Initialize the DB, ensuring 'users' table has city_name column.
-    (Stock symbol column removed since we no longer need it)
     """
     with sqlite3.connect(DB_NAME) as conn:
         # Create the users table if not exists
@@ -53,7 +50,6 @@ def init_db():
     print("Database initialized or updated.")
 
 init_db()
-
 
 # -----------------------------------------------------------------------------------
 # Helper functions
@@ -93,19 +89,12 @@ def get_weekly_forecast(lat, lon):
     """
     Calls OWM One Call API for daily forecast (up to 7 days),
     but we'll slice to the first 5 days for a "5-day" forecast.
-    Returns a list of daily forecast dicts, each with:
-      - date_str (e.g. "Jan 25")
-      - icon_url
-      - description
-      - temp_min
-      - temp_max
-    or an empty list on failure.
-    Uses units=imperial for Fahrenheit.
+    Returns a list of daily forecast dicts.
     """
     url = (
         f"http://api.openweathermap.org/data/3.0/onecall"
         f"?lat={lat}&lon={lon}&exclude=current,minutely,hourly,alerts"
-        f"&units=imperial"  # Fahrenheit
+        f"&units=imperial"
         f"&appid={OWM_API_KEY}"
     )
     forecast_list = []
@@ -135,17 +124,13 @@ def get_weekly_forecast(lat, lon):
         print(f"[ERROR] Failed to fetch daily forecast: {e}")
     return forecast_list
 
-
 # -----------------------------------------------------------------------------------
 # Routes
 # -----------------------------------------------------------------------------------
 
 @app.route('/auth-check')
 def auth_check():
-    """
-    Internal endpoint for NGINX's auth_request directive.
-    Returns 200 if user is logged in, 401 if not.
-    """
+    """Internal endpoint for NGINX's auth_request directive."""
     if 'user' in session:
         return '', 200
     else:
@@ -155,9 +140,7 @@ def auth_check():
 def home():
     """
     Home page, requires user login.
-    Displays:
-      - random dog picture
-      - 5-day weather forecast (based on city_name)
+    Displays random dog pic and 5-day weather forecast.
     """
     if 'user' not in session:
         return redirect(url_for('login'))
@@ -173,8 +156,6 @@ def home():
     daily_forecasts = []
     if lat is not None and lon is not None:
         daily_forecasts = get_weekly_forecast(lat, lon)
-    else:
-        print(f"[WARN] Could not get lat/lon for city '{city_name}'. Weather unavailable.")
 
     return render_template(
         "index.html",
@@ -184,12 +165,8 @@ def home():
         daily_forecasts=daily_forecasts
     )
 
-
 def get_coordinates_for_city(city_name):
-    """
-    Uses OpenWeatherMap Geocoding API to get (lat, lon) for a city.
-    Returns (lat, lon) or (None, None) on failure.
-    """
+    """Uses OpenWeatherMap Geocoding API to get (lat, lon) for a city."""
     url = f"http://api.openweathermap.org/geo/1.0/direct?q={city_name}&limit=1&appid={OWM_API_KEY}"
     try:
         resp = requests.get(url, timeout=5)
@@ -200,7 +177,6 @@ def get_coordinates_for_city(city_name):
     except Exception as e:
         print(f"[ERROR] Geocoding city '{city_name}' failed: {e}")
     return (None, None)
-
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
@@ -227,7 +203,6 @@ def settings():
         city_name = get_user_settings(username)
         return render_template('settings.html', city_name=city_name)
 
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Login route."""
@@ -248,23 +223,19 @@ def login():
                 flash("Login successful!", "success")
                 return redirect(url_for('home'))
             else:
-                # Wrong password => 401 Unauthorized
-                # (also log this attempt if you want to parse it from your Flask log)
+                # Wrong password
                 app.logger.warning(
                     f"Failed login attempt for existing user {username} from {request.remote_addr}"
                 )
-                # Return a 401, which is critical for Fail2ban detection if using NGINX logs
                 return "Invalid credentials", 401
         else:
-            # No such user in DB => 401 Unauthorized
+            # No such user
             app.logger.warning(
                 f"Failed login attempt for non-existent user {username} from {request.remote_addr}"
             )
             return "Invalid credentials", 401
 
-    # If GET request, just show the login form
     return render_template('login.html')
-
 
 @app.route('/logout')
 def logout():
@@ -273,31 +244,5 @@ def logout():
     flash("Logged out successfully.", "info")
     return redirect(url_for('login'))
 
-
-# @app.route('/register', methods=['GET', 'POST'])
-# def register():
-#     """Registration route."""
-#     if request.method == 'POST':
-#         username = request.form.get('username')
-#         password = request.form.get('password')
-#         if not username or not password:
-#             flash("Username and password required.", "danger")
-#             return redirect(url_for('register'))
-
-#         pw_hash = generate_password_hash(password)
-#         try:
-#             with sqlite3.connect(DB_NAME) as conn:
-#                 cur = conn.cursor()
-#                 cur.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)",
-#                             (username, pw_hash))
-#                 conn.commit()
-#             flash("Registration successful. You can now log in.", "success")
-#             return redirect(url_for('login'))
-#         except sqlite3.IntegrityError:
-#             flash("Username already exists. Choose another.", "danger")
-#     return render_template('register.html')
-
-
 if __name__ == '__main__':
-    # Run on port 5001 instead of 5000
     app.run(debug=True, host='0.0.0.0', port=5001)

@@ -1,10 +1,7 @@
 {% extends "base.html" %}
+
 {% block content %}
 <h2>Welcome, {{ user }}!</h2>
-
-<nav class="internal-nav">
-  <a href="{{ url_for('settings') }}">Settings</a>
-</nav>
 
 <!-- Random Dog Photo -->
 {% if dog_image_url %}
@@ -48,5 +45,4 @@
   </div>
 </div>
 {% endif %}
-
 {% endblock %}

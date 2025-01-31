@@ -12,6 +12,26 @@ body {
     line-height: 1.6;
 }
 
+/* Dark mode overrides */
+body.dark-mode {
+    background: #121212; /* Very dark background */
+    color: #eee;         /* Light text */
+}
+
+body.dark-mode .card {
+    background: #1f1f1f;
+    border: 1px solid #333;
+    color: #eee;
+}
+
+body.dark-mode .links-section li a {
+    background-color: #333;
+    color: #fff;
+}
+body.dark-mode .links-section li a:hover {
+    background-color: #444;
+}
+
 /* Container for main content */
 .container {
     width: 90%;
@@ -23,7 +43,14 @@ body {
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-/* Navigation bar */
+/* In dark mode, override container background as well */
+body.dark-mode .container {
+    background: #1a1a1a;
+    box-shadow: 0 2px 8px rgba(255,255,255,0.1);
+    border: 1px solid #333;
+}
+
+/* Navigation bar (if you have a <nav><ul><li><a> setup) */
 nav ul {
     display: flex;
     gap: 20px;
@@ -48,6 +75,20 @@ nav ul li a:hover {
 h2 {
     margin-bottom: 20px;
     font-size: 1.5rem;
+}
+
+/* Toggle button styling */
+.dark-mode-btn {
+    margin: 10px;
+    padding: 8px 12px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.dark-mode-btn:hover {
+    background-color: #0056b3;
 }
 
 /* Flash messages */
@@ -203,4 +244,43 @@ section {
 }
 .forecast-day {
     text-align: center;
+}
+
+/* --------------------- */
+/* NEW: Nav Button Style */
+/* --------------------- */
+
+/*
+  If you're using a <nav> without a <ul>, for example:
+    <nav>
+      <a href="{{ url_for('home') }}">Home</a>
+      <a href="{{ url_for('settings') }}">Settings</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+  then you can style them like buttons as follows:
+*/
+
+header.site-header nav a {
+    display: inline-block;        /* Make them inline-block so padding applies cleanly */
+    background-color: #007bff;    /* Button color */
+    color: #fff;
+    padding: 8px 12px;            /* Padding for a "button" feel */
+    border-radius: 4px;
+    text-decoration: none;
+    margin-right: 8px;            /* Space between buttons */
+    transition: background-color 0.2s ease;
+}
+
+header.site-header nav a:hover {
+    background-color: #0056b3;    /* Darker on hover */
+}
+
+/* In dark mode, you might want to tweak them further: */
+body.dark-mode header.site-header nav a {
+    background-color: #333;
+    color: #fff;
+}
+
+body.dark-mode header.site-header nav a:hover {
+    background-color: #444;
 }

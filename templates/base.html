@@ -1,36 +1,66 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Frontend Site</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <title>Drew’s App</title>
+  <!-- Link your static CSS file -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <ul class="flashes">
-            {% for category, message in messages %}
-              <li class="{{ category }}">{{ message }}</li>
-            {% endfor %}
-            </ul>
-          {% endif %}
-        {% endwith %}
 
-        <nav>
-            <ul>
-                {% if session.user %}
-                  <li><a href="{{ url_for('home') }}">Home</a></li>
-                  <li><a href="{{ url_for('logout') }}">Logout</a></li>
-                {% else %}
-                  <!--
-                  <li><a href="{{ url_for('login') }}">Login</a></li>
-             
-                  -->
-                {% endif %}
-            </ul>
-        </nav>
+  <!-- Page Header / Navigation -->
+  <header class="site-header">
+    <nav>
+      {% if 'user' in session %}
+        <!-- Logged-in user links -->
+        <a href="{{ url_for('home') }}">Home</a>
+        <a href="{{ url_for('settings') }}">Settings</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
+      {% else %}
+        <!-- Logged-out user links -->
+        <a href="{{ url_for('login') }}">Login</a>
+      {% endif %}
+    </nav>
 
-        {% block content %}{% endblock %}
-    </div>
+    <!-- Dark Mode toggle button -->
+    <button id="darkModeToggle" class="dark-mode-btn">Toggle Dark Mode</button>
+  </header>
+
+  <!-- Main container for page content -->
+  <div class="container">
+    <!-- Display Flask flash messages (success, danger, info, etc.) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flashes">
+        {% for category, message in messages %}
+          <li class="{{ category }}">{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Child templates will insert their content here -->
+    {% block content %}{% endblock %}
+  </div>
+
+  <!-- Dark Mode JavaScript -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const body = document.body;
+      // Check localStorage for a stored preference
+      const storedPref = localStorage.getItem("darkMode") === "true";
+
+      if (storedPref) {
+        body.classList.add("dark-mode");
+      }
+
+      const toggleBtn = document.getElementById("darkModeToggle");
+      toggleBtn.addEventListener("click", function() {
+        body.classList.toggle("dark-mode");
+        // Save the preference (true if .dark-mode is present, false otherwise)
+        localStorage.setItem("darkMode", body.classList.contains("dark-mode"));
+      });
+    });
+  </script>
 </body>
 </html>
