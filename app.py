@@ -274,28 +274,28 @@ def logout():
     return redirect(url_for('login'))
 
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    """Registration route."""
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        if not username or not password:
-            flash("Username and password required.", "danger")
-            return redirect(url_for('register'))
+# @app.route('/register', methods=['GET', 'POST'])
+# def register():
+#     """Registration route."""
+#     if request.method == 'POST':
+#         username = request.form.get('username')
+#         password = request.form.get('password')
+#         if not username or not password:
+#             flash("Username and password required.", "danger")
+#             return redirect(url_for('register'))
 
-        pw_hash = generate_password_hash(password)
-        try:
-            with sqlite3.connect(DB_NAME) as conn:
-                cur = conn.cursor()
-                cur.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)",
-                            (username, pw_hash))
-                conn.commit()
-            flash("Registration successful. You can now log in.", "success")
-            return redirect(url_for('login'))
-        except sqlite3.IntegrityError:
-            flash("Username already exists. Choose another.", "danger")
-    return render_template('register.html')
+#         pw_hash = generate_password_hash(password)
+#         try:
+#             with sqlite3.connect(DB_NAME) as conn:
+#                 cur = conn.cursor()
+#                 cur.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)",
+#                             (username, pw_hash))
+#                 conn.commit()
+#             flash("Registration successful. You can now log in.", "success")
+#             return redirect(url_for('login'))
+#         except sqlite3.IntegrityError:
+#             flash("Username already exists. Choose another.", "danger")
+#     return render_template('register.html')
 
 
 if __name__ == '__main__':
