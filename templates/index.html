@@ -3,14 +3,6 @@
 {% block content %}
 <h2>Welcome, {{ user }}!</h2>
 
-<!-- Random Dog Photo -->
-{% if dog_image_url %}
-<div class="card">
-  <h3>Random Dog of the Day</h3>
-  <img src="{{ dog_image_url }}" alt="Random Dog" style="max-width: 100%; height: auto;">
-</div>
-{% endif %}
-
 <!-- Useful Services / Subdomain Links -->
 <section class="links-section">
     <h3>Useful Services</h3>
@@ -18,16 +10,26 @@
       <li><a href="https://drewwilliams.biz/sonarr/" target="_blank">Sonarr</a></li>
       <li><a href="https://drewwilliams.biz/radarr/" target="_blank">Radarr</a></li>
       <li><a href="https://drewwilliams.biz/nzbget/" target="_blank">NZBGet</a></li>
-      <li><a href="https://portainer.drewwilliams.biz/" target="_blank">Portainer</a></li>
-      <li><a href="https://glances.drewwilliams.biz/" target="_blank">Glances</a></li>
-      <li><a href="https://homebridge.drewwilliams.biz/" target="_blank">Homebridge</a></li>
-      <li><a href="https://unifi.drewwilliams.biz" target="_blank">Unifi Controller</a></li>
+      <li><a href="https://unifi.ui.com" target="_blank">Unifi Controller</a></li>
       <li><a href="https://vscode.drewwilliams.biz/" target="_blank">code-server</a></li>
       <li><a href="https://app.netdata.cloud/" target="_blank">NetData Console</a></li>
-      <li><a href="https://webmin.drewwilliams.biz/" target="_blank">Webmin</a></li>
+      <li><a href="https://portainer.drewwilliams.biz/" target="_blank">Portainer-plexserver</a></li>
+      <li><a href="http://192.168.100.10:9000" target="_blank">Portainer-raspberrypi</a></li>
+      <li><a href="https://glances.drewwilliams.biz/" target="_blank">Glances-plexserver</a></li>
+      <li><a href="http://192.168.100.10:61208/" target="_blank">Glances-raspberrypi</a></li>
+      <li><a href="https://webmin.drewwilliams.biz/" target="_blank">Webmin-plexserver</a></li>
+      <li><a href="https://192.168.100.10:10000/" target="_blank">Webmin-raspberrypi</a></li>
       <!-- Add more links if desired -->
     </ul>
 </section>
+
+<!-- Random Dog Photo -->
+{% if dog_image_url %}
+<div class="card">
+  <h3>Random Dog of the Day</h3>
+  <img src="{{ dog_image_url }}" alt="Random Dog" style="max-width: 100%; height: auto;">
+</div>
+{% endif %}
 
 <!-- 5-Day Forecast -->
 {% if daily_forecasts and daily_forecasts|length > 0 %}
