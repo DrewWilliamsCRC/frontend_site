@@ -76,12 +76,17 @@ def get_user_settings(username):
 def fetch_random_dog():
     """
     Fetch a random dog image from https://dog.ceo/api/breeds/image/random.
-    Return the image URL.
+    Returns the image URL, or a fallback image URL if the API call fails.
     """
-    r = requests.get("https://dog.ceo/api/breeds/image/random", timeout=5)
-    r.raise_for_status()
-    data = r.json()
-    return data.get("message")
+    fallback_url = "https://via.placeholder.com/300?text=No+Dog+Image"
+    try:
+        r = requests.get("https://dog.ceo/api/breeds/image/random", timeout=5)
+        r.raise_for_status()
+        data = r.json()
+        return data.get("message", fallback_url)
+    except Exception as e:
+        app.logger.error("Error fetching random dog image: %s", e)
+        return fallback_url
 
 
 @cache.memoize(timeout=300)  # Cache for 5 minutes
