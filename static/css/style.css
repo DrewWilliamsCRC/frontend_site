@@ -1,61 +1,48 @@
-/* Modern color scheme */
-:root {
-    --primary-color: #3498db;
-    --secondary-color: #2ecc71;
-    --background-color: #f8f9fa;
-    --text-color: #2c3e50;
+/* Service Links styling */
+.service-links {
+    background-color: white;
+    margin-bottom: 2rem;
 }
 
-body {
-    background-color: var(--background-color);
-    color: var(--text-color);
-}
-
-/* Card styling for weather forecast */
-.weather-card {
-    transition: transform 0.2s;
-    border-radius: 15px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.weather-card:hover {
-    transform: translateY(-5px);
-}
-
-/* Dog image container */
-.dog-container {
-    border-radius: 15px;
-    overflow: hidden;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    margin: 20px 0;
-}
-
-.dog-container img {
+.service-links .btn {
+    padding: 15px;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    margin-bottom: 10px;
+    display: block;
     width: 100%;
-    height: auto;
-    transition: transform 0.3s;
+    text-align: left;
 }
 
-.dog-container img:hover {
-    transform: scale(1.05);
+.service-links .btn i {
+    width: 25px;
+    text-align: center;
+    margin-right: 10px;
 }
 
-/* Form styling */
-.form-control {
-    border-radius: 10px;
-    border: 1px solid #dee2e6;
-    padding: 10px 15px;
+.service-links .btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+/* Ensure buttons have good contrast */
 .btn-primary {
     background-color: var(--primary-color);
+    color: white;
     border: none;
-    border-radius: 10px;
-    padding: 10px 20px;
-    transition: all 0.3s;
 }
 
 .btn-primary:hover {
-    background-color: darken(var(--primary-color), 10%);
-    transform: translateY(-2px);
+    background-color: #2980b9;
+    color: white;
+}
+
+/* Ensure card content is visible */
+.card {
+    background-color: white;
+    border: 1px solid rgba(0,0,0,0.125);
+}
+
+.card-body {
+    padding: 1.25rem;
 }

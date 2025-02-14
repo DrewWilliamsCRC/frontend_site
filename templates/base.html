@@ -12,11 +12,36 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
+
+  <!-- Page Header / Navigation -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
-    <!-- Add your navigation here -->
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('home') }}">Home</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          {% if 'user' in session %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('settings') }}">Settings</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+            </li>
+          {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+            </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
   </nav>
 
+  <!-- Main container for page content -->
   <div class="container">
+    <!-- Display Flask flash messages (success, danger, info, etc.) -->
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
@@ -28,8 +53,29 @@
       {% endif %}
     {% endwith %}
 
+    <!-- Child templates will insert their content here -->
     {% block content %}{% endblock %}
   </div>
+
+  <!-- Dark Mode JavaScript -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const body = document.body;
+      // Check localStorage for a stored preference
+      const storedPref = localStorage.getItem("darkMode") === "true";
+
+      if (storedPref) {
+        body.classList.add("dark-mode");
+      }
+
+      const toggleBtn = document.getElementById("darkModeToggle");
+      toggleBtn.addEventListener("click", function() {
+        body.classList.toggle("dark-mode");
+        // Save the preference (true if .dark-mode is present, false otherwise)
+        localStorage.setItem("darkMode", body.classList.contains("dark-mode"));
+      });
+    });
+  </script>
 
   <!-- Bootstrap JS Bundle -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
