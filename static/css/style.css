@@ -1,7 +1,44 @@
+/* Root variables for consistent colors */
+:root {
+    --primary-color: #3498db;
+    --primary-dark: #2980b9;
+    --text-light: #ffffff;
+    --text-dark: #2c3e50;
+    --hover-bg: rgba(255, 255, 255, 0.1);
+}
+
+/* Navigation styling */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-dark .navbar-nav .nav-link {
+    color: var(--text-light) !important;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+    background-color: var(--hover-bg);
+    transform: translateY(-1px);
+}
+
+.navbar-dark .navbar-brand {
+    color: var(--text-light) !important;
+    font-weight: 600;
+}
+
+.navbar-dark .navbar-brand:hover {
+    transform: translateY(-1px);
+}
+
 /* Service Links styling */
 .service-links {
     background-color: white;
     margin-bottom: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .service-links .btn {
@@ -12,6 +49,7 @@
     display: block;
     width: 100%;
     text-align: left;
+    border-radius: 6px;
 }
 
 .service-links .btn i {
@@ -25,24 +63,34 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Ensure buttons have good contrast */
+/* Button styling */
 .btn-primary {
     background-color: var(--primary-color);
-    color: white;
+    color: var(--text-light);
     border: none;
 }
 
 .btn-primary:hover {
-    background-color: #2980b9;
-    color: white;
+    background-color: var(--primary-dark);
+    color: var(--text-light);
 }
 
-/* Ensure card content is visible */
+/* Card styling */
 .card {
     background-color: white;
-    border: 1px solid rgba(0,0,0,0.125);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .card-body {
     padding: 1.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .navbar-dark .navbar-nav .nav-link {
+        padding: 0.75rem 1rem;
+        margin: 0.25rem 0;
+    }
 }
