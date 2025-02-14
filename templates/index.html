@@ -1,50 +1,36 @@
 {% extends "base.html" %}
 
+{% block title %}Home{% endblock %}
+
 {% block content %}
-<h2>Welcome, {{ user }}!</h2>
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <h1 class="text-center mb-4">Welcome, {{ user }}!</h1>
+        
+        <!-- Dog Image Section -->
+        <div class="dog-container">
+            <img src="{{ dog_image_url }}" alt="Random Dog" class="img-fluid">
+        </div>
 
-<!-- Useful Services / Subdomain Links -->
-<section class="links-section">
-    <h3>Useful Services</h3>
-    <ul>
-      <li><a href="https://drewwilliams.biz/sonarr/" target="_blank">Sonarr</a></li>
-      <li><a href="https://drewwilliams.biz/radarr/" target="_blank">Radarr</a></li>
-      <li><a href="https://drewwilliams.biz/nzbget/" target="_blank">NZBGet</a></li>
-      <li><a href="https://unifi.ui.com" target="_blank">Unifi Controller</a></li>
-      <li><a href="https://vscode.drewwilliams.biz/" target="_blank">code-server</a></li>
-      <li><a href="https://app.netdata.cloud/" target="_blank">NetData Console</a></li>
-      <li><a href="https://portainer.drewwilliams.biz/" target="_blank">Portainer-plexserver</a></li>
-      <li><a href="http://192.168.100.10:9000" target="_blank">Portainer-raspberrypi</a></li>
-      <li><a href="https://glances.drewwilliams.biz/" target="_blank">Glances-plexserver</a></li>
-      <li><a href="http://192.168.100.10:61208/" target="_blank">Glances-raspberrypi</a></li>
-      <li><a href="https://webmin.drewwilliams.biz/" target="_blank">Webmin-plexserver</a></li>
-      <li><a href="https://192.168.100.10:10000/" target="_blank">Webmin-raspberrypi</a></li>
-      <!-- Add more links if desired -->
-    </ul>
-</section>
-
-<!-- Random Dog Photo -->
-{% if dog_image_url %}
-<div class="card">
-  <h3>Random Dog of the Day</h3>
-  <img src="{{ dog_image_url }}" alt="Random Dog" style="max-width: 100%; height: auto;">
-</div>
-{% endif %}
-
-<!-- 5-Day Forecast -->
-{% if daily_forecasts and daily_forecasts|length > 0 %}
-<div class="card">
-  <h3>5-Day Forecast for {{ city_name|title }}</h3>
-  <div class="forecast-grid">
-    {% for day in daily_forecasts %}
-    <div class="forecast-day">
-      <p class="date">{{ day.date_str }}</p>
-      <img src="{{ day.icon_url }}" alt="Forecast Icon" style="max-width: 60px;">
-      <p>{{ day.description|title }}</p>
-      <p>Low: {{ day.temp_min }}°F | High: {{ day.temp_max }}°F</p>
+        <!-- Weather Forecast Section -->
+        <h2 class="text-center mb-4">5-Day Forecast for {{ city_name }}</h2>
+        <div class="row">
+            {% for forecast in daily_forecasts %}
+            <div class="col">
+                <div class="weather-card card text-center mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ forecast.date_str }}</h5>
+                        <img src="{{ forecast.icon_url }}" alt="{{ forecast.description }}">
+                        <p class="card-text">{{ forecast.description|title }}</p>
+                        <p class="card-text">
+                            <span class="text-primary">{{ forecast.temp_max }}°F</span> / 
+                            <span class="text-secondary">{{ forecast.temp_min }}°F</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
-    {% endfor %}
-  </div>
 </div>
-{% endif %}
 {% endblock %}

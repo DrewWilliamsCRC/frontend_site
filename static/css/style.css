@@ -58,4 +58,4 @@ body {
 .btn-primary:hover {
     background-color: darken(var(--primary-color), 10%);
     transform: translateY(-2px);
-} 
+}

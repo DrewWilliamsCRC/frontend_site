@@ -150,25 +150,30 @@ def home():
     if 'user' not in session:
         return redirect(url_for('login'))
 
-    username = session['user']
-    city_name = get_user_settings(username)
-
-    # Random Dog Picture
-    dog_image_url = fetch_random_dog()
-
-    # 5-day Weather Forecast
-    lat, lon = get_coordinates_for_city(city_name)
-    daily_forecasts = []
-    if lat is not None and lon is not None:
-        daily_forecasts = get_weekly_forecast(lat, lon)
-
-    return render_template(
-        "index.html",
-        user=username,
-        city_name=city_name,
-        dog_image_url=dog_image_url,
-        daily_forecasts=daily_forecasts
-    )
+    try:
+        username = session['user']
+        city_name = get_user_settings(username)
+        
+        # Add error handling and loading states
+        dog_image_url = fetch_random_dog()
+        lat, lon = get_coordinates_for_city(city_name)
+        daily_forecasts = []
+        
+        if lat is not None and lon is not None:
+            daily_forecasts = get_weekly_forecast(lat, lon)
+        else:
+            flash("Could not fetch weather data for your city. Please check your city name in settings.", "warning")
+        
+        return render_template(
+            "index.html",
+            user=username,
+            city_name=city_name,
+            dog_image_url=dog_image_url,
+            daily_forecasts=daily_forecasts
+        )
+    except Exception as e:
+        flash("An error occurred while loading the page. Please try again.", "error")
+        return redirect(url_for('login'))
 
 def get_coordinates_for_city(city_name):
     """Uses OpenWeatherMap Geocoding API to get (lat, lon) for a city."""
