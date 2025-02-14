@@ -7,6 +7,82 @@
     <div class="col-md-8 offset-md-2">
         <h1 class="text-center mb-4">Welcome, {{ user }}!</h1>
         
+        <!-- Service Links Section -->
+        <div class="service-links card mb-4">
+            <div class="card-body">
+                <h3 class="card-title text-center mb-4">Services</h3>
+                <div class="row g-3">
+                    <!-- Media Management -->
+                    <div class="col-md-4">
+                        <a href="https://drewwilliams.biz/sonarr/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-tv me-2"></i>Sonarr
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="https://drewwilliams.biz/radarr/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-film me-2"></i>Radarr
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="https://drewwilliams.biz/nzbget/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-download me-2"></i>NZBGet
+                        </a>
+                    </div>
+
+                    <!-- System Management -->
+                    <div class="col-md-4">
+                        <a href="https://unifi.ui.com" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-wifi me-2"></i>Unifi Controller
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="https://vscode.drewwilliams.biz/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-code me-2"></i>Code Server
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="https://app.netdata.cloud/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-chart-line me-2"></i>NetData Console
+                        </a>
+                    </div>
+
+                    <!-- Containers & Monitoring -->
+                    <div class="col-md-4">
+                        <a href="https://portainer.drewwilliams.biz/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-server me-2"></i>Portainer (Plex)
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="http://192.168.100.10:9000" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-server me-2"></i>Portainer (Pi)
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="https://glances.drewwilliams.biz/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-tachometer-alt me-2"></i>Glances (Plex)
+                        </a>
+                    </div>
+
+                    <!-- Additional Monitoring -->
+                    <div class="col-md-4">
+                        <a href="http://192.168.100.10:61208/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-tachometer-alt me-2"></i>Glances (Pi)
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="https://webmin.drewwilliams.biz/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-cogs me-2"></i>Webmin (Plex)
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="https://192.168.100.10:10000/" target="_blank" class="btn btn-primary w-100">
+                            <i class="fas fa-cogs me-2"></i>Webmin (Pi)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Dog Image Section -->
         <div class="dog-container">
             <img src="{{ dog_image_url }}" alt="Random Dog" class="img-fluid">
