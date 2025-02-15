@@ -24,6 +24,12 @@
         <ul class="navbar-nav ms-auto">
           {% if 'user' in session %}
             <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('home') }}">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('user_manager.index') }}">User Management</a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link" href="{{ url_for('settings') }}">Settings</a>
             </li>
             <li class="nav-item">
