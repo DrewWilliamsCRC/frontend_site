@@ -94,3 +94,10 @@
         margin: 0.25rem 0;
     }
 }
+
+/* Custom styling for the login card */
+.login-card {
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
