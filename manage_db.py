@@ -3,11 +3,14 @@ import sys
 import hashlib
 import getpass
 
+from werkzeug.security import generate_password_hash
+
 def hash_password(password):
     """
-    Returns the SHA-256 hash of the given password.
+    Returns a hashed version of the given password using Werkzeug's generate_password_hash.
+    This ensures compatibility with check_password_hash used during login.
     """
-    return hashlib.sha256(password.encode()).hexdigest()
+    return generate_password_hash(password)
 
 def create_table(conn):
     """
@@ -132,4 +135,3 @@ def main():
 
 if __name__ == "__main__":
     main() 
-    
