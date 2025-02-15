@@ -101,3 +101,26 @@
   border-radius: 10px;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
 }
+
+/* Updated Dog Image Styling for the Dog Picture */
+.dog-container {
+    width: 300px;
+    height: 300px;
+    margin: 20px auto; /* Centers the container horizontally */
+    border: 3px solid #3498db; /* Use your primary color for a nice border */
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Adds subtle shading */
+    background-color: #fff;
+}
+
+.dog-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures the image fills the container without distortion */
+    transition: transform 0.3s ease;
+}
+
+.dog-container img:hover {
+    transform: scale(1.05);
+}
