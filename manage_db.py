@@ -5,7 +5,7 @@ import getpass
 from werkzeug.security import generate_password_hash
 
 # Use a consistent database file path (update accordingly if running in production or development)
-DB_NAME = '/app/data/users.db'  # or adjust to match your environment
+DB_NAME = '/docker/frontend/data/users.db'  # or adjust to match your environment
 
 def hash_password(password):
     """
