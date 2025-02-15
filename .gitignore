@@ -1,0 +1,28 @@
+# Virtual Environment directories
+.venv/
+venv/
+ENV/
+env/
+
+# Python bytecode files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# SQLite database files (if you don't want to track your development database)
+*.db
+
+# Log files
+*.log
+
+# OS-specific files (macOS, Windows)
+.DS_Store
+Thumbs.db
+
+# Environment variable files
+.env
