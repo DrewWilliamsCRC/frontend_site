@@ -2,7 +2,7 @@
 {% block title %}Add User{% endblock %}
 {% block content %}
 <h1>Add User</h1>
-<form method="POST" action="{{ url_for('add_user') }}">
+<form method="POST" action="{{ url_for('user_manager.add_user') }}">
   <div class="mb-3">
     <label for="username" class="form-label">Username</label>
     <input type="text" class="form-control" name="username" required>
@@ -16,6 +16,6 @@
     <input type="text" class="form-control" name="city_name">
   </div>
   <button type="submit" class="btn btn-primary">Add User</button>
-  <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+  <a href="{{ url_for('user_manager.index') }}" class="btn btn-secondary">Cancel</a>
 </form>
 {% endblock %}
