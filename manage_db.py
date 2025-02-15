@@ -1,9 +1,11 @@
 import sqlite3
 import sys
-import hashlib
 import getpass
 
 from werkzeug.security import generate_password_hash
+
+# Use a consistent database file path (update accordingly if running in production or development)
+DB_NAME = '/app/data/users.db'  # or adjust to match your environment
 
 def hash_password(password):
     """
@@ -102,7 +104,7 @@ def main():
     Main function that connects to the database and handles the interactive menu.
     """
     try:
-        conn = sqlite3.connect("users.db")
+        conn = sqlite3.connect(DB_NAME)
         create_table(conn)
     except sqlite3.Error as e:
         print(f"Error connecting to database: {e}")
