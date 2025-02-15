@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Edit User{% endblock %}
+{% block content %}
+<h1>Edit User</h1>
+<form method="POST" action="{{ url_for('edit_user', user_id=user.id) }}">
+  <div class="mb-3">
+    <label for="username" class="form-label">Username</label>
+    <input type="text" class="form-control" name="username" value="{{ user.username }}" required>
+  </div>
+  <div class="mb-3">
+    <label for="password" class="form-label">New Password (leave blank to keep current password)</label>
+    <input type="password" class="form-control" name="password">
+  </div>
+  <div class="mb-3">
+    <label for="city_name" class="form-label">City Name</label>
+    <input type="text" class="form-control" name="city_name" value="{{ user.city_name }}">
+  </div>
+  <button type="submit" class="btn btn-primary">Update User</button>
+  <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}
