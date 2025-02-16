@@ -11,7 +11,8 @@ from flask_caching import Cache
 from src.user_manager_blueprint import user_manager_bp
 
 app = Flask(__name__)
-app.secret_key = 'CHANGE_ME_TO_SOMETHING_SECURE'  # Replace with your own secret key.
+# Read the secret key from an environment variable; fallback only for development
+app.secret_key = os.environ.get("SECRET_KEY", "default_key_for_dev")
 
 # Ensure cookies are valid for any subdomain if needed
 app.config.update({
@@ -26,8 +27,8 @@ cache = Cache(app, config={
 
 DB_NAME = '/app/data/users.db'
 
-# --- Hard-coded API Keys ---
-OWM_API_KEY = "f869c65af9d218710883f3321b2cf709"
+# Instead of hard-coding the API key,
+OWM_API_KEY = os.environ.get("OWM_API_KEY", "default_api_key_for_dev")
 
 def init_db():
     """

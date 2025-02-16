@@ -15,6 +15,6 @@ services:
     restart: unless-stopped
     
     # Optional environment variables if you need them (example):
-    # environment:
-    #   - FLASK_ENV=production
-    #   - SECRET_KEY=SUPER_SECURE_KEY
+    environment:
+      - SECRET_KEY="52b1590da2ae7358ca53b726d52de7568d62d49674f99d67f3cb9247a7925f11"
+      - OWM_API_KEY="f869c65af9d218710883f3321b2cf709"

@@ -1,9 +1,11 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash
 import sqlite3
 from werkzeug.security import generate_password_hash
 
 app = Flask(__name__)
-app.secret_key = 'CHANGE_ME_TO_SOMETHING_SECURE_FOR_ADMIN'
+# Read the secret key from an environment variable; fallback only for development
+app.secret_key = os.environ.get("SECRET_KEY", "default_key_for_dev")
 # Use the same database file as used in app.py
 DB_NAME = '/app/data/users.db'
 
