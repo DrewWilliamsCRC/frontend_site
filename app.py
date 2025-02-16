@@ -12,21 +12,28 @@ from src.user_manager_blueprint import user_manager_bp
 from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
-# Read the secret key from an environment variable; fallback only for development
-app.secret_key = os.environ.get("SECRET_KEY", "default_key_for_dev")
+
+# Retrieve a strong, environment-specific secret key.
+# Do not provide a fallback in production!
+app.secret_key = os.environ.get("SECRET_KEY")
+if not app.secret_key:
+    raise ValueError("No SECRET_KEY set for Flask application. Please set the SECRET_KEY environment variable.")
+
+# Recommended secure session cookie configuration.
+app.config.update({
+    'SESSION_COOKIE_DOMAIN': '.drewwilliams.biz',
+    'SESSION_COOKIE_SECURE': True,       # Ensures cookies are sent only over HTTPS
+    'SESSION_COOKIE_HTTPONLY': True,       # Prevents JavaScript from accessing cookies
+    'SESSION_COOKIE_SAMESITE': 'Lax'       # Helps mitigate CSRF. Use 'Strict' if cross-site usage is not required.
+})
 
 # Initialize CSRF Protection
 csrf = CSRFProtect(app)
 
-# Ensure cookies are valid for any subdomain if needed
-app.config.update({
-    'SESSION_COOKIE_DOMAIN': '.drewwilliams.biz'
-})
-
-# Initialize cache: In-memory by default, 5-minute default timeout
+# Initialize cache: In-memory cache with 5-minute default timeout
 cache = Cache(app, config={
     'CACHE_TYPE': 'SimpleCache',
-    'CACHE_DEFAULT_TIMEOUT': 300  # 5 minutes
+    'CACHE_DEFAULT_TIMEOUT': 300,  # 5 minutes
 })
 
 DB_NAME = '/app/data/users.db'
