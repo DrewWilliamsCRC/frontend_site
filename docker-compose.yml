@@ -1,11 +1,11 @@
 services:
   flask_app:
-    build: .
+    image: dawttu00/dawttu_private:frontend
     container_name: frontend
     env_file:
       - .env
     volumes:
-      - ./data:/app/data  # Persist the database and other data.
+      - ./data:/app/data
     ports:
       - "5001:5001"
     restart: unless-stopped
