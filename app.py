@@ -9,10 +9,14 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_caching import Cache
 from src.user_manager_blueprint import user_manager_bp
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
 # Read the secret key from an environment variable; fallback only for development
 app.secret_key = os.environ.get("SECRET_KEY", "default_key_for_dev")
+
+# Initialize CSRF Protection
+csrf = CSRFProtect(app)
 
 # Ensure cookies are valid for any subdomain if needed
 app.config.update({
@@ -276,7 +280,7 @@ def logout():
     return redirect(url_for('login'))
 
 # --- New Refresh Endpoints ---
-@app.route('/refresh_dog')
+@app.route('/refresh_dog', methods=['POST'])
 def refresh_dog():
     if 'user' not in session:
         return "Unauthorized", 401
@@ -285,7 +289,7 @@ def refresh_dog():
     new_dog_url = fetch_random_dog()
     return jsonify({"url": new_dog_url})
 
-@app.route('/refresh_cat')
+@app.route('/refresh_cat', methods=['POST'])
 def refresh_cat():
     if 'user' not in session:
         return "Unauthorized", 401

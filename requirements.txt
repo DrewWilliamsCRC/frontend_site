@@ -2,3 +2,4 @@ Flask
 Werkzeug
 requests
 flask-caching
+Flask-WTF

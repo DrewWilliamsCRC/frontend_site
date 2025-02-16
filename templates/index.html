@@ -96,25 +96,42 @@
         <!-- JavaScript for refreshing images on click -->
         <script>
         document.addEventListener("DOMContentLoaded", function() {
+          // Retrieve CSRF token from the meta tag
+          const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+          
           const dogImage = document.getElementById("dogImage");
           const catImage = document.getElementById("catImage");
 
           dogImage.addEventListener("click", function() {
-            fetch("/refresh_dog")
-              .then(response => response.json())
-              .then(data => {
-                 dogImage.src = data.url;
-              })
-              .catch(error => console.error("Error refreshing dog image:", error));
+            fetch("/refresh_dog", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken
+              },
+              body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+               dogImage.src = data.url;
+            })
+            .catch(error => console.error("Error refreshing dog image:", error));
           });
 
           catImage.addEventListener("click", function() {
-            fetch("/refresh_cat")
-              .then(response => response.json())
-              .then(data => {
-                 catImage.src = data.url;
-              })
-              .catch(error => console.error("Error refreshing cat image:", error));
+            fetch("/refresh_cat", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken
+              },
+              body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+               catImage.src = data.url;
+            })
+            .catch(error => console.error("Error refreshing cat image:", error));
           });
         });
         </script>

@@ -3,6 +3,7 @@
 {% block content %}
 <h1>Edit User</h1>
 <form method="POST" action="{{ url_for('user_manager.edit_user', user_id=user.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="mb-3">
     <label for="username" class="form-label">Username</label>
     <input type="text" class="form-control" name="username" value="{{ user.username }}" required>
