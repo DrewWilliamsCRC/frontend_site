@@ -15,4 +15,8 @@ services:
 
     # Automatically restart unless you deliberately stop it
     restart: unless-stopped
+
+    environment:
+      - FLASK_DEBUG=0
+      - FLASK_ENV=production
     

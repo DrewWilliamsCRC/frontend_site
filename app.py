@@ -297,4 +297,12 @@ def refresh_cat():
 app.register_blueprint(user_manager_bp, url_prefix="/admin")
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    # Determine if debug mode should be on. By default, it's off.
+    # Set FLASK_DEBUG=1 (or "true"/"on") in your development environment.
+    debug_mode = os.environ.get("FLASK_DEBUG", "0").lower() in ("1", "true", "on")
+    
+    # Optionally, read the port from an environment variable.
+    port = int(os.environ.get("PORT", "5001"))
+    
+    # Run the Flask app with the appropriate settings.
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
