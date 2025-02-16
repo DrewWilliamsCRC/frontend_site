@@ -4,6 +4,7 @@ import random
 import requests
 import datetime
 import time
+import re
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -169,6 +170,24 @@ def get_weekly_forecast(lat, lon):
         print(f"[ERROR] Failed to fetch daily forecast: {e}")
     return forecast_list
 
+def sanitize_city_name(city):
+    """
+    Validate and sanitize the city name.
+    Only allow letters, numbers, spaces, commas, periods, hyphens, and apostrophes.
+    If invalid characters are found, they are removed.
+    """
+    city = city.strip()
+    # Define a regex pattern that only allows the specified characters
+    pattern = r"^[A-Za-z0-9\s,\.\-']+$"
+    if re.match(pattern, city):
+        # The city name is valid.
+        return city
+    else:
+        # Remove any disallowed characters.
+        sanitized = re.sub(r"[^A-Za-z0-9\s,\.\-']", "", city)
+        # Fall back to a default value if nothing remains.
+        return sanitized if sanitized else "New York"
+
 # -----------------------------------------------------------------------------------
 # Routes
 # -----------------------------------------------------------------------------------
@@ -217,16 +236,30 @@ def home():
         return redirect(url_for('login'))
 
 def get_coordinates_for_city(city_name):
-    """Uses OpenWeatherMap Geocoding API to get (lat, lon) for a city."""
-    url = f"http://api.openweathermap.org/geo/1.0/direct?q={city_name}&limit=1&appid={OWM_API_KEY}"
+    """
+    Calls the OpenWeatherMap Geocoding API to get (lat, lon) for a given city;
+    the city name is first sanitized to prevent issues with unexpected characters.
+    """
+    # Sanitize the user-supplied city name
+    sanitized_city = sanitize_city_name(city_name)
+    
+    # Build the URL and parameters dict so that requests encodes values properly
+    url = "http://api.openweathermap.org/geo/1.0/direct"
+    params = {
+        "q": sanitized_city,
+        "limit": 1,
+        "appid": OWM_API_KEY,  # Ensure this is defined (from your app config)
+    }
+    
     try:
-        resp = requests.get(url, timeout=5)
+        resp = requests.get(url, params=params, timeout=5)
         resp.raise_for_status()
         data = resp.json()
         if data and len(data) > 0:
             return (data[0]["lat"], data[0]["lon"])
     except Exception as e:
-        print(f"[ERROR] Geocoding city '{city_name}' failed: {e}")
+        print(f"[ERROR] Geocoding city '{sanitized_city}' failed: {e}")
+    
     return (None, None)
 
 @app.route('/settings', methods=['GET', 'POST'])
