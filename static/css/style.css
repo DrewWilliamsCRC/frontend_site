@@ -167,5 +167,5 @@
 
 /* Forecast Column Styling */
 .forecast-col {
-    flex: 0 0 200px; /* Fixed width for every forecast card container */
+    flex: 0 0 150px; /* Fixed width for every forecast card container */
 }
