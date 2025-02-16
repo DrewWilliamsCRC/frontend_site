@@ -91,6 +91,24 @@ def fetch_random_dog():
 
 
 @cache.memoize(timeout=300)  # Cache for 5 minutes
+def fetch_random_cat():
+    """
+    Fetch a random cat image from The Cat API.
+    Returns the image URL, or a fallback image if the API call fails.
+    """
+    fallback_url = "https://via.placeholder.com/300?text=No+Cat+Image"
+    try:
+        r = requests.get("https://api.thecatapi.com/v1/images/search", timeout=5)
+        r.raise_for_status()
+        data = r.json()
+        if data and isinstance(data, list) and len(data) > 0:
+            return data[0].get("url", fallback_url)
+    except Exception as e:
+        app.logger.error("Error fetching random cat image: %s", e)
+    return fallback_url
+
+
+@cache.memoize(timeout=300)  # Cache for 5 minutes
 def get_weekly_forecast(lat, lon):
     """
     Calls OWM One Call API for daily forecast (up to 7 days),
@@ -146,7 +164,7 @@ def auth_check():
 def home():
     """
     Home page, requires user login.
-    Displays random dog pic and 5-day weather forecast.
+    Displays random dog pic, cat image, and 5-day weather forecast.
     """
     if 'user' not in session:
         return redirect(url_for('login'))
@@ -155,8 +173,8 @@ def home():
         username = session['user']
         city_name = get_user_settings(username)
         
-        # Add error handling and loading states
         dog_image_url = fetch_random_dog()
+        cat_image_url = fetch_random_cat()
         lat, lon = get_coordinates_for_city(city_name)
         daily_forecasts = []
         
@@ -170,6 +188,7 @@ def home():
             user=username,
             city_name=city_name,
             dog_image_url=dog_image_url,
+            cat_image_url=cat_image_url,
             daily_forecasts=daily_forecasts
         )
     except Exception as e:
