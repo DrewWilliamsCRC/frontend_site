@@ -10,6 +10,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_caching import Cache
 from src.user_manager_blueprint import user_manager_bp
 from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 
@@ -29,6 +31,14 @@ app.config.update({
 
 # Initialize CSRF Protection
 csrf = CSRFProtect(app)
+
+# Initialize Flask-Limiter with the client's IP address as the key.
+limiter = Limiter(
+    app,
+    key_func=get_remote_address,
+    # Optionally, you can set default limits (for example, 200 per day and 50 per hour)
+    default_limits=["200 per day", "50 per hour"]
+)
 
 # Initialize cache: In-memory cache with 5-minute default timeout
 cache = Cache(app, config={
