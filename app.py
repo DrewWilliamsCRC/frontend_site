@@ -30,6 +30,9 @@ app.config.update({
     'SESSION_COOKIE_SAMESITE': 'Lax'       # Helps mitigate CSRF. Use 'Strict' if cross-site usage is not required.
 })
 
+# Disable rate limiting for now.
+app.config["RATELIMIT_ENABLED"] = False
+
 # Initialize CSRF Protection
 csrf = CSRFProtect(app)
 
