@@ -34,11 +34,10 @@ csrf = CSRFProtect(app)
 
 # Initialize Flask-Limiter with the client's IP address as the key.
 limiter = Limiter(
-    app,
     key_func=get_remote_address,
-    # Optionally, you can set default limits (for example, 200 per day and 50 per hour)
     default_limits=["200 per day", "50 per hour"]
 )
+limiter.init_app(app)
 
 # Initialize cache: In-memory cache with 5-minute default timeout
 cache = Cache(app, config={
@@ -256,6 +255,7 @@ def settings():
         return render_template('settings.html', city_name=city_name)
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute", methods=["POST"], error_message="Too many login attempts, please try again in a minute.")
 def login():
     """Login route."""
     if request.method == 'POST':
