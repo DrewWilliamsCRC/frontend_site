@@ -197,3 +197,47 @@
 .cat-container img:hover {
     cursor: pointer;
 }
+
+/* Dark Mode Styles */
+body.dark-mode {
+    background-color: #121212;
+    color: #e0e0e0;
+}
+
+body.dark-mode a {
+    color: #3498db;
+}
+
+body.dark-mode .navbar {
+    background-color: #222;
+    box-shadow: none;
+}
+
+body.dark-mode .navbar-dark .navbar-nav .nav-link {
+    color: #e0e0e0 !important;
+}
+
+body.dark-mode .card {
+    background-color: #1e1e1e;
+    border-color: #333;
+    color: #e0e0e0;
+}
+
+body.dark-mode .btn-primary {
+    background-color: #2980b9;
+    border: none;
+    color: #ffffff;
+}
+
+body.dark-mode .service-links {
+    background-color: #1e1e1e;
+}
+
+body.dark-mode .weather-card {
+    background-color: #1e1e1e;
+}
+
+body.dark-mode .dog-container,
+body.dark-mode .cat-container {
+    background-color: #1e1e1e;
+}

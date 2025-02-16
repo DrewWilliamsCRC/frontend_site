@@ -42,6 +42,8 @@
             </li>
           {% endif %}
         </ul>
+        <!-- Dark Mode Toggle Button (aligned to the right) -->
+        <button id="darkModeToggle" class="btn btn-outline-light ms-auto">Dark Mode</button>
       </div>
     </div>
   </nav>
@@ -65,13 +67,18 @@
     document.addEventListener("DOMContentLoaded", function() {
       const body = document.body;
       const storedPref = localStorage.getItem("darkMode") === "true";
+      const toggleBtn = document.getElementById("darkModeToggle");
       if (storedPref) {
         body.classList.add("dark-mode");
+        toggleBtn.textContent = "Light Mode";
+      } else {
+        toggleBtn.textContent = "Dark Mode";
       }
-      const toggleBtn = document.getElementById("darkModeToggle");
       toggleBtn.addEventListener("click", function() {
         body.classList.toggle("dark-mode");
-        localStorage.setItem("darkMode", body.classList.contains("dark-mode"));
+        const darkModeActive = body.classList.contains("dark-mode");
+        localStorage.setItem("darkMode", darkModeActive);
+        toggleBtn.textContent = darkModeActive ? "Light Mode" : "Dark Mode";
       });
     });
   </script>
