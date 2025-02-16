@@ -161,8 +161,8 @@ def get_weekly_forecast(lat, lon):
                 description = day["weather"][0].get("description", "")
                 temp_min = round(day["temp"]["min"], 1)
                 temp_max = round(day["temp"]["max"], 1)
-
                 forecast_list.append({
+                    "dt": dt,
                     "date_str": date_str,
                     "icon_url": icon_url,
                     "description": description,
@@ -232,7 +232,9 @@ def home():
             city_name=city_name,
             dog_image_url=dog_image_url,
             cat_image_url=cat_image_url,
-            daily_forecasts=daily_forecasts
+            daily_forecasts=daily_forecasts,
+            lat=lat,
+            lon=lon
         )
     except Exception as e:
         flash("An error occurred while loading the page. Please try again.", "error")
@@ -352,6 +354,21 @@ def refresh_cat():
 
 # Register the blueprint with a URL prefix (e.g., /admin)
 app.register_blueprint(user_manager_bp, url_prefix="/admin")
+
+# New route to handle redirection to OpenWeatherMap details
+@app.route('/weather/details/<int:dt>')
+def weather_details(dt):
+    """Redirect to detailed weather information on OpenWeatherMap for the selected forecast day."""
+    lat = request.args.get('lat')
+    lon = request.args.get('lon')
+    if not lat or not lon:
+        flash("Coordinates are missing for weather details.", "warning")
+        return redirect(url_for('home'))
+    # Construct the OpenWeatherMap URL.
+    # Note: Since OWM does not support day-specific URLs in a straightforward manner,
+    # we link to a general weathermap for the given location.
+    openweather_url = f"https://openweathermap.org/weathermap?lat={lat}&lon={lon}&zoom=10"
+    return redirect(openweather_url)
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.
