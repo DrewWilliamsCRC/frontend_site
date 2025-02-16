@@ -355,20 +355,17 @@ def refresh_cat():
 # Register the blueprint with a URL prefix (e.g., /admin)
 app.register_blueprint(user_manager_bp, url_prefix="/admin")
 
-# New route to handle redirection to OpenWeatherMap details
+# Updated route: Redirect to National Weather Service detailed forecast page
 @app.route('/weather/details/<int:dt>')
 def weather_details(dt):
-    """Redirect to detailed weather information on OpenWeatherMap for the selected forecast day."""
+    """Redirect to detailed weather information on the National Weather Service for the selected forecast day."""
     lat = request.args.get('lat')
     lon = request.args.get('lon')
     if not lat or not lon:
         flash("Coordinates are missing for weather details.", "warning")
         return redirect(url_for('home'))
-    # Construct the OpenWeatherMap URL.
-    # Note: Since OWM does not support day-specific URLs in a straightforward manner,
-    # we link to a general weathermap for the given location.
-    openweather_url = f"https://openweathermap.org/weathermap?lat={lat}&lon={lon}&zoom=10"
-    return redirect(openweather_url)
+    nws_url = f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}"
+    return redirect(nws_url)
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.
