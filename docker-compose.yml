@@ -4,19 +4,8 @@ services:
     container_name: frontend
     env_file:
       - .env
-    
-    # Persist the database by mounting a local "data" folder into the container
     volumes:
-      - ./data:/app/data  # Everything in ./data on the host => /app/data in container
-
-    # Publish port 5001 on the host, so you can access http://localhost:5001
+      - ./data:/app/data  # Persist the database and other data.
     ports:
       - "5001:5001"
-
-    # Automatically restart unless you deliberately stop it
     restart: unless-stopped
-
-    environment:
-      - FLASK_DEBUG=0
-      - FLASK_ENV=production
-    
