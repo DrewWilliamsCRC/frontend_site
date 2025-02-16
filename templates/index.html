@@ -90,16 +90,16 @@
 
         <!-- Weather Forecast Section -->
         <h2 class="text-center mb-4">5-Day Forecast for {{ city_name }}</h2>
-        <div class="row">
+        <div class="d-flex justify-content-center flex-wrap gap-3">
             {% for forecast in daily_forecasts %}
-            <div class="col">
-                <div class="weather-card card text-center mb-4">
+            <div class="forecast-col">
+                <div class="weather-card card text-center">
                     <div class="card-body">
                         <h5 class="card-title">{{ forecast.date_str }}</h5>
                         <img src="{{ forecast.icon_url }}" alt="{{ forecast.description }}">
                         <p class="card-text">{{ forecast.description|title }}</p>
                         <p class="card-text">
-                            <span class="text-primary">{{ forecast.temp_max }}°F</span> / 
+                            <span class="text-primary">{{ forecast.temp_max }}°F</span> /
                             <span class="text-secondary">{{ forecast.temp_min }}°F</span>
                         </p>
                     </div>

@@ -124,3 +124,48 @@
 .dog-container img:hover {
     transform: scale(1.05);
 }
+
+/* Updated Weather Forecast Card Styling */
+.weather-card {
+    transition: transform 0.2s;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    height: 300px; /* Fixed height for uniformity */
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+.weather-card:hover {
+    transform: translateY(-5px);
+}
+
+.weather-card .card-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    height: 100%;
+}
+
+.weather-card .card-title {
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.weather-card img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    margin-bottom: 0.5rem;
+}
+
+.weather-card .card-text {
+    margin: 0.25rem 0;
+}
+
+/* Forecast Column Styling */
+.forecast-col {
+    flex: 0 0 200px; /* Fixed width for every forecast card container */
+}
