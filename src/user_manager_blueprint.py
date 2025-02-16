@@ -1,8 +1,15 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 import sqlite3
 from werkzeug.security import generate_password_hash
 
 user_manager_bp = Blueprint("user_manager", __name__, template_folder="templates")
+
+# Before each request to any admin route, check if the user is logged in.
+@user_manager_bp.before_request
+def require_login():
+    if "user" not in session:
+        flash("Please log in to access admin pages.", "warning")
+        return redirect(url_for("login"))
 
 DB_NAME = "/app/data/users.db"
 
