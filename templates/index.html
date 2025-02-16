@@ -83,15 +83,41 @@
             </div>
         </div>
 
-        <!-- Dog Image Section -->
-        <div class="dog-container">
-            <img src="{{ dog_image_url }}" alt="Random Dog">
+        <!-- Dog and Cat Images Side by Side -->
+        <div class="d-flex justify-content-center gap-3">
+            <div class="dog-container">
+                <img id="dogImage" src="{{ dog_image_url }}" alt="Random Dog">
+            </div>
+            <div class="cat-container">
+                <img id="catImage" src="{{ cat_image_url }}" alt="Random Cat">
+            </div>
         </div>
 
-        <!-- Cat Image Section -->
-        <div class="cat-container">
-            <img src="{{ cat_image_url }}" alt="Random Cat">
-        </div>
+        <!-- JavaScript for refreshing images on click -->
+        <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          const dogImage = document.getElementById("dogImage");
+          const catImage = document.getElementById("catImage");
+
+          dogImage.addEventListener("click", function() {
+            fetch("/refresh_dog")
+              .then(response => response.json())
+              .then(data => {
+                 dogImage.src = data.url;
+              })
+              .catch(error => console.error("Error refreshing dog image:", error));
+          });
+
+          catImage.addEventListener("click", function() {
+            fetch("/refresh_cat")
+              .then(response => response.json())
+              .then(data => {
+                 catImage.src = data.url;
+              })
+              .catch(error => console.error("Error refreshing cat image:", error));
+          });
+        });
+        </script>
 
         <!-- Weather Forecast Section -->
         <h2 class="text-center mb-4">5-Day Forecast for {{ city_name }}</h2>

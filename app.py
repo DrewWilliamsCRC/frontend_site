@@ -5,7 +5,7 @@ import requests
 import datetime
 import time
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_caching import Cache
 from src.user_manager_blueprint import user_manager_bp
@@ -273,6 +273,24 @@ def logout():
     session.pop('user', None)
     flash("Logged out successfully.", "info")
     return redirect(url_for('login'))
+
+# --- New Refresh Endpoints ---
+@app.route('/refresh_dog')
+def refresh_dog():
+    if 'user' not in session:
+        return "Unauthorized", 401
+    # Clear cached value to make another API call
+    cache.delete_memoized(fetch_random_dog)
+    new_dog_url = fetch_random_dog()
+    return jsonify({"url": new_dog_url})
+
+@app.route('/refresh_cat')
+def refresh_cat():
+    if 'user' not in session:
+        return "Unauthorized", 401
+    cache.delete_memoized(fetch_random_cat)
+    new_cat_url = fetch_random_cat()
+    return jsonify({"url": new_cat_url})
 
 # Register the blueprint with a URL prefix (e.g., /admin)
 app.register_blueprint(user_manager_bp, url_prefix="/admin")

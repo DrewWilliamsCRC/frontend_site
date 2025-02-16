@@ -192,3 +192,8 @@
 .cat-container img:hover {
     transform: scale(1.05);
 }
+
+.dog-container img:hover,
+.cat-container img:hover {
+    cursor: pointer;
+}
