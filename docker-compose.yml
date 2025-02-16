@@ -2,6 +2,8 @@ services:
   flask_app:
     build: .
     container_name: frontend
+    env_file:
+      - .env
     
     # Persist the database by mounting a local "data" folder into the container
     volumes:
@@ -14,7 +16,3 @@ services:
     # Automatically restart unless you deliberately stop it
     restart: unless-stopped
     
-    # Optional environment variables if you need them (example):
-    environment:
-      - SECRET_KEY="52b1590da2ae7358ca53b726d52de7568d62d49674f99d67f3cb9247a7925f11"
-      - OWM_API_KEY="f869c65af9d218710883f3321b2cf709"

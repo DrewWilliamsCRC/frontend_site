@@ -4,14 +4,14 @@ import sqlite3
 from werkzeug.security import generate_password_hash
 
 app = Flask(__name__)
-# Read the secret key from an environment variable; fallback only for development
+# Retrieve the secret key from an environment variable.
 app.secret_key = os.environ.get("SECRET_KEY", "default_key_for_dev")
 # Use the same database file as used in app.py
 DB_NAME = '/app/data/users.db'
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row  # enables accessing columns by name
+    conn.row_factory = sqlite3.Row  # Enables accessing columns by name.
     return conn
 
 @app.route('/')
