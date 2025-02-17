@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 import sqlite3
 import random
@@ -49,7 +52,10 @@ cache = Cache(app, config={
     'CACHE_DEFAULT_TIMEOUT': 300,  # 5 minutes
 })
 
-DB_NAME = '/app/data/users.db'
+# Get the absolute path of the current file's directory.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Use a relative subdirectory "data" in your project for the database.
+DB_NAME = os.path.join(BASE_DIR, "data", "users.db")
 
 # Instead of hard-coding the API key,
 OWM_API_KEY = os.environ.get("OWM_API_KEY", "default_api_key_for_dev")
