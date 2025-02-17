@@ -377,6 +377,11 @@ def weather_details(dt):
     nws_url = f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}"
     return redirect(nws_url)
 
+@app.context_processor
+def inject_is_dev_mode():
+    # This will be True when FLASK_ENV is set to "development"
+    return dict(is_dev_mode=(os.environ.get("FLASK_ENV") == "development"))
+
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.
     # Set FLASK_DEBUG=1 (or "true"/"on") in your development environment.
