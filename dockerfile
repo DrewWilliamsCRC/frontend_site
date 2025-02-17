@@ -5,11 +5,11 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # Copy your requirements file first, install dependencies
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements.txt
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of your code into the container
-COPY . /app
+COPY . .
 
 # Expose port 5001 (the port your app listens on)
 EXPOSE 5001
