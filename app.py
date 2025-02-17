@@ -23,13 +23,20 @@ app.secret_key = os.environ.get("SECRET_KEY")
 if not app.secret_key:
     raise ValueError("No SECRET_KEY set for Flask application. Please set the SECRET_KEY environment variable.")
 
-# Recommended secure session cookie configuration.
+# Production secure session cookie configuration.
 app.config.update({
     'SESSION_COOKIE_DOMAIN': '.drewwilliams.biz',
-    'SESSION_COOKIE_SECURE': True,       # Ensures cookies are sent only over HTTPS
-    'SESSION_COOKIE_HTTPONLY': True,       # Prevents JavaScript from accessing cookies
-    'SESSION_COOKIE_SAMESITE': 'Lax'       # Helps mitigate CSRF. Use 'Strict' if cross-site usage is not required.
+    'SESSION_COOKIE_SECURE': True,       # Only send cookies over HTTPS in production.
+    'SESSION_COOKIE_HTTPONLY': True,       # Prevent JavaScript access to cookies.
+    'SESSION_COOKIE_SAMESITE': 'Lax'
 })
+
+# For local development (when running on 127.0.0.1), override the cookie settings.
+if os.environ.get("FLASK_ENV") == "development":
+    app.config.update({
+        'SESSION_COOKIE_DOMAIN': None,  # Use the current domain (i.e., localhost)
+        'SESSION_COOKIE_SECURE': False    # Allow cookies over HTTP in development.
+    })
 
 # Disable rate limiting for now.
 app.config["RATELIMIT_ENABLED"] = False
