@@ -1,11 +1,13 @@
+import os
 import sqlite3
 import sys
 import getpass
 
 from werkzeug.security import generate_password_hash
 
-# Use a consistent database file path (update accordingly if running in production or development)
-DB_NAME = '/docker/frontend/data/users.db'  # or adjust to match your environment
+# Compute the project root assuming this file is in "src/".
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_NAME = os.path.join(BASE_DIR, "data", "users.db")
 
 def hash_password(password):
     """
@@ -51,7 +53,7 @@ def add_user(conn):
     password_hash = hash_password(password)
     try:
         with conn:
-            conn.execute("INSERT INTO users (username, password_hash, city_name) VALUES (?, ?, ?)", 
+            conn.execute("INSERT INTO users (username, password_hash, city_name) VALUES (?, ?, ?)",
                          (username, password_hash, city_name))
         print("User added successfully.")
     except sqlite3.IntegrityError as e:

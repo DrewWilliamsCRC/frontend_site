@@ -3,10 +3,8 @@ load_dotenv()
 
 import os
 import sqlite3
-import random
 import requests
 import datetime
-import time
 import re
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
@@ -52,9 +50,8 @@ cache = Cache(app, config={
     'CACHE_DEFAULT_TIMEOUT': 300,  # 5 minutes
 })
 
-# Get the absolute path of the current file's directory.
+# Use a relative path for the database file:
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Use a relative subdirectory "data" in your project for the database.
 DB_NAME = os.path.join(BASE_DIR, "data", "users.db")
 
 # Instead of hard-coding the API key,
