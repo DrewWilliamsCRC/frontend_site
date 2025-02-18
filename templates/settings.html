@@ -1,14 +1,147 @@
 {% extends "base.html" %}
+{% block title %}Settings{% endblock %}
 {% block content %}
+<div class="settings-container" data-aos="fade-up">
+  <div class="settings-card">
+    <div class="settings-header">
+      <h1>
+        <i class="fas fa-cog"></i>
+        User Settings
+      </h1>
+      <p class="text-muted">Customize your experience</p>
+    </div>
 
-<h2>User Settings</h2>
+    <form method="POST" action="" class="settings-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      
+      <div class="form-group">
+        <label for="city_name">
+          <i class="fas fa-map-marker-alt"></i>
+          Default City
+        </label>
+        <input type="text" id="city_name" name="city_name" 
+               value="{{ city_name }}" class="form-control"
+               placeholder="Enter your city name">
+        <p class="help-text">This city will be used for weather forecasts</p>
+      </div>
+      
+      <button type="submit" class="btn-save">
+        <i class="fas fa-save"></i>
+        Save Settings
+      </button>
+    </form>
+  </div>
+</div>
 
-<form method="POST" action="">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <label for="city_name">City Name:</label>
-    <input type="text" id="city_name" name="city_name" value="{{ city_name }}">
+<style>
+.settings-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: var(--spacing-md);
+}
 
-    <button type="submit">Save Settings</button>
-</form>
+.settings-card {
+  background-color: white;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-lg);
+}
 
+.settings-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.settings-header h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.text-muted {
+  color: var(--text-light);
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.form-group label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-weight: 500;
+}
+
+.help-text {
+  font-size: 0.875rem;
+  color: var(--text-light);
+}
+
+.form-control {
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 2px solid #e5e7eb;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.btn-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-save:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-2px);
+}
+
+/* Dark mode styles */
+body.dark-mode .settings-card {
+  background-color: #1f2937;
+}
+
+body.dark-mode .form-control {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: var(--text-dark);
+}
+
+body.dark-mode .help-text {
+  color: #9ca3af;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .settings-card {
+    padding: var(--spacing-lg);
+  }
+}
+</style>
 {% endblock %}

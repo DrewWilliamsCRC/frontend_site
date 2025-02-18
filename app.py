@@ -3,7 +3,7 @@ load_dotenv()
 
 import os
 import requests
-import datetime
+from datetime import datetime
 import re
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -238,40 +238,74 @@ def auth_check():
 
 @app.route('/')
 def home():
-    """
-    Home page, requires user login.
-    Displays random dog pic, cat image, and 5-day weather forecast.
-    """
+    """Home route."""
     if 'user' not in session:
         return redirect(url_for('login'))
 
+    # Get the user's city from the database
     try:
-        username = session['user']
-        city_name = get_user_settings(username)
-        
-        dog_image_url = fetch_random_dog()
-        cat_image_url = fetch_random_cat()
-        lat, lon = get_coordinates_for_city(city_name)
-        daily_forecasts = []
-        
-        if lat is not None and lon is not None:
-            daily_forecasts = get_weekly_forecast(lat, lon)
-        else:
-            flash("Could not fetch weather data for your city. Please check your city name in settings.", "warning")
-        
-        return render_template(
-            "index.html",
-            user=username,
-            city_name=city_name,
-            dog_image_url=dog_image_url,
-            cat_image_url=cat_image_url,
-            daily_forecasts=daily_forecasts,
-            lat=lat,
-            lon=lon
-        )
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT city_name FROM users WHERE username = %s",
+                    (session['user'],)
+                )
+                result = cur.fetchone()
+                city_name = result['city_name'] if result else None
+                print(f"Retrieved city_name from database: {city_name}")  # Debug log
     except Exception as e:
-        flash("An error occurred while loading the page. Please try again.", "error")
-        return redirect(url_for('login'))
+        print(f"Database error: {e}")
+        city_name = None
+
+    weather_data = None
+    if city_name:
+        try:
+            # Use the global API key
+            if not OWM_API_KEY:
+                print("OpenWeather API key is not set in environment variables")
+                raise ValueError("Missing API key")
+
+            base_url = "http://api.openweathermap.org/data/2.5/forecast"
+            params = {
+                'q': city_name,
+                'appid': OWM_API_KEY,
+                'units': 'metric'
+            }
+            
+            print(f"Making API request for city: {city_name}")  # Debug log
+            response = requests.get(base_url, params=params)
+            print(f"API response status: {response.status_code}")  # Debug log
+            
+            if response.status_code == 200:
+                data = response.json()
+                weather_data = []
+                
+                # Get one forecast per day (every 24 hours)
+                seen_dates = set()
+                for item in data['list']:
+                    # Convert timestamp to datetime object
+                    date_obj = datetime.fromtimestamp(item['dt'])
+                    date = date_obj.strftime('%Y-%m-%d')
+                    
+                    if date not in seen_dates and len(seen_dates) < 5:  # Limit to 5 days
+                        seen_dates.add(date)
+                        weather_data.append({
+                            'date': date_obj.strftime('%A, %b %d'),
+                            'temp': round(item['main']['temp']),
+                            'description': item['weather'][0]['description'].capitalize(),
+                            'icon_url': f"http://openweathermap.org/img/w/{item['weather'][0]['icon']}.png"
+                        })
+                print(f"Processed weather data: {bool(weather_data)}")  # Debug log
+            else:
+                print(f"API error response: {response.text}")  # Debug log
+        except Exception as e:
+            print(f"Weather API error: {e}")
+            weather_data = None
+
+    return render_template('index.html', 
+                         user=session['user'],
+                         city_name=city_name,
+                         weather_data=weather_data)
 
 def get_coordinates_for_city(city_name):
     """

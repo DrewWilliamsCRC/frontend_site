@@ -3,91 +3,117 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}{% endblock %}</title>
+  <title>{% block title %}{% endblock %} | Dashboard</title>
   <meta name="csrf-token" content="{{ csrf_token() }}">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Custom CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <!-- Font Awesome for icons -->
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <!-- AOS Animation Library -->
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
 </head>
 <body>
   {% if is_dev_mode %}
-  <div class="alert alert-danger text-center mb-0" role="alert">
-    You are in development mode!
+  <div class="dev-banner" role="alert">
+    Development Mode
   </div>
   {% endif %}
 
-  <!-- Page Header / Navigation -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
-    <div class="container">
-      <!-- Removed extraneous Home link on the left -->
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav">
-          {% if 'user' in session %}
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('home') }}">Home</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('user_manager.index') }}">User Management</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('settings') }}">Settings</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
-            </li>
-          {% else %}
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('login') }}">Login</a>
-            </li>
-          {% endif %}
-        </ul>
-        <!-- Dark Mode Toggle Button (aligned to the right) -->
-        <button id="darkModeToggle" class="btn btn-outline-light ms-auto">Dark Mode</button>
-      </div>
+  <!-- Sidebar Navigation -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <i class="fas fa-chart-network"></i>
+      <span>Dashboard</span>
     </div>
-  </nav>
-
-  <!-- Main container for page content -->
-  <div class="container">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
-        {% endfor %}
+    
+    <nav class="sidebar-nav">
+      {% if 'user' in session %}
+        <a href="{{ url_for('home') }}" class="nav-item">
+          <i class="fas fa-home"></i>
+          <span>Home</span>
+        </a>
+        <a href="{{ url_for('user_manager.index') }}" class="nav-item">
+          <i class="fas fa-users"></i>
+          <span>Users</span>
+        </a>
+        <a href="{{ url_for('settings') }}" class="nav-item">
+          <i class="fas fa-cog"></i>
+          <span>Settings</span>
+        </a>
+        <a href="{{ url_for('logout') }}" class="nav-item">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Logout</span>
+        </a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="nav-item">
+          <i class="fas fa-sign-in-alt"></i>
+          <span>Login</span>
+        </a>
       {% endif %}
-    {% endwith %}
-    {% block content %}{% endblock %}
+    </nav>
+
+    <div class="theme-toggle">
+      <button id="darkModeToggle" class="theme-btn">
+        <i class="fas fa-moon"></i>
+        <span>Dark Mode</span>
+      </button>
+    </div>
   </div>
 
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="content-wrapper">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
   <script>
+    AOS.init();
+    
     document.addEventListener("DOMContentLoaded", function() {
       const body = document.body;
       const storedPref = localStorage.getItem("darkMode") === "true";
       const toggleBtn = document.getElementById("darkModeToggle");
+      const toggleIcon = toggleBtn.querySelector("i");
+      
       if (storedPref) {
         body.classList.add("dark-mode");
-        toggleBtn.textContent = "Light Mode";
-      } else {
-        toggleBtn.textContent = "Dark Mode";
+        toggleIcon.classList.remove("fa-moon");
+        toggleIcon.classList.add("fa-sun");
       }
+      
       toggleBtn.addEventListener("click", function() {
         body.classList.toggle("dark-mode");
-        const darkModeActive = body.classList.contains("dark-mode");
-        localStorage.setItem("darkMode", darkModeActive);
-        toggleBtn.textContent = darkModeActive ? "Light Mode" : "Dark Mode";
+        const isDark = body.classList.contains("dark-mode");
+        localStorage.setItem("darkMode", isDark);
+        
+        if (isDark) {
+          toggleIcon.classList.remove("fa-moon");
+          toggleIcon.classList.add("fa-sun");
+        } else {
+          toggleIcon.classList.remove("fa-sun");
+          toggleIcon.classList.add("fa-moon");
+        }
       });
     });
   </script>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

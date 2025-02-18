@@ -1,22 +1,169 @@
 {% extends "base.html" %}
 {% block title %}Add User{% endblock %}
 {% block content %}
-<h1>Add User</h1>
-<form method="POST" action="{{ url_for('user_manager.add_user') }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="mb-3">
-    <label for="username" class="form-label">Username</label>
-    <input type="text" class="form-control" name="username" required>
+<div class="form-container" data-aos="fade-up">
+  <div class="form-card">
+    <div class="form-header">
+      <h1>
+        <i class="fas fa-user-plus"></i>
+        Add New User
+      </h1>
+    </div>
+
+    <form method="POST" action="{{ url_for('user_manager.add_user') }}" class="user-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      
+      <div class="form-group">
+        <label for="username">
+          <i class="fas fa-user"></i>
+          Username
+        </label>
+        <input type="text" id="username" name="username" required 
+               class="form-control" autocomplete="username">
+      </div>
+      
+      <div class="form-group">
+        <label for="password">
+          <i class="fas fa-lock"></i>
+          Password
+        </label>
+        <input type="password" id="password" name="password" required 
+               class="form-control" autocomplete="new-password">
+      </div>
+      
+      <div class="form-group">
+        <label for="city_name">
+          <i class="fas fa-map-marker-alt"></i>
+          City Name
+        </label>
+        <input type="text" id="city_name" name="city_name" 
+               class="form-control" placeholder="Optional">
+      </div>
+      
+      <div class="form-actions">
+        <button type="submit" class="btn-submit">
+          <i class="fas fa-save"></i>
+          Add User
+        </button>
+        <a href="{{ url_for('user_manager.index') }}" class="btn-cancel">
+          <i class="fas fa-times"></i>
+          Cancel
+        </a>
+      </div>
+    </form>
   </div>
-  <div class="mb-3">
-    <label for="password" class="form-label">Password</label>
-    <input type="password" class="form-control" name="password" required>
-  </div>
-  <div class="mb-3">
-    <label for="city_name" class="form-label">City Name</label>
-    <input type="text" class="form-control" name="city_name">
-  </div>
-  <button type="submit" class="btn btn-primary">Add User</button>
-  <a href="{{ url_for('user_manager.index') }}" class="btn btn-secondary">Cancel</a>
-</form>
+</div>
+
+<style>
+.form-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: var(--spacing-md);
+}
+
+.form-card {
+  background-color: white;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.form-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.form-header h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 1.5rem;
+  color: var(--primary);
+}
+
+.user-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.form-group label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  font-weight: 500;
+}
+
+.form-control {
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 2px solid #e5e7eb;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.btn-submit,
+.btn-cancel {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-submit {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-cancel {
+  background-color: #e5e7eb;
+  color: var(--text-light);
+  text-decoration: none;
+}
+
+.btn-submit:hover,
+.btn-cancel:hover {
+  transform: translateY(-2px);
+}
+
+.btn-submit:hover {
+  background-color: var(--primary-dark);
+}
+
+.btn-cancel:hover {
+  background-color: #d1d5db;
+}
+
+body.dark-mode .form-card {
+  background-color: #1f2937;
+}
+
+body.dark-mode .form-control {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: var(--text-dark);
+}
+
+body.dark-mode .btn-cancel {
+  background-color: #374151;
+  color: var(--text-dark);
+}
+</style>
 {% endblock %}
