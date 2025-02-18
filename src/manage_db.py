@@ -1,140 +1,173 @@
+#!/usr/bin/env python3
 import os
-import sqlite3
 import sys
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import getpass
-
 from werkzeug.security import generate_password_hash
+from dotenv import load_dotenv
+from psycopg2 import IntegrityError
 
-# Compute the project root assuming this file is in "src/".
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_NAME = os.path.join(BASE_DIR, "data", "users.db")
+# Load environment variables from .env (if used)
+load_dotenv()
 
-def hash_password(password):
+if os.environ.get("FLASK_ENV") == "development":
+    DATABASE_URL = os.environ.get("DEV_DATABASE_URL", os.environ.get("DATABASE_URL"))
+else:
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ValueError("No DATABASE_URL set for the Flask application.")
+
+def get_db_connection():
     """
-    Returns a hashed version of the given password using Werkzeug's generate_password_hash.
-    This ensures compatibility with check_password_hash used during login.
+    Establish a connection to the PostgreSQL database.
     """
-    return generate_password_hash(password)
+    try:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        return conn
+    except psycopg2.Error as e:
+        print(f"Error connecting to database: {e}")
+        sys.exit(1)
 
 def create_table(conn):
     """
-    Ensures the 'users' table exists with the updated schema.
+    Create the users table if it does not exist.
     """
-    with conn:
-        conn.execute('''
+    with conn.cursor() as cur:
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 city_name TEXT
             );
-        ''')
+        """)
+        conn.commit()
+    print("Table 'users' ensured exists.")
 
 def list_users(conn):
     """
-    Lists all users in the database with their ID, username, and city name.
+    List all users in the database.
     """
-    cursor = conn.execute("SELECT id, username, city_name FROM users")
-    rows = cursor.fetchall()
-    if rows:
-        print("\nUsers:")
-        for row in rows:
-            print(f"ID: {row[0]}, Username: {row[1]}, City: {row[2]}")
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM users ORDER BY id;")
+        users = cur.fetchall()
+    if not users:
+        print("No users found.")
     else:
-        print("\nNo users found.")
+        print("Users:")
+        for user in users:
+            print(f"ID: {user['id']}, Username: {user['username']}, City: {user['city_name']}")
 
 def add_user(conn):
     """
-    Adds a new user to the database with a hashed password.
+    Add a new user to the database through a CLI prompt.
     """
-    username = input("Enter username: ")
-    password = getpass.getpass("Enter password: ")
-    city_name = input("Enter city name (optional): ")
-    password_hash = hash_password(password)
-    try:
-        with conn:
-            conn.execute("INSERT INTO users (username, password_hash, city_name) VALUES (?, ?, ?)",
-                         (username, password_hash, city_name))
-        print("User added successfully.")
-    except sqlite3.IntegrityError as e:
-        print(f"Error adding user: {e}")
-
-def update_user(conn):
-    """
-    Updates an existing user's information in the database, including hashed password.
-    """
-    try:
-        user_id = int(input("Enter the user ID to update: "))
-    except ValueError:
-        print("Invalid ID. Please enter a number.")
+    username = input("Enter username: ").strip()
+    if not username:
+        print("Username cannot be empty.")
         return
-
-    new_username = input("Enter new username: ")
-    new_password = getpass.getpass("Enter new password: ")
-    new_city = input("Enter new city name (optional): ")
-    new_password_hash = hash_password(new_password)
+    password = getpass.getpass("Enter password: ").strip()
+    if not password:
+        print("Password cannot be empty.")
+        return
+    # Hash the password (for example purposes, using werkzeug's generate_password_hash)
+    password_hash = generate_password_hash(password)
+    city_name = input("Enter city name (optional): ").strip()
     
-    with conn:
-        cursor = conn.execute(
-            "UPDATE users SET username = ?, password_hash = ?, city_name = ? WHERE id = ?",
-            (new_username, new_password_hash, new_city, user_id)
-        )
-    if cursor.rowcount > 0:
-        print("User updated successfully.")
-    else:
-        print("User not found.")
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO users (username, password_hash, city_name) VALUES (%s, %s, %s)",
+                (username, password_hash, city_name),
+            )
+        conn.commit()
+        print("User added successfully.")
+    except IntegrityError:
+        conn.rollback()
+        print("Error: Username already exists.")
+    except Exception as e:
+        conn.rollback()
+        print(f"Error adding user: {e}")
 
 def delete_user(conn):
     """
-    Deletes a user from the database.
+    Delete a user by their ID.
     """
-    try:
-        user_id = int(input("Enter the user ID to delete: "))
-    except ValueError:
-        print("Invalid ID. Please enter a number.")
+    user_id = input("Enter user ID to delete: ").strip()
+    if not user_id.isdigit():
+        print("Invalid ID.")
         return
-
-    with conn:
-        cursor = conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
-    if cursor.rowcount > 0:
+    user_id = int(user_id)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM users WHERE id = %s;", (user_id,))
+        conn.commit()
         print("User deleted successfully.")
-    else:
-        print("User not found.")
+    except Exception as e:
+        conn.rollback()
+        print(f"Error deleting user: {e}")
+
+def show_help():
+    """
+    Display the help message listing available commands.
+    """
+    help_text = """
+Usage: python manage_db.py [command]
+
+Commands:
+    init      - Initialize the database (create tables).
+    list      - List all users in the database.
+    add       - Add a new user.
+    delete    - Delete a user by ID.
+    help      - Show this help message.
+"""
+    print(help_text)
+
+def init_db():
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    city_name TEXT
+                );
+            """)
+            conn.commit()
+    print("Database initialized or updated.")
 
 def main():
-    """
-    Main function that connects to the database and handles the interactive menu.
-    """
     try:
-        conn = sqlite3.connect(DB_NAME)
+        conn = psycopg2.connect(DATABASE_URL)
         create_table(conn)
-    except sqlite3.Error as e:
+    except psycopg2.Error as e:
         print(f"Error connecting to database: {e}")
         sys.exit(1)
-
-    while True:
-        print("\nUser Database Management")
-        print("1. List users")
-        print("2. Add user")
-        print("3. Update user")
-        print("4. Delete user")
-        print("5. Exit")
-        choice = input("Enter your choice (1-5): ")
-
-        if choice == '1':
-            list_users(conn)
-        elif choice == '2':
-            add_user(conn)
-        elif choice == '3':
-            update_user(conn)
-        elif choice == '4':
-            delete_user(conn)
-        elif choice == '5':
-            print("Exiting...")
-            break
-        else:
-            print("Invalid choice, please try again.")
-
+    
+    if len(sys.argv) < 2:
+        print("Error: Command required.")
+        show_help()
+        sys.exit(1)
+    
+    command = sys.argv[1].lower()
+    
+    if command == "init":
+        init_db()
+    elif command == "list":
+        list_users(conn)
+    elif command == "add":
+        add_user(conn)
+    elif command == "delete":
+        delete_user(conn)
+    elif command == "help":
+        show_help()
+    else:
+        print(f"Unknown command: {command}")
+        show_help()
+    
     conn.close()
 
 if __name__ == "__main__":

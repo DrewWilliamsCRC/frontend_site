@@ -1,11 +1,26 @@
+version: "3.8"
+
 services:
-  flask_app:
-    image: dawttu00/dawttu_private:frontend
-    container_name: frontend
+  db:
+    image: postgres:13
+    restart: always
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  frontend:
+    image: dawttu00/dawttu_private:frontend
+    container_name: frontend
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - db
     ports:
       - "5001:5001"
-    restart: unless-stopped
+
+volumes:
+  postgres_data:

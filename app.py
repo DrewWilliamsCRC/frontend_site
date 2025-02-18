@@ -2,10 +2,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
-import sqlite3
 import requests
 import datetime
 import re
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -59,33 +60,47 @@ cache = Cache(app, config={
 
 # Use a relative path for the database file:
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_NAME = os.path.join(BASE_DIR, "data", "users.db")
 
 # Instead of hard-coding the API key,
 OWM_API_KEY = os.environ.get("OWM_API_KEY", "default_api_key_for_dev")
 
+# Select the appropriate DATABASE_URL depending on the environment
+if os.environ.get("FLASK_ENV") == "development":
+    DATABASE_URL = os.environ.get("DEV_DATABASE_URL", os.environ.get("DATABASE_URL"))
+else:
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ValueError("No DATABASE_URL set for the Flask application.")
+
+def get_db_connection():
+    """
+    Returns a new database connection using psycopg2 and a RealDictCursor.
+    """
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    return conn
+
 def init_db():
     """
-    Initialize the DB, ensuring 'users' table has city_name column.
+    Initializes the database schema for the users table.
+    Uses PostgreSQL-specific SQL syntax, with SERIAL for auto-increment.
     """
-    with sqlite3.connect(DB_NAME) as conn:
-        # Create the users table if not exists
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL
-            )
-        """)
-        # Add city_name column if not present
-        try:
-            conn.execute("ALTER TABLE users ADD COLUMN city_name TEXT")
-        except sqlite3.OperationalError:
-            pass
-
-    print("Database initialized or updated.")
-
-init_db()
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    city_name TEXT
+                );
+            """)
+            conn.commit()
+        conn.close()
+        print("Database initialized or updated.")
+    except Exception as e:
+        print("Error initializing the database:", e)
 
 # -----------------------------------------------------------------------------------
 # Helper functions
@@ -93,16 +108,24 @@ init_db()
 
 def get_user_settings(username):
     """
-    Retrieves the city_name for the given user.
-    Returns a default if blank.
+    Retrieves the city setting for the given username using PostgreSQL.
+    Falls back to a default city ("New York") if no value is found.
     """
     default_city = "New York"
-    with sqlite3.connect(DB_NAME) as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT city_name FROM users WHERE username=?", (username,))
-        row = cur.fetchone()
+    conn = get_db_connection()  # Uses psycopg2 and RealDictCursor for dictionary rows
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT city_name FROM users WHERE username=%s;", (username,))
+            row = cur.fetchone()
+    except Exception as e:
+        print("Error retrieving user settings:", e)
+        return default_city
+    finally:
+        conn.close()
+
     if row:
-        user_city = row[0] if row[0] else default_city
+        # Assuming a RealDictCursor is used, 'row' is a dictionary.
+        user_city = row["city_name"] if row["city_name"] is not None else default_city
         return user_city
     else:
         return default_city
@@ -286,53 +309,63 @@ def settings():
     username = session['user']
     if request.method == 'POST':
         new_city = request.form.get('city_name', '').strip()
-        with sqlite3.connect(DB_NAME) as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                UPDATE users
-                SET city_name = ?
-                WHERE username = ?
-            """, (new_city, username))
-            conn.commit()
-
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE users
+                    SET city_name = %s
+                    WHERE username = %s
+                """, (new_city, username))
+                conn.commit()
+        except Exception as e:
+            conn.rollback()
+            flash("Error updating settings: {}".format(e), "danger")
+        finally:
+            conn.close()
         flash("Settings updated!", "success")
         return redirect(url_for('home'))
     else:
-        # Show current settings
+        # Show current settings using the updated PostgreSQL connection.
         city_name = get_user_settings(username)
         return render_template('settings.html', city_name=city_name)
 
 @app.route('/login', methods=['GET', 'POST'])
 @limiter.limit("5 per minute", methods=["POST"], error_message="Too many login attempts, please try again in a minute.")
 def login():
-    """Login route."""
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
 
-        with sqlite3.connect(DB_NAME) as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT password_hash FROM users WHERE username=?", (username,))
-            row = cur.fetchone()
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT password_hash FROM users WHERE username=%s;", (username,))
+                row = cur.fetchone()
+        except Exception as e:
+            app.logger.error(f"Database error during login: {e}")
+            return "Internal server error", 500
+        finally:
+            conn.close()
 
         if row:
-            stored_hash = row[0]
+            # With RealDictCursor, 'row' is a dict containing the column names.
+            stored_hash = row["password_hash"]
             if check_password_hash(stored_hash, password):
-                # Valid login
                 session['user'] = username
                 flash("Login successful!", "success")
                 return redirect(url_for('home'))
             else:
-                # Wrong password
                 app.logger.warning(
                     f"Failed login attempt for existing user {username} from {request.remote_addr}"
                 )
+                flash("Invalid credentials", "danger")
                 return "Invalid credentials", 401
         else:
-            # No such user
             app.logger.warning(
                 f"Failed login attempt for non-existent user {username} from {request.remote_addr}"
             )
+            flash("Invalid credentials", "danger")
             return "Invalid credentials", 401
 
     return render_template('login.html')

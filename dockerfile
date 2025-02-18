@@ -1,23 +1,21 @@
 # Use an official Python runtime as a parent image
 FROM python:3.10-slim
 
-# Create a working directory inside the container
+# Set a working directory
 WORKDIR /app
 
-# Copy your requirements file first, install dependencies
-COPY requirements.txt requirements.txt
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+# Install system dependencies (if needed)
+RUN apt-get update && apt-get install -y build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
 
-# Copy the rest of your code into the container
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application code into the container
 COPY . .
 
-# Expose port 5001 (the port your app listens on)
+# Expose the port that the app will listen on
 EXPOSE 5001
 
-# If your app runs with a built-in dev server:
-# CMD ["python", "app.py"]
-
-# However, for production, best practice is to use Gunicorn (or uWSGI):
-# We'll do a quick Gunicorn example that listens on 0.0.0.0:5001:
-RUN pip install gunicorn
+# Use Gunicorn to serve the application in production
 CMD ["gunicorn", "--bind", "0.0.0.0:5001", "app:app"]

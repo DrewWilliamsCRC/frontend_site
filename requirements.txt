@@ -5,3 +5,4 @@ flask-caching
 Flask-WTF
 Flask-Limiter
 python-dotenv
+psycopg2-binary
