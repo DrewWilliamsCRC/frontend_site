@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   db:
     image: postgres:13
@@ -10,6 +8,8 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - frontend_net
 
   frontend:
     image: dawttu00/dawttu_private:frontend
@@ -21,6 +21,12 @@ services:
       - db
     ports:
       - "5001:5001"
+    networks:
+      - frontend_net
 
 volumes:
   postgres_data:
+
+networks:
+  frontend_net:
+    driver: bridge
