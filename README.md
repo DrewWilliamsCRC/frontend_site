@@ -1,6 +1,106 @@
 # Frontend Site with User Auth (Flask)
 
-This project is a lightweight web application built with Flask that provides secure user authentication, a customizable landing page, and an interactive dashboard. It integrates multiple external APIs to display a dynamic 5-day weather forecast, a random dog image, and a random cat image—all of which can be refreshed on demand. In addition, the application provides quick access links to various media management, system, and monitoring services. An administration section (via a user management blueprint) is available to manage users from a dedicated dashboard.
+A modern web application built with Flask that provides secure user authentication, dynamic content, and an interactive dashboard. Features weather forecasts, random pet images, and quick access to various services.
+
+## Key Features
+
+- 🔐 **Secure Authentication** - User registration and login with password hashing
+- 🌤️ **Weather Dashboard** - 5-day forecast using OpenWeatherMap API
+- 🐱 **Random Pet Images** - Integration with Dog and Cat APIs
+- 🎯 **Service Quick Links** - Easy access to media and system services
+- 👤 **User Management** - Admin dashboard for user administration
+- 🌙 **Dark Mode** - Toggle between light and dark themes
+- 📱 **Responsive Design** - Optimized for all device sizes
+- 🐳 **Docker Ready** - Containerized deployment support
+
+## Quick Start
+
+### Prerequisites
+- Python 3.10+
+- PostgreSQL
+- Docker & Docker Compose (optional)
+
+### Local Setup
+
+1. Clone and setup environment:
+```bash
+git clone <repository_url>
+cd frontend_site
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+2. Configure `.env`:
+```
+SECRET_KEY="your-secret-key"
+OWM_API_KEY="your-openweather-api-key"
+FLASK_DEBUG=1
+FLASK_ENV=development
+PORT=5001
+DATABASE_URL=postgresql://user:password@localhost:5432/dbname
+```
+
+3. Initialize database:
+```bash
+createdb frontend_db
+python3 -c "from app import init_db; init_db()"
+```
+
+### Docker Setup
+
+1. Build and run:
+```bash
+docker compose up -d
+```
+
+## Project Structure
+
+```
+├── app.py                 # Main Flask application
+├── src/
+│   └── user_manager.py    # User management blueprint
+├── templates/             # HTML templates
+├── static/               # CSS and assets
+├── Dockerfile
+└── docker-compose.yml
+```
+
+## Security Features
+
+- Password hashing with Werkzeug
+- CSRF protection
+- Rate limiting
+- Secure session configuration
+- HTTPS-only cookies in production
+
+## API Integration
+
+- **OpenWeather API** - Weather forecasts
+- **Dog API** - Random dog images
+- **Cat API** - Random cat images
+
+## Cache Configuration
+
+- 5-minute default timeout
+- In-memory storage
+- Automatic invalidation
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit changes
+4. Push to the branch
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+For detailed documentation and API references, visit our [Wiki](link-to-wiki).
 
 ---
 
@@ -29,21 +129,24 @@ This project is a lightweight web application built with Flask that provides sec
 
 - **User Authentication:** Secure registration and login with hashed passwords (using Werkzeug) and session-based mechanisms.
 - **Dynamic Home Page:** Displays a randomized dog image and a random cat image, both of which can be refreshed with a simple click.
-- **Weather Forecast:** Provides a dynamic 5-day weather forecast (sourced from the OpenWeatherMap API) based on a user-defined city. Each forecast card links to detailed weather data on the National Weather Service website.
+- **Weather Forecast:** Provides a dynamic 5-day weather forecast (sourced from the OpenWeatherMap API) based on a user-defined city. Each forecast card shows temperature in Celsius, weather description, and weather icon.
 - **Service Dashboard:** Quick access buttons for external services such as Sonarr, Radarr, NZBGet, Unifi Controller, Code Server, and monitoring tools (e.g., Portainer and Glances).
 - **User Settings:** Allows users to update their preferred city to tailor the weather information.
 - **Admin User Management:** A dedicated administration section (accessible under `/admin`) enables listing, adding, editing, and deleting users.
-- **SQLite Database:** A lightweight SQLite database is automatically created and updated on startup to store user information and settings.
+- **Database Support:** Uses PostgreSQL for robust data storage in both development and production environments.
 - **Caching:** Uses Flask-Caching to cache responses from external APIs (dog and cat images, weather forecasts) for improved performance.
-- **Dark Mode:** A dark mode toggle is provided on every page, allowing users to switch themes on the fly.
+- **Dark Mode:** A dark mode toggle is provided on every page, allowing users to switch between light and dark themes.
+- **Improved UI & Responsiveness:** Modern templates and CSS styles with enhanced dark mode support and improved responsiveness across devices.
 - **Dockerized Environment:** Comes with Docker and Docker Compose configurations to ease containerized deployment in production.
+- **Rate Limiting:** Implements Flask-Limiter for API rate limiting (currently disabled but configurable).
+- **CSRF Protection:** Implements Flask-WTF CSRF protection for enhanced security.
 
 ---
 
 ## Project Structure
 
 - **app.py:** Main Flask application that handles routes, sessions, API calls, and error handling.
-- **manage_db.py:** A CLI tool for database management (adding, updating, listing, and deleting users).
+- **src/user_manager_blueprint.py:** Blueprint for user management functionality.
 - **wsgi.py:** WSGI entry point (for servers such as Gunicorn).
 - **templates/**: Contains the HTML templates:
   - `base.html` – Common layout with navigation, messages, and dark mode toggle.
@@ -51,14 +154,17 @@ This project is a lightweight web application built with Flask that provides sec
   - `login.html` – Login form.
   - `settings.html` – User settings form.
   - `user_manager_index.html`, `add_user.html`, `edit_user.html` – Templates for administering users.
-- **static/**: Contains CSS files:
-  - `css/style.css` – Custom styles for the application.
-  - `style.css` – Additional modern styling.
-- **Dockerfile:** Instructions to containerize the application using Gunicorn as the production server.
-- **docker-compose.yml:** Defines the Docker service, volume mounts (for persisting the SQLite database), and port mappings.
-- **deploy.sh:** A deploy script to sync code and redeploy containerized services.
+- **static/**: Contains CSS files and assets
+- **.env:** Contains environment variables including:
+  - SECRET_KEY
+  - OWM_API_KEY
+  - FLASK_DEBUG
+  - FLASK_ENV
+  - PORT
+  - DATABASE_URL
+- **Dockerfile:** Instructions to containerize the application.
+- **docker-compose.yml:** Defines the Docker services and configuration.
 - **requirements.txt:** Lists the required Python dependencies.
-- **.gitignore:** Specifies files and directories (e.g., virtual environments, database files, logs) to ignore.
 
 ---
 
@@ -68,6 +174,7 @@ This project is a lightweight web application built with Flask that provides sec
 - **pip**
 - **Virtual Environment** (recommended for local development)
 - **Docker & Docker Compose** (for containerized deployments)
+- **PostgreSQL**
 
 ---
 
@@ -92,142 +199,88 @@ This project is a lightweight web application built with Flask that provides sec
    pip install -r requirements.txt
    ```
 
-4. **Initialize the Database:**
-   - The SQLite database (`users.db`) is automatically created and updated when the application starts.
-   - Alternatively, you can manage users via the CLI using:
-     ```bash
-     python manage_db.py
-     ```
-
-### Docker Setup
-
-1. **Build the Docker Image:**
-   ```bash
-   docker build -t frontend_site .
+4. **Configure Environment Variables:**
+   Create a `.env` file with the following required variables:
+   ```
+   SECRET_KEY="your-secret-key"
+   OWM_API_KEY="your-openweather-api-key"
+   FLASK_DEBUG=1
+   FLASK_ENV=development
+   PORT=5001
+   DATABASE_URL=postgresql://user:password@localhost:5432/dbname
    ```
 
-2. **Run with Docker Compose:**
+### Docker Setup
+1. **Build the Docker Image:**
+   ```bash
+   docker build -t frontend-site .
+   ```
+
+2. **Configure Environment Variables:**
+   Create a `.env` file with the same variables as local setup, but update the DATABASE_URL to use the Docker service name:
+   ```
+   DATABASE_URL=postgresql://db:password@postgres:5432/frontend_db
+   ```
+
+3. **Configure Docker Network:**
+   The application and database containers will automatically be connected via the network defined in docker-compose.yml.
+
+1. **Build and Run with Docker Compose:**
    ```bash
    docker compose up -d
    ```
-   - This command runs a container named `frontend` while mapping the local `./data` directory to persist the SQLite database at `/app/data`, and exposing port `5001`.
-
-3. **Using the Deploy Script:**
-   ```bash
-   ./deploy.sh
-   ```
 
 ---
+## Database Setup
+
+1. **Create PostgreSQL Database:**
+   ```bash
+   createdb frontend_db
+   ```
+
+2. **Initialize Database Schema:**
+   The application will automatically create required tables on startup. Alternatively, you can manually initialize:
+   ```bash
+   python3 -c "from app import init_db; init_db()"
+   ```
+
+## Security Configuration
+
+1. **Generate a Strong Secret Key:**
+   ```bash
+   python3 -c "import secrets; print(secrets.token_hex(32))"
+   ```
+   Add the generated key to your `.env` file.
+
+2. **Configure Session Security:**
+   - Production settings enforce HTTPS-only cookies
+   - Local development allows HTTP cookies
+   - All cookies are HttpOnly and use SameSite=Lax
+
+3. **Rate Limiting:**
+   Default limits are configured to:
+   - 200 requests per day
+   - 50 requests per hour
+   
+4. **CSRF Protection:**
+   All forms are protected against Cross-Site Request Forgery attacks.
+
+## API Keys
+
+1. **OpenWeather API:**
+   - Sign up at [OpenWeather](https://openweathermap.org/api)
+   - Get your API key from the account dashboard
+   - Add to `.env` as `OWM_API_KEY`
+
+## Caching
+
+The application uses SimpleCache with:
+- 5-minute default timeout
+- In-memory storage
+- Automatic cache invalidation
 
 ## Running the Application
 
 ### Development Mode
 
 Run the Flask development server:
-```bash
-python app.py
-```
-- By default, the app listens on port 5001.
-- Open your browser at [http://0.0.0.0:5001](http://0.0.0.0:5001).
-
-### Production Deployment
-
-**Using Gunicorn:**
-```bash
-gunicorn --bind 0.0.0.0:5001 app:app
-```
-- This is also configured within the Dockerfile for production deployments.
-
-A sample **Nginx reverse proxy** configuration:
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:5001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-**Security Recommendations:**
-
-- Set a strong `SECRET_KEY` via environment variables.
-- Always use HTTPS in production.
-- Consider implementing two-factor authentication or advanced security measures as needed.
-
----
-
-## Database Management
-
-- **SQLite Database:** Located as `users.db` (or at `/app/data/users.db` in Docker).
-- **CLI Management:** Use `manage_db.py` for adding, updating, listing, and deleting users:
-  ```bash
-  python manage_db.py
-  ```
-
----
-
-## Configuration
-
-- **API Keys:**
-  - Update the OpenWeatherMap API key in `app.py` (the variable `OWM_API_KEY`) with your own key available from [OpenWeatherMap](https://openweathermap.org/api).
-- **Environment Variables:**
-  - Ensure that `SECRET_KEY` (for session security) and `OWM_API_KEY` are set in your environment or via the `.env` file.
-- **Database Persistence:**
-  - When using Docker, the SQLite database is persisted by mounting `./data` to `/app/data` in the container.
-
----
-
-## Frontend Details
-
-- **Templates & Styling:** 
-  - The application uses Jinja2 templates for dynamic content rendering.
-  - Custom CSS styles (found in `static/css/style.css` and `static/style.css`) provide a modern look and responsive design.
-- **Dynamic Content Refresh:**
-  - Clicking on the dog or cat images sends a POST request to `/refresh_dog` or `/refresh_cat` respectively to fetch a new image, leveraging Flask-Caching.
-- **Dark Mode Support:** 
-  - A dark mode toggle button (located in the navigation bar) allows users to switch between light and dark themes. User preference is stored using local storage.
-
----
-
-## Admin User Management
-
-- **User Dashboard:** 
-  - A dedicated admin section is available via the `/admin` URL prefix.
-  - Administrators can view a list of registered users, add new users, edit existing users, and delete users—all via a user-friendly interface.
-- **Blueprint Integration:**
-  - The user management functionality is provided by a Flask blueprint (`user_manager_blueprint`) that organizes all admin routes under the `/admin` route.
-
----
-
-## Contributing
-
-Contributions are welcome! Please fork the repository, create a feature branch for your changes, and submit a pull request. For major changes, please open an issue first to discuss what you'd like to change.
-
----
-
-## License
-
-[Include your license information here. For example: MIT License]
-
----
-
-## Acknowledgements
-
-- [Flask](https://flask.palletsprojects.com/)
-- [Werkzeug](https://werkzeug.palletsprojects.com/)
-- [OpenWeatherMap API](https://openweathermap.org/api)
-- [Dog CEO's Dog API](https://dog.ceo/dog-api/)
-- [The Cat API](https://thecatapi.com/)
-- [Bootstrap](https://getbootstrap.com/)
-- [Font Awesome](https://fontawesome.com/)
-
----
-
-This README provides comprehensive instructions on setting up, running, and deploying the project in various environments. For any issues, improvements, or further discussions, please open an issue in the repository.
-

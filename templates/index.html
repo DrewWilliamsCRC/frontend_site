@@ -16,6 +16,7 @@
       Media Management
     </h2>
     <div class="service-grid">
+      <!-- Default services -->
       <a href="https://drewwilliams.biz/sonarr/" target="_blank" class="service-card">
         <div class="service-icon">
           <i class="fas fa-tv"></i>
@@ -23,7 +24,7 @@
         <h3>Sonarr</h3>
         <p>TV Show Management</p>
       </a>
-      
+
       <a href="https://drewwilliams.biz/radarr/" target="_blank" class="service-card">
         <div class="service-icon">
           <i class="fas fa-film"></i>
@@ -31,13 +32,40 @@
         <h3>Radarr</h3>
         <p>Movie Management</p>
       </a>
-      
+
       <a href="https://drewwilliams.biz/nzbget/" target="_blank" class="service-card">
         <div class="service-icon">
           <i class="fas fa-download"></i>
         </div>
         <h3>NZBGet</h3>
         <p>Download Manager</p>
+      </a>
+      
+      <!-- Custom services for media section -->
+      {% for service in media_services %}
+      <a href="{{ service.url }}" target="_blank" class="service-card">
+        <div class="service-icon">
+          <i class="fas {{ service.icon }}"></i>
+        </div>
+        <h3>{{ service.name }}</h3>
+        <p>{{ service.description }}</p>
+        <form method="POST" action="{{ url_for('delete_service', service_id=service.id) }}"
+              class="delete-service" onsubmit="return confirm('Delete this service?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn-delete-service" title="Delete service">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </form>
+      </a>
+      {% endfor %}
+
+      <!-- Add service card -->
+      <a href="{{ url_for('add_service') }}" class="service-card add-card">
+        <div class="service-icon">
+          <i class="fas fa-plus-circle"></i>
+        </div>
+        <h3>Add New Service</h3>
+        <p>Create a custom service link</p>
       </a>
     </div>
   </section>
@@ -80,34 +108,36 @@
         <h3>Glances</h3>
         <p>System Monitoring</p>
       </a>
+
+      <a href="https://webmin.drewwilliams.biz/" target="_blank" class="service-card">
+        <div class="service-icon">
+          <i class="fas fa-cogs"></i>
+        </div>
+        <h3>Webmin</h3>
+        <p>System Configuration</p>
+      </a>
     </div>
   </section>
 
   <!-- Weather Section -->
-  <section class="dashboard-section" data-aos="fade-up" data-aos-delay="200">
+  {% if forecast_data %}
+  <section class="dashboard-section" data-aos="fade-up">
     <h2 class="section-title">
       <i class="fas fa-cloud-sun"></i>
       Weather Forecast for {{ city_name }}
     </h2>
     <div class="weather-grid">
-      {% if weather_data %}
-        {% for day in weather_data %}
-        <a href="https://forecast.weather.gov" target="_blank" class="weather-card">
-          <div class="weather-date">{{ day.date }}</div>
-          <div class="weather-icon">
-            <img src="{{ day.icon_url }}" alt="{{ day.description }}">
-          </div>
-          <div class="weather-temp">{{ day.temp }}°C</div>
-          <div class="weather-desc">{{ day.description }}</div>
-        </a>
-        {% endfor %}
-      {% else %}
-        <div class="weather-card">
-          <p>No weather data available. Please check your city settings.</p>
-        </div>
-      {% endif %}
+      {% for day in forecast_data %}
+      <div class="weather-card">
+        <h3>{{ day.date_str }}</h3>
+        <img src="{{ day.icon_url }}" alt="{{ day.description }}">
+        <p class="temp-range">{{ day.temp_min }}°F - {{ day.temp_max }}°F</p>
+        <p class="weather-desc">{{ day.description }}</p>
+      </div>
+      {% endfor %}
     </div>
   </section>
+  {% endif %}
 </div>
 
 <style>
@@ -244,6 +274,37 @@ body.dark-mode .weather-card:hover {
   .welcome-text {
     font-size: 1.5rem;
   }
+}
+
+.delete-service {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  margin: 0;
+}
+
+.btn-delete-service {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.service-card:hover .btn-delete-service {
+  opacity: 1;
+}
+
+.add-card {
+  border: 2px dashed #e5e7eb;
+  background-color: transparent;
+}
+
+.add-card:hover {
+  border-color: var(--primary);
+  background-color: rgba(79, 70, 229, 0.05);
 }
 </style>
 {% endblock %}

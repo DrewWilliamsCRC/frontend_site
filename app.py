@@ -112,23 +112,19 @@ def get_user_settings(username):
     Falls back to a default city ("New York") if no value is found.
     """
     default_city = "New York"
-    conn = get_db_connection()  # Uses psycopg2 and RealDictCursor for dictionary rows
+    conn = get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT city_name FROM users WHERE username=%s;", (username,))
             row = cur.fetchone()
+            if row and row['city_name']:
+                return row['city_name']
+            return default_city
     except Exception as e:
         print("Error retrieving user settings:", e)
         return default_city
     finally:
         conn.close()
-
-    if row:
-        # Assuming a RealDictCursor is used, 'row' is a dictionary.
-        user_city = row["city_name"] if row["city_name"] is not None else default_city
-        return user_city
-    else:
-        return default_city
 
 
 @cache.memoize(timeout=300)  # Cache for 5 minutes
@@ -184,11 +180,15 @@ def get_weekly_forecast(lat, lon):
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
         data = resp.json()
+        
+        # Debug logging
+        print(f"Weather API Response: {data}")
+        
         if "daily" in data:
             daily_data = data["daily"][:5]  # Take the first 5 days
             for day in daily_data:
                 dt = day["dt"]  # Unix timestamp
-                date_str = datetime.datetime.utcfromtimestamp(dt).strftime("%b %d")
+                date_str = datetime.fromtimestamp(dt).strftime("%b %d")
                 icon_code = day["weather"][0]["icon"]
                 icon_url = f"https://openweathermap.org/img/wn/{icon_code}@2x.png"
                 description = day["weather"][0].get("description", "")
@@ -202,8 +202,13 @@ def get_weekly_forecast(lat, lon):
                     "temp_min": temp_min,
                     "temp_max": temp_max
                 })
+                
+        # Debug logging
+        print(f"Processed forecast data: {forecast_list}")
+        
     except Exception as e:
         print(f"[ERROR] Failed to fetch daily forecast: {e}")
+        print(f"URL attempted: {url}")
     return forecast_list
 
 def sanitize_city_name(city):
@@ -241,71 +246,43 @@ def home():
     """Home route."""
     if 'user' not in session:
         return redirect(url_for('login'))
-
-    # Get the user's city from the database
+        
+    # Get user's city and weather data
+    city_name = get_user_settings(session['user'])
+    print(f"City name from settings: {city_name}")
+    
+    lat, lon = get_coordinates_for_city(city_name)
+    print(f"Coordinates for {city_name}: lat={lat}, lon={lon}")
+    
+    forecast_data = get_weekly_forecast(lat, lon) if lat and lon else []
+    print(f"Forecast data: {forecast_data}")
+    
+    # Get custom services
+    conn = get_db_connection()
     try:
-        with get_db_connection() as conn:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(
-                    "SELECT city_name FROM users WHERE username = %s",
-                    (session['user'],)
-                )
-                result = cur.fetchone()
-                city_name = result['city_name'] if result else None
-                print(f"Retrieved city_name from database: {city_name}")  # Debug log
-    except Exception as e:
-        print(f"Database error: {e}")
-        city_name = None
-
-    weather_data = None
-    if city_name:
-        try:
-            # Use the global API key
-            if not OWM_API_KEY:
-                print("OpenWeather API key is not set in environment variables")
-                raise ValueError("Missing API key")
-
-            base_url = "http://api.openweathermap.org/data/2.5/forecast"
-            params = {
-                'q': city_name,
-                'appid': OWM_API_KEY,
-                'units': 'metric'
-            }
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute(
+                """SELECT * FROM custom_services 
+                   WHERE user_id = (
+                       SELECT id FROM users WHERE username = %s
+                   )
+                   ORDER BY section, created_at""",
+                (session['user'],)
+            )
+            custom_services = [dict(row) for row in cur.fetchall()]
             
-            print(f"Making API request for city: {city_name}")  # Debug log
-            response = requests.get(base_url, params=params)
-            print(f"API response status: {response.status_code}")  # Debug log
+            # Group services by section
+            media_services = [s for s in custom_services if s['section'] == 'media']
+            system_services = [s for s in custom_services if s['section'] == 'system']
             
-            if response.status_code == 200:
-                data = response.json()
-                weather_data = []
-                
-                # Get one forecast per day (every 24 hours)
-                seen_dates = set()
-                for item in data['list']:
-                    # Convert timestamp to datetime object
-                    date_obj = datetime.fromtimestamp(item['dt'])
-                    date = date_obj.strftime('%Y-%m-%d')
-                    
-                    if date not in seen_dates and len(seen_dates) < 5:  # Limit to 5 days
-                        seen_dates.add(date)
-                        weather_data.append({
-                            'date': date_obj.strftime('%A, %b %d'),
-                            'temp': round(item['main']['temp']),
-                            'description': item['weather'][0]['description'].capitalize(),
-                            'icon_url': f"http://openweathermap.org/img/w/{item['weather'][0]['icon']}.png"
-                        })
-                print(f"Processed weather data: {bool(weather_data)}")  # Debug log
-            else:
-                print(f"API error response: {response.text}")  # Debug log
-        except Exception as e:
-            print(f"Weather API error: {e}")
-            weather_data = None
-
-    return render_template('index.html', 
-                         user=session['user'],
-                         city_name=city_name,
-                         weather_data=weather_data)
+            return render_template('index.html',
+                                user=session['user'],
+                                city_name=city_name,
+                                forecast_data=forecast_data,
+                                media_services=media_services,
+                                system_services=system_services)
+    finally:
+        conn.close()
 
 def get_coordinates_for_city(city_name):
     """
@@ -443,6 +420,97 @@ def weather_details(dt):
         return redirect(url_for('home'))
     nws_url = f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}"
     return redirect(nws_url)
+
+@app.route('/services/add', methods=['GET', 'POST'])
+def add_service():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+        
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        url = request.form.get('url', '').strip()
+        icon = request.form.get('icon', '').strip()
+        description = request.form.get('description', '').strip()
+        section = request.form.get('section', '').strip()
+        
+        # Debug logging
+        print(f"Received form data:")
+        print(f"Name: {name}")
+        print(f"URL: {url}")
+        print(f"Icon: {icon}")
+        print(f"Description: {description}")
+        print(f"Section: {section}")
+        print(f"Current user in session: {session['user']}")
+        
+        if not all([name, url, icon, section]):
+            flash('Name, URL, icon, and section are required.', 'warning')
+            return redirect(url_for('add_service'))
+        
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id FROM users WHERE username = %s",
+                    (session['user'],)
+                )
+                user_result = cur.fetchone()
+                print(f"Query result: {user_result}")
+                
+                if user_result is None:
+                    flash(f'Error: Could not find user {session["user"]} in database', 'danger')
+                    return redirect(url_for('add_service'))
+                
+                user_id = user_result['id']  # Changed from user_result[0] to user_result['id']
+                print(f"Found user_id: {user_id}")
+                
+                cur.execute(
+                    """INSERT INTO custom_services 
+                       (user_id, name, url, icon, description, section)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (user_id, name, url, icon, description, section)
+                )
+                conn.commit()
+                print("Insert successful!")
+            flash('Service added successfully!', 'success')
+            return redirect(url_for('home'))
+        except Exception as e:
+            conn.rollback()
+            print(f"Full error details: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            flash(f'Error adding service: {str(e)}', 'danger')
+        finally:
+            conn.close()
+            
+    return render_template('add_service.html')
+
+@app.route('/services/delete/<int:service_id>', methods=['POST'])
+def delete_service(service_id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # First verify the service belongs to the user
+            cur.execute(
+                """DELETE FROM custom_services 
+                   WHERE id = %s AND user_id = (
+                       SELECT id FROM users WHERE username = %s
+                   )""",
+                (service_id, session['user'])
+            )
+            conn.commit()
+            if cur.rowcount > 0:
+                flash('Service deleted successfully!', 'success')
+            else:
+                flash('Service not found or not authorized.', 'warning')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting service: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    return redirect(url_for('home'))
 
 @app.context_processor
 def inject_is_dev_mode():

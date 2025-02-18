@@ -7,6 +7,8 @@ import getpass
 from werkzeug.security import generate_password_hash
 from dotenv import load_dotenv
 from psycopg2 import IntegrityError
+import click
+from flask.cli import with_appcontext
 
 # Load environment variables from .env (if used)
 load_dotenv()
@@ -44,7 +46,21 @@ def create_table(conn):
             );
         """)
         conn.commit()
-    print("Table 'users' ensured exists.")
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS custom_services (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                url TEXT NOT NULL,
+                icon TEXT NOT NULL,
+                description TEXT,
+                section TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
+    print("Table 'users' and 'custom_services' ensured exists.")
 
 def list_users(conn):
     """
@@ -137,38 +153,54 @@ def init_db():
                 );
             """)
             conn.commit()
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS custom_services (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    name TEXT NOT NULL,
+                    url TEXT NOT NULL,
+                    icon TEXT NOT NULL,
+                    description TEXT,
+                    section TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            conn.commit()
     print("Database initialized or updated.")
 
-def main():
-    try:
-        conn = psycopg2.connect(DATABASE_URL)
-        create_table(conn)
-    except psycopg2.Error as e:
-        print(f"Error connecting to database: {e}")
-        sys.exit(1)
-    
-    if len(sys.argv) < 2:
-        print("Error: Command required.")
-        show_help()
-        sys.exit(1)
-    
-    command = sys.argv[1].lower()
-    
-    if command == "init":
-        init_db()
-    elif command == "list":
-        list_users(conn)
-    elif command == "add":
-        add_user(conn)
-    elif command == "delete":
-        delete_user(conn)
-    elif command == "help":
-        show_help()
-    else:
-        print(f"Unknown command: {command}")
-        show_help()
-    
-    conn.close()
+@click.group()
+def cli():
+    """Database management commands."""
+    pass
 
-if __name__ == "__main__":
-    main() 
+@cli.command()
+@with_appcontext
+def init():
+    """Initialize the database tables."""
+    from app import get_db_connection
+    conn = get_db_connection()
+    try:
+        create_table(conn)
+        print("Database tables created successfully!")
+    except Exception as e:
+        print(f"Error creating tables: {e}")
+    finally:
+        conn.close()
+
+@cli.command()
+@with_appcontext
+def add_user_cli():
+    """Add a new user through CLI."""
+    from app import get_db_connection
+    conn = get_db_connection()
+    try:
+        add_user(conn)
+    finally:
+        conn.close()
+
+if __name__ == '__main__':
+    # Add the parent directory to sys.path so we can import app
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, parent_dir)
+    cli() 

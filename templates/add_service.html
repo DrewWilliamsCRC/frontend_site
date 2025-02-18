@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Add Service{% endblock %}
+{% block content %}
+<div class="form-container" data-aos="fade-up">
+  <div class="form-card">
+    <div class="form-header">
+      <h1>
+        <i class="fas fa-plus-circle"></i>
+        Add New Service
+      </h1>
+    </div>
+
+    <form method="POST" action="{{ url_for('add_service') }}" class="service-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      
+      <div class="form-group">
+        <label for="name">
+          <i class="fas fa-tag"></i>
+          Service Name
+        </label>
+        <input type="text" id="name" name="name" required class="form-control">
+      </div>
+      
+      <div class="form-group">
+        <label for="url">
+          <i class="fas fa-link"></i>
+          Service URL
+        </label>
+        <input type="url" id="url" name="url" required class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label for="icon">
+          <i class="fas fa-icons"></i>
+          Icon (Font Awesome class)
+        </label>
+        <input type="text" id="icon" name="icon" required class="form-control" 
+               placeholder="e.g., fa-server">
+        <div class="icon-preview">
+          Selected icon: <i id="iconPreview" class="fas"></i>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="description">
+          <i class="fas fa-align-left"></i>
+          Description
+        </label>
+        <input type="text" id="description" name="description" class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label for="section">
+          <i class="fas fa-folder"></i>
+          Section
+        </label>
+        <select id="section" name="section" required class="form-control">
+          <option value="media">Media Management</option>
+          <option value="system">System Management</option>
+        </select>
+      </div>
+      
+      <div class="form-actions">
+        <button type="submit" class="btn-submit">
+          <i class="fas fa-save"></i>
+          Add Service
+        </button>
+        <a href="{{ url_for('home') }}" class="btn-cancel">
+          <i class="fas fa-times"></i>
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.icon-preview {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.icon-preview i {
+  font-size: 1.5rem;
+  color: var(--primary);
+}
+</style>
+
+<script>
+document.getElementById('icon').addEventListener('input', function(e) {
+  const preview = document.getElementById('iconPreview');
+  preview.className = 'fas ' + e.target.value;
+});
+</script>
+{% endblock %}

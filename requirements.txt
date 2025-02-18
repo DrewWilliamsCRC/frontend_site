@@ -7,3 +7,4 @@ Flask-Limiter
 python-dotenv
 psycopg2-binary
 gunicorn
+click
