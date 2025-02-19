@@ -26,6 +26,8 @@ Thumbs.db
 
 # Environment variable files
 .env
+.env.*
+!.env.example
 
 deploy.sh
 *.pyc
