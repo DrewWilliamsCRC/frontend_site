@@ -23,6 +23,11 @@
   </div>
   {% endif %}
 
+  <!-- Mobile Menu Toggle -->
+  <button class="mobile-menu-toggle">
+    <i class="fas fa-bars"></i>
+  </button>
+
   <!-- Sidebar Navigation -->
   <div class="sidebar">
     <div class="sidebar-header">
@@ -111,6 +116,28 @@
         } else {
           toggleIcon.classList.remove("fa-sun");
           toggleIcon.classList.add("fa-moon");
+        }
+      });
+    });
+
+    // Mobile menu functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const menuToggle = document.querySelector('.mobile-menu-toggle');
+      const sidebar = document.querySelector('.sidebar');
+      const body = document.body;
+
+      menuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('active');
+        body.classList.toggle('menu-active');
+      });
+
+      // Close menu when clicking outside
+      document.addEventListener('click', function(e) {
+        if (body.classList.contains('menu-active') && 
+            !sidebar.contains(e.target) && 
+            !menuToggle.contains(e.target)) {
+          sidebar.classList.remove('active');
+          body.classList.remove('menu-active');
         }
       });
     });

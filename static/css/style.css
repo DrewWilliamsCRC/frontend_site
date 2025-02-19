@@ -237,17 +237,53 @@ body.dark-mode .nav-item {
     background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* Responsive Design */
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+    display: none;
+    position: fixed;
+    top: var(--spacing-md);
+    left: var(--spacing-md);
+    z-index: 1000;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.mobile-menu-toggle:hover {
+    background-color: var(--primary-dark);
+}
+
+/* Mobile Responsive Adjustments */
 @media (max-width: 768px) {
+    .mobile-menu-toggle {
+        display: block;
+    }
+
     .sidebar {
         transform: translateX(-100%);
+        z-index: 999;
     }
-    
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
     .main-content {
         margin-left: 0;
     }
-    
-    .pet-images {
-        grid-template-columns: 1fr;
+
+    body.menu-active::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 998;
     }
 }
