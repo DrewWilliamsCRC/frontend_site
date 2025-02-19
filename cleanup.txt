@@ -1,0 +1,5 @@
+literal:***REMOVED***
+literal:***REMOVED***
+regex:app\.secret_key = .*=app.secret_key = os.environ.get("SECRET_KEY")
+regex:OWM_API_KEY = .*=OWM_API_KEY = os.environ.get("OWM_API_KEY")
+regex:DATABASE_URL = .*=DATABASE_URL = os.environ.get("DATABASE_URL")
