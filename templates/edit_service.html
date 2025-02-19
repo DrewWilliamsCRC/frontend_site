@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Edit Service{% endblock %}
+{% block content %}
+<div class="form-container" data-aos="fade-up">
+  <div class="form-card">
+    <div class="form-header">
+      <h1>
+        <i class="fas fa-cog"></i>
+        Edit Service: {{ service.name }}
+      </h1>
+    </div>
+
+    <form method="POST" action="{{ url_for('edit_service', service_id=service.id) }}" class="service-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      
+      <div class="form-group">
+        <label for="name">
+          <i class="fas fa-tag"></i>
+          Service Name
+        </label>
+        <input type="text" id="name" name="name" value="{{ service.name }}" required class="form-control">
+      </div>
+      
+      <div class="form-group">
+        <label for="url">
+          <i class="fas fa-link"></i>
+          Service URL
+        </label>
+        <input type="url" id="url" name="url" value="{{ service.url }}" required class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label for="icon">
+          <i class="fas fa-icons"></i>
+          Icon (Font Awesome class)
+        </label>
+        <input type="text" id="icon" name="icon" value="{{ service.icon }}" required class="form-control" 
+               placeholder="e.g., fa-server">
+        <div class="icon-preview">
+          Selected icon: <i id="iconPreview" class="fas {{ service.icon }}"></i>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="description">
+          <i class="fas fa-align-left"></i>
+          Description
+        </label>
+        <input type="text" id="description" name="description" value="{{ service.description }}" class="form-control">
+      </div>
+
+      <div class="form-group">
+        <label for="section">
+          <i class="fas fa-folder"></i>
+          Section
+        </label>
+        <select id="section" name="section" required class="form-control">
+          <option value="media" {% if service.section == 'media' %}selected{% endif %}>Media Management</option>
+          <option value="system" {% if service.section == 'system' %}selected{% endif %}>System Management</option>
+        </select>
+      </div>
+      
+      <div class="form-actions">
+        <button type="submit" class="btn-submit">
+          <i class="fas fa-save"></i>
+          Save Changes
+        </button>
+        <a href="{{ url_for('home') }}" class="btn-cancel">
+          <i class="fas fa-times"></i>
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+/* Reuse the styles from add_service.html */
+{% include 'add_service.html' %}
+</style>
+
+<script>
+document.getElementById('icon').addEventListener('input', function(e) {
+  const preview = document.getElementById('iconPreview');
+  preview.className = 'fas ' + e.target.value;
+});
+</script>
+{% endblock %} 

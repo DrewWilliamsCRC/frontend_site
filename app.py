@@ -537,6 +537,57 @@ def delete_service(service_id):
         conn.close()
     return redirect(url_for('home'))
 
+@app.route('/services/edit/<int:service_id>', methods=['GET', 'POST'])
+def edit_service(service_id):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+        
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            # First verify the service belongs to the user
+            cur.execute(
+                """SELECT s.* FROM custom_services s
+                   JOIN users u ON s.user_id = u.id
+                   WHERE s.id = %s AND u.username = %s""",
+                (service_id, session['user'])
+            )
+            service = cur.fetchone()
+            
+            if not service:
+                flash('Service not found or not authorized.', 'warning')
+                return redirect(url_for('home'))
+            
+            if request.method == 'POST':
+                name = request.form.get('name', '').strip()
+                url = request.form.get('url', '').strip()
+                icon = request.form.get('icon', '').strip()
+                description = request.form.get('description', '').strip()
+                section = request.form.get('section', '').strip()
+                
+                if not all([name, url, icon, section]):
+                    flash('Name, URL, icon, and section are required.', 'warning')
+                    return redirect(url_for('edit_service', service_id=service_id))
+                
+                cur.execute(
+                    """UPDATE custom_services 
+                       SET name = %s, url = %s, icon = %s, 
+                           description = %s, section = %s
+                       WHERE id = %s""",
+                    (name, url, icon, description, section, service_id)
+                )
+                conn.commit()
+                flash('Service updated successfully!', 'success')
+                return redirect(url_for('home'))
+                
+            return render_template('edit_service.html', service=service)
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating service: {str(e)}', 'danger')
+        return redirect(url_for('home'))
+    finally:
+        conn.close()
+
 @app.context_processor
 def inject_is_dev_mode():
     # This will be True when FLASK_ENV is set to "development"

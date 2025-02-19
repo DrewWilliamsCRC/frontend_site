@@ -10,53 +10,68 @@
 
 <div class="dashboard-grid">
   <!-- Media Management Section -->
-  <section class="dashboard-section" data-aos="fade-up">
-    <h2 class="section-title">
-      <i class="fas fa-photo-film"></i>
-      Media Management
-    </h2>
+  <section class="section">
+    <div class="section-header">
+      <h2><i class="fas fa-film"></i> Media Management</h2>
+    </div>
     <div class="service-grid">
-      <!-- Default services -->
-      <a href="https://drewwilliams.biz/sonarr/" target="_blank" class="service-card">
-        <div class="service-icon">
-          <i class="fas fa-tv"></i>
-        </div>
-        <h3>Sonarr</h3>
-        <p>TV Show Management</p>
-      </a>
+      <!-- Default Media Services -->
+      <div class="service-card">
+        <a href="http://sonarr:8989" target="_blank" class="service-link">
+          <div class="service-icon">
+            <i class="fas fa-tv"></i>
+          </div>
+          <h3>Sonarr</h3>
+          <p>TV Show Management</p>
+        </a>
+      </div>
 
-      <a href="https://drewwilliams.biz/radarr/" target="_blank" class="service-card">
-        <div class="service-icon">
-          <i class="fas fa-film"></i>
-        </div>
-        <h3>Radarr</h3>
-        <p>Movie Management</p>
-      </a>
+      <div class="service-card">
+        <a href="http://radarr:7878" target="_blank" class="service-link">
+          <div class="service-icon">
+            <i class="fas fa-film"></i>
+          </div>
+          <h3>Radarr</h3>
+          <p>Movie Management</p>
+        </a>
+      </div>
 
-      <a href="https://drewwilliams.biz/nzbget/" target="_blank" class="service-card">
-        <div class="service-icon">
-          <i class="fas fa-download"></i>
-        </div>
-        <h3>NZBGet</h3>
-        <p>Download Manager</p>
-      </a>
-      
-      <!-- Custom services for media section -->
+      <div class="service-card">
+        <a href="http://nzbget:6789" target="_blank" class="service-link">
+          <div class="service-icon">
+            <i class="fas fa-download"></i>
+          </div>
+          <h3>NZBGet</h3>
+          <p>Download Management</p>
+        </a>
+      </div>
+
+      <!-- Custom Media Services -->
       {% for service in media_services %}
-      <a href="{{ service.url }}" target="_blank" class="service-card">
-        <div class="service-icon">
-          <i class="fas {{ service.icon }}"></i>
+        <div class="service-card">
+          <!-- Edit button -->
+          <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn-edit-service" title="Edit service">
+            <i class="fas fa-cog"></i>
+          </a>
+          
+          <!-- Delete button -->
+          <form method="POST" action="{{ url_for('delete_service', service_id=service.id) }}"
+                class="delete-service" onsubmit="return confirm('Delete this service?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn-delete-service" title="Delete service">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </form>
+          
+          <!-- Service link wrapper -->
+          <a href="{{ service.url }}" target="_blank" class="service-link">
+            <div class="service-icon">
+              <i class="fas {{ service.icon }}"></i>
+            </div>
+            <h3>{{ service.name }}</h3>
+            <p>{{ service.description }}</p>
+          </a>
         </div>
-        <h3>{{ service.name }}</h3>
-        <p>{{ service.description }}</p>
-        <form method="POST" action="{{ url_for('delete_service', service_id=service.id) }}"
-              class="delete-service" onsubmit="return confirm('Delete this service?');">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn-delete-service" title="Delete service">
-            <i class="fas fa-trash-alt"></i>
-          </button>
-        </form>
-      </a>
       {% endfor %}
 
       <!-- Add service card -->
@@ -71,68 +86,78 @@
   </section>
 
   <!-- System Management Section -->
-  <section class="dashboard-section" data-aos="fade-up" data-aos-delay="100">
-    <h2 class="section-title">
-      <i class="fas fa-server"></i>
-      System Management
-    </h2>
+  <section class="section">
+    <div class="section-header">
+      <h2><i class="fas fa-server"></i> System Management</h2>
+    </div>
     <div class="service-grid">
-      <a href="https://unifi.ui.com" target="_blank" class="service-card">
-        <div class="service-icon">
-          <i class="fas fa-wifi"></i>
-        </div>
-        <h3>Unifi Controller</h3>
-        <p>Network Management</p>
-      </a>
-      
-      <a href="https://vscode.drewwilliams.biz/" target="_blank" class="service-card">
-        <div class="service-icon">
-          <i class="fas fa-code"></i>
-        </div>
-        <h3>Code Server</h3>
-        <p>Development Environment</p>
-      </a>
+      <!-- Default System Services -->
+      <div class="service-card">
+        <a href="http://unifi:8443" target="_blank" class="service-link">
+          <div class="service-icon">
+            <i class="fas fa-wifi"></i>
+          </div>
+          <h3>Unifi Controller</h3>
+          <p>Network Management</p>
+        </a>
+      </div>
 
-      <a href="https://portainer.drewwilliams.biz/" target="_blank" class="service-card">
-        <div class="service-icon">
-          <i class="fas fa-boxes"></i>
-        </div>
-        <h3>Portainer</h3>
-        <p>Container Management</p>
-      </a>
+      <div class="service-card">
+        <a href="http://code-server:8443" target="_blank" class="service-link">
+          <div class="service-icon">
+            <i class="fas fa-code"></i>
+          </div>
+          <h3>Code Server</h3>
+          <p>Web IDE</p>
+        </a>
+      </div>
 
-      <a href="https://glances.drewwilliams.biz/" target="_blank" class="service-card">
-        <div class="service-icon">
-          <i class="fas fa-tachometer-alt"></i>
-        </div>
-        <h3>Glances</h3>
-        <p>System Monitoring</p>
-      </a>
+      <div class="service-card">
+        <a href="http://portainer:9000" target="_blank" class="service-link">
+          <div class="service-icon">
+            <i class="fas fa-boxes"></i>
+          </div>
+          <h3>Portainer</h3>
+          <p>Container Management</p>
+        </a>
+      </div>
 
-      <a href="https://webmin.drewwilliams.biz/" target="_blank" class="service-card">
-        <div class="service-icon">
-          <i class="fas fa-cogs"></i>
-        </div>
-        <h3>Webmin</h3>
-        <p>System Configuration</p>
-      </a>
+      <div class="service-card">
+        <a href="http://glances:61208" target="_blank" class="service-link">
+          <div class="service-icon">
+            <i class="fas fa-tachometer-alt"></i>
+          </div>
+          <h3>Glances</h3>
+          <p>System Monitoring</p>
+        </a>
+      </div>
 
-      <!-- Custom services for system section -->
+      <!-- Custom System Services -->
       {% for service in system_services %}
-      <a href="{{ service.url }}" target="_blank" class="service-card">
-        <div class="service-icon">
-          <i class="fas {{ service.icon }}"></i>
+        <div class="service-card">
+          <!-- Edit button -->
+          <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn-edit-service" title="Edit service">
+            <i class="fas fa-cog"></i>
+          </a>
+          
+          <!-- Delete button -->
+          <form method="POST" action="{{ url_for('delete_service', service_id=service.id) }}"
+                class="delete-service" onsubmit="return confirm('Delete this service?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn-delete-service" title="Delete service">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </form>
+          
+          <!-- Service link wrapper -->
+          <a href="{{ service.url }}" target="_blank" class="service-link">
+            <div class="service-icon">
+              <i class="fas {{ service.icon }}"></i>
+            </div>
+            <h3>{{ service.name }}</h3>
+            <p>{{ service.description }}</p>
+          </a>
         </div>
-        <h3>{{ service.name }}</h3>
-        <p>{{ service.description }}</p>
-        <form method="POST" action="{{ url_for('delete_service', service_id=service.id) }}"
-              class="delete-service" onsubmit="return confirm('Delete this service?');">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn-delete-service" title="Delete service">
-            <i class="fas fa-trash-alt"></i>
-          </button>
-        </form>
-      </a>
       {% endfor %}
 
       <!-- Add service card -->
@@ -197,25 +222,72 @@
 }
 
 .service-card {
+  position: relative;
   background-color: white;
   padding: var(--spacing-lg);
   border-radius: var(--radius-lg);
-  text-decoration: none;
-  color: var(--text-light);
-  transition: all var(--transition-normal);
   border: 1px solid #e5e7eb;
   height: {{ button_height }}px;
+  transition: all var(--transition-normal);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  box-sizing: border-box;
 }
 
-.service-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary);
+.service-link {
+  text-decoration: none;
+  color: var(--text-dark);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.service-link h3 {
+  margin: var(--spacing-sm) 0;
+  color: var(--text-dark);
+}
+
+.service-link p {
+  color: var(--text-light);
+  opacity: 0.9;
+}
+
+.btn-edit-service,
+.btn-delete-service {
+  position: absolute;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  z-index: 2;
+}
+
+.btn-edit-service {
+  top: var(--spacing-sm);
+  left: var(--spacing-sm);
+  color: var(--primary);
+}
+
+.btn-delete-service {
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  color: var(--danger);
+}
+
+.service-card:hover .btn-edit-service,
+.service-card:hover .btn-delete-service {
+  opacity: 1;
+}
+
+.delete-service {
+  margin: 0;
+  padding: 0;
 }
 
 .service-icon {
@@ -243,62 +315,105 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--spacing-md);
+  margin-top: var(--spacing-xl);
 }
 
 .weather-card {
   background-color: white;
   padding: var(--spacing-lg);
   border-radius: var(--radius-lg);
-  text-align: center;
-  text-decoration: none;
-  color: var(--text-dark);
-  transition: all var(--transition-normal);
   border: 1px solid #e5e7eb;
+  text-align: center;
+  transition: all var(--transition-normal);
 }
 
 .weather-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-3px);
   box-shadow: var(--shadow-lg);
-  border-color: var(--primary);
 }
 
-.weather-date {
-  font-weight: 600;
+.weather-card h3 {
+  color: var(--text-dark);
+  margin: var(--spacing-sm) 0;
+}
+
+.weather-card p {
+  color: var(--text-light);
+  opacity: 0.9;
+}
+
+.weather-icon {
+  font-size: 2rem;
+  color: var(--primary);
   margin-bottom: var(--spacing-sm);
 }
 
-.weather-icon img {
-  width: 64px;
-  height: 64px;
-  margin: var(--spacing-sm) 0;
-}
-
 .weather-temp {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-dark);
   margin: var(--spacing-sm) 0;
 }
 
-.weather-desc {
-  font-size: 0.9rem;
-  opacity: 0.8;
+.weather-description {
+  color: var(--text-light);
+  opacity: 0.9;
 }
 
-/* Dark mode styles */
-body.dark-mode .service-card,
+/* Dark mode adjustments for weather */
 body.dark-mode .weather-card {
   background-color: #1f2937;
   border-color: #374151;
 }
 
-body.dark-mode .service-card h3,
-body.dark-mode .weather-card {
-  color: var(--text-dark);
+body.dark-mode .weather-card:hover {
+  background-color: #2d3748;
 }
 
-body.dark-mode .service-card:hover,
-body.dark-mode .weather-card:hover {
-  border-color: var(--primary);
+body.dark-mode .weather-card h3 {
+  color: #e5e7eb;
+}
+
+body.dark-mode .weather-card p {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+body.dark-mode .weather-temp {
+  color: #e5e7eb;
+}
+
+body.dark-mode .weather-description {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+/* Weather icon colors in dark mode */
+body.dark-mode .weather-icon {
+  color: var(--primary);  /* Keep the icon color consistent with other sections */
+}
+
+/* Dark mode adjustments */
+body.dark-mode .service-card {
+  background-color: #1f2937;
+  border-color: #374151;
+}
+
+body.dark-mode .service-link {
+  color: var(--text-light);
+}
+
+body.dark-mode .service-link h3 {
+  color: #e5e7eb;
+}
+
+body.dark-mode .service-link p {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+body.dark-mode .service-card:hover {
+  background-color: #2d3748;
 }
 
 /* Responsive adjustments */
@@ -313,27 +428,6 @@ body.dark-mode .weather-card:hover {
   }
 }
 
-.delete-service {
-  position: absolute;
-  top: var(--spacing-sm);
-  right: var(--spacing-sm);
-  margin: 0;
-}
-
-.btn-delete-service {
-  background: none;
-  border: none;
-  color: var(--danger);
-  cursor: pointer;
-  padding: var(--spacing-xs);
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-}
-
-.service-card:hover .btn-delete-service {
-  opacity: 1;
-}
-
 .add-card {
   border: 2px dashed #e5e7eb;
   background-color: transparent;
@@ -342,6 +436,28 @@ body.dark-mode .weather-card:hover {
 .add-card:hover {
   border-color: var(--primary);
   background-color: rgba(79, 70, 229, 0.05);
+}
+
+.section {
+  margin-bottom: var(--spacing-3xl);  /* Increased from default spacing */
+  padding: var(--spacing-xl) 0;
+}
+
+.section-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.section-header h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 1.5rem;
+  color: var(--text-dark);
+}
+
+/* Dark mode support */
+body.dark-mode .section-header h2 {
+  color: var(--text-light);
 }
 </style>
 {% endblock %}
