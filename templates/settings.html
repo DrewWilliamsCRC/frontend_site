@@ -31,11 +31,22 @@
           Button Size
         </label>
         <div class="slider-container">
-          <input type="range" id="button_size" name="button_size" 
-                 min="50" max="300" step="10"
-                 value="{{ button_size }}" class="form-control slider"
-                 oninput="updateSliderValue(this.value)">
-          <span class="slider-value">{{ button_size }}px</span>
+          <div class="slider-group">
+            <label class="sub-label">Width:</label>
+            <input type="range" id="button_width" name="button_width" 
+                   min="50" max="300" step="10"
+                   value="{{ button_width }}" class="form-control slider"
+                   oninput="updateSliderValues()">
+            <span class="slider-value">{{ button_width }}px</span>
+          </div>
+          <div class="slider-group">
+            <label class="sub-label">Height:</label>
+            <input type="range" id="button_height" name="button_height" 
+                   min="50" max="300" step="10"
+                   value="{{ button_height }}" class="form-control slider"
+                   oninput="updateSliderValues()">
+            <span class="slider-value">{{ button_height }}px</span>
+          </div>
         </div>
         <p class="help-text">Adjust the size of dashboard buttons</p>
       </div>
@@ -49,8 +60,13 @@
 </div>
 
 <script>
-function updateSliderValue(value) {
-  document.querySelector('.slider-value').textContent = value + 'px';
+function updateSliderValues() {
+  const widthSlider = document.getElementById('button_width');
+  const heightSlider = document.getElementById('button_height');
+  const values = document.querySelectorAll('.slider-value');
+  
+  values[0].textContent = widthSlider.value + 'px';
+  values[1].textContent = heightSlider.value + 'px';
 }
 </script>
 
@@ -167,8 +183,20 @@ body.dark-mode .help-text {
 
 .slider-container {
   display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.slider-group {
+  display: flex;
   align-items: center;
   gap: var(--spacing-md);
+}
+
+.sub-label {
+  min-width: 60px;
+  font-size: 0.875rem;
+  color: var(--text-light);
 }
 
 .slider {
@@ -200,6 +228,10 @@ body.dark-mode .help-text {
 
 body.dark-mode .slider {
   background: #374151;
+}
+
+body.dark-mode .sub-label {
+  color: #9ca3af;
 }
 </style>
 {% endblock %}

@@ -192,7 +192,7 @@
 
 .service-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax({{ button_size }}px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax({{ button_width }}px, 1fr));
   gap: var(--spacing-md);
 }
 
@@ -204,6 +204,12 @@
   color: var(--text-light);
   transition: all var(--transition-normal);
   border: 1px solid #e5e7eb;
+  height: {{ button_height }}px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 .service-card:hover {
@@ -216,17 +222,21 @@
   font-size: 2rem;
   color: var(--primary);
   margin-bottom: var(--spacing-md);
+  flex-shrink: 0;
 }
 
 .service-card h3 {
   font-size: 1.25rem;
   margin-bottom: var(--spacing-xs);
   color: var(--text-dark);
+  text-align: center;
 }
 
 .service-card p {
   font-size: 0.875rem;
   opacity: 0.8;
+  text-align: center;
+  margin: 0;
 }
 
 .weather-grid {

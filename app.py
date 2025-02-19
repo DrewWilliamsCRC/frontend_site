@@ -94,7 +94,8 @@ def init_db():
                     username TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
                     city_name TEXT,
-                    button_size INTEGER DEFAULT 250
+                    button_width INTEGER DEFAULT 200,
+                    button_height INTEGER DEFAULT 200
                 );
             """)
             conn.commit()
@@ -116,14 +117,14 @@ def get_user_settings(username):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT city_name, button_size FROM users WHERE username=%s;", (username,))
+            cur.execute("SELECT city_name, button_width, button_height FROM users WHERE username=%s;", (username,))
             row = cur.fetchone()
             if row and row['city_name']:
-                return row['city_name'], row['button_size']
-            return default_city, 250
+                return row['city_name'], row['button_width'], row['button_height']
+            return default_city, 200, 200
     except Exception as e:
         print("Error retrieving user settings:", e)
-        return default_city, 250
+        return default_city, 200, 200
     finally:
         conn.close()
 
@@ -249,7 +250,7 @@ def home():
         return redirect(url_for('login'))
         
     # Get user's city and weather data
-    city_name, button_size = get_user_settings(session['user'])
+    city_name, button_width, button_height = get_user_settings(session['user'])
     print(f"City name from settings: {city_name}")
     
     lat, lon = get_coordinates_for_city(city_name)
@@ -282,7 +283,8 @@ def home():
                                 forecast_data=forecast_data,
                                 media_services=media_services,
                                 system_services=system_services,
-                                button_size=button_size)
+                                button_width=button_width,
+                                button_height=button_height)
     finally:
         conn.close()
 
@@ -320,17 +322,20 @@ def settings():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
-        city_name = request.form.get('city_name', '').strip()
-        button_size = request.form.get('button_size', 250, type=int)
+        city_name = request.form.get('city_name', '')
+        button_width = request.form.get('button_width', '200')
+        button_height = request.form.get('button_height', '200')
         
         conn = get_db_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute(
                     """UPDATE users 
-                       SET city_name = %s, button_size = %s 
+                       SET city_name = %s, 
+                           button_width = %s,
+                           button_height = %s 
                        WHERE username = %s""",
-                    (city_name, button_size, session['user'])
+                    (city_name, button_width, button_height, session['user'])
                 )
                 conn.commit()
             flash('Settings updated successfully!', 'success')
@@ -344,17 +349,22 @@ def settings():
     # Get current settings
     conn = get_db_connection()
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        with conn.cursor() as cur:
             cur.execute(
-                "SELECT city_name, button_size FROM users WHERE username = %s",
+                "SELECT city_name, button_width, button_height FROM users WHERE username = %s",
                 (session['user'],)
             )
             user_settings = cur.fetchone()
-            return render_template('settings.html',
-                                 city_name=user_settings['city_name'],
-                                 button_size=user_settings['button_size'])
+            city_name = user_settings['city_name'] if user_settings else ''
+            button_width = user_settings.get('button_width', 200)
+            button_height = user_settings.get('button_height', 200)
     finally:
         conn.close()
+    
+    return render_template('settings.html', 
+                         city_name=city_name,
+                         button_width=button_width,
+                         button_height=button_height)
 
 @app.route('/login', methods=['GET', 'POST'])
 @limiter.limit("5 per minute", methods=["POST"], error_message="Too many login attempts, please try again in a minute.")
