@@ -38,6 +38,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          # Only push if on main branch
-          push: ${{ github.ref == 'refs/heads/main' }}
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPOSITORY }}:frontend-${{ github.sha }}
+          push: true
+          tags: dawttu00/dawttu_private:frontend
+          # Replace with your actual Docker Hub username and repository name
