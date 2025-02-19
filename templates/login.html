@@ -138,5 +138,45 @@ body.dark-mode .form-control {
 body.dark-mode .form-control:focus {
   border-color: var(--primary);
 }
+
+/* Add these new mobile-specific styles */
+@media (max-width: 480px) {
+  .login-card {
+    margin: var(--spacing-md);
+    padding: var(--spacing-lg);
+    max-width: 100%;
+  }
+
+  .login-header i {
+    font-size: 2.5rem;
+  }
+
+  .login-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .form-group {
+    margin-bottom: var(--spacing-md);
+  }
+
+  .form-control {
+    padding: var(--spacing-sm);
+  }
+
+  .login-btn {
+    padding: var(--spacing-sm);
+  }
+}
+
+/* Add these to handle very small screens */
+@media (max-width: 320px) {
+  .login-card {
+    padding: var(--spacing-md);
+  }
+
+  .login-header {
+    margin-bottom: var(--spacing-lg);
+  }
+}
 </style>
 {% endblock %}
