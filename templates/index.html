@@ -116,6 +116,33 @@
         <h3>Webmin</h3>
         <p>System Configuration</p>
       </a>
+
+      <!-- Custom services for system section -->
+      {% for service in system_services %}
+      <a href="{{ service.url }}" target="_blank" class="service-card">
+        <div class="service-icon">
+          <i class="fas {{ service.icon }}"></i>
+        </div>
+        <h3>{{ service.name }}</h3>
+        <p>{{ service.description }}</p>
+        <form method="POST" action="{{ url_for('delete_service', service_id=service.id) }}"
+              class="delete-service" onsubmit="return confirm('Delete this service?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn-delete-service" title="Delete service">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </form>
+      </a>
+      {% endfor %}
+
+      <!-- Add service card -->
+      <a href="{{ url_for('add_service') }}" class="service-card add-card">
+        <div class="service-icon">
+          <i class="fas fa-plus-circle"></i>
+        </div>
+        <h3>Add New Service</h3>
+        <p>Create a custom service link</p>
+      </a>
     </div>
   </section>
 

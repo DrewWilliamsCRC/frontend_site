@@ -15,7 +15,11 @@ def require_login():
         return redirect(url_for("login"))
 
 # Read the connection string from environment variables.
-DATABASE_URL = os.environ.get("DATABASE_URL")
+if os.environ.get("FLASK_ENV") == "development":
+    DATABASE_URL = os.environ.get("DEV_DATABASE_URL", os.environ.get("DATABASE_URL"))
+else:
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is not set. Please set it for the environment!")
 
