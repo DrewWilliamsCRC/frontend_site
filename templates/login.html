@@ -1,6 +1,131 @@
 {% extends "base.html" %}
 {% block title %}Login{% endblock %}
+
+{% block head %}
+<style>
+  /* Essential variables */
+  :root {
+    --primary: #4338ca;
+    --primary-dark: #3730a3;
+    --text-primary: #1f2937;
+    --text-secondary: #4b5563;
+    --bg-primary: #ffffff;
+    --border-light: #e5e7eb;
+    --radius-md: 0.5rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --font-normal: 400;
+    --font-medium: 500;
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --transition-normal: 250ms ease;
+  }
+
+  /* Login specific styles */
+  .login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xl);
+  }
+
+  .login-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--spacing-xl);
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .login-header {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .login-header i {
+    font-size: 3rem;
+    color: var(--primary);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .login-header h1 {
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .login-header p {
+    color: var(--text-secondary);
+  }
+
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .form-group label {
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    transition: border-color var(--transition-normal);
+  }
+
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+
+  .login-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-weight: var(--font-medium);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    transition: background-color var(--transition-normal);
+  }
+
+  .login-btn:hover {
+    background: var(--primary-dark);
+  }
+
+  @media (max-width: 768px) {
+    .login-card {
+      padding: var(--spacing-lg);
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
+{{ super() }}
 <div class="login-container" data-aos="fade-up">
   <div class="login-card">
     <div class="login-header">
