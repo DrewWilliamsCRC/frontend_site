@@ -1,205 +1,73 @@
 {% extends "base.html" %}
 {% block title %}User Manager{% endblock %}
 {% block content %}
-<div class="user-manager-container" data-aos="fade-up">
-  <div class="page-header">
-    <h1>
-      <i class="fas fa-users"></i>
-      User Management
-    </h1>
-    <a href="{{ url_for('user_manager.add_user') }}" class="btn-add">
-      <i class="fas fa-user-plus"></i>
-      Add New User
-    </a>
-  </div>
+<div class="settings-container" data-aos="fade-up">
+  <div class="settings-card">
+    <div class="settings-header">
+      <h1>
+        <i class="fas fa-users"></i>
+        User Management
+      </h1>
+      <p class="text-muted">Manage user accounts and permissions</p>
+    </div>
 
-  <div class="users-table-wrapper">
-    <table class="users-table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Username</th>
-          <th>City Name</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for user in users %}
-        <tr data-aos="fade-up" data-aos-delay="{{ loop.index * 50 }}">
-          <td>{{ user.id }}</td>
-          <td>
-            <div class="user-info">
-              <i class="fas fa-user-circle"></i>
-              {{ user.username }}
-            </div>
-          </td>
-          <td>
-            {% if user.city_name %}
-              <div class="city-info">
-                <i class="fas fa-map-marker-alt"></i>
-                {{ user.city_name }}
+    <div class="table-actions">
+      <a href="{{ url_for('user_manager.add_user') }}" class="btn-save">
+        <i class="fas fa-user-plus"></i>
+        Add New User
+      </a>
+    </div>
+
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>City Name</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr data-aos="fade-up" data-aos-delay="{{ loop.index * 50 }}">
+            <td class="text-muted">#{{ user.id }}</td>
+            <td>
+              <div class="table-cell-content">
+                <i class="fas fa-user-circle text-primary"></i>
+                <span>{{ user.username }}</span>
               </div>
-            {% else %}
-              <span class="text-muted">Not set</span>
-            {% endif %}
-          </td>
-          <td>
-            <div class="action-buttons">
-              <a href="{{ url_for('user_manager.edit_user', user_id=user.id) }}" 
-                 class="btn-edit" title="Edit user">
-                <i class="fas fa-edit"></i>
-              </a>
-              <form method="post" action="{{ url_for('user_manager.delete_user', user_id=user.id) }}"
-                    class="delete-form" onsubmit="return confirm('Are you sure you want to delete this user?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn-delete" title="Delete user">
-                  <i class="fas fa-trash-alt"></i>
-                </button>
-              </form>
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            </td>
+            <td>
+              {% if user.city_name %}
+                <div class="table-cell-content">
+                  <i class="fas fa-map-marker-alt text-primary"></i>
+                  <span>{{ user.city_name }}</span>
+                </div>
+              {% else %}
+                <span class="text-muted">Not set</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="table-actions">
+                <a href="{{ url_for('user_manager.edit_user', user_id=user.id) }}" 
+                   class="btn-icon" title="Edit user">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <form method="post" action="{{ url_for('user_manager.delete_user', user_id=user.id) }}"
+                      class="delete-form" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn-icon btn-icon-danger" title="Delete user">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
-
-<style>
-.user-manager-container {
-  padding: var(--spacing-md);
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-xl);
-}
-
-.page-header h1 {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  font-size: 1.75rem;
-}
-
-.btn-add {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background-color: var(--success);
-  color: white;
-  border-radius: var(--radius-md);
-  text-decoration: none;
-  transition: all var(--transition-fast);
-}
-
-.btn-add:hover {
-  background-color: #16a34a;
-  transform: translateY(-2px);
-}
-
-.users-table-wrapper {
-  background-color: white;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  overflow: hidden;
-}
-
-.users-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.users-table th,
-.users-table td {
-  padding: var(--spacing-md);
-  text-align: left;
-}
-
-.users-table th {
-  background-color: #f8fafc;
-  font-weight: 600;
-}
-
-.users-table tr {
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.users-table tr:last-child {
-  border-bottom: none;
-}
-
-.user-info,
-.city-info {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.action-buttons {
-  display: flex;
-  gap: var(--spacing-sm);
-}
-
-.btn-edit,
-.btn-delete {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  border: none;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.btn-edit {
-  background-color: var(--primary);
-  color: white;
-}
-
-.btn-delete {
-  background-color: var(--danger);
-  color: white;
-}
-
-.btn-edit:hover,
-.btn-delete:hover {
-  transform: translateY(-2px);
-  filter: brightness(110%);
-}
-
-.delete-form {
-  margin: 0;
-}
-
-body.dark-mode .users-table-wrapper {
-  background-color: #1f2937;
-}
-
-body.dark-mode .users-table th {
-  background-color: #374151;
-}
-
-body.dark-mode .users-table tr {
-  border-color: #374151;
-}
-
-@media (max-width: 768px) {
-  .users-table {
-    display: block;
-    overflow-x: auto;
-  }
-  
-  .page-header {
-    flex-direction: column;
-    gap: var(--spacing-md);
-    align-items: flex-start;
-  }
-}
-</style>
 {% endblock %}

@@ -267,78 +267,67 @@ def auth_check():
 def home():
     if 'user' not in session:
         return redirect(url_for('login'))
-        
+    
+    # Get user settings
+    city_name, button_width, button_height = get_user_settings(session['user'])
+    
+    # Get coordinates for the city
+    lat, lon = get_coordinates_for_city(city_name)
+    
+    # Get forecast data if coordinates are available
+    forecast_data = None
+    if lat and lon:
+        forecast_data = get_weekly_forecast(lat, lon)
+    
+    # Get services from database
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            # Get custom services with their order
-            cur.execute(
-                """SELECT * FROM custom_services 
-                   WHERE user_id = (
-                       SELECT id FROM users WHERE username = %s
-                   )
-                   ORDER BY section, COALESCE(display_order, EXTRACT(EPOCH FROM created_at)::bigint), created_at""",
+            # Get user's services
+            cur.execute("""
+                SELECT * FROM custom_services 
+                WHERE user_id = (
+                    SELECT id FROM users WHERE username = %s
+                )
+                ORDER BY section, COALESCE(display_order, EXTRACT(EPOCH FROM created_at)::bigint), created_at""",
                 (session['user'],)
             )
-            custom_services = cur.fetchall()
-            print("Custom services from DB:", custom_services)  # Debug print
-            
-            # Define default services with their sections
-            default_media_services = [
-                {'name': 'Sonarr', 'url': 'http://sonarr:8989', 'icon': 'fa-tv'},
-                {'name': 'Radarr', 'url': 'http://radarr:7878', 'icon': 'fa-film'},
-                {'name': 'NZBGet', 'url': 'http://nzbget:6789', 'icon': 'fa-download'}
-            ]
-            
-            default_system_services = [
-                {'name': 'Portainer', 'url': 'http://portainer:9000', 'icon': 'fa-server'},
-                {'name': 'Glances', 'url': 'http://glances:61208', 'icon': 'fa-tachometer-alt'},
-                {'name': 'Unifi', 'url': 'https://unifi:8443', 'icon': 'fa-wifi'}
-            ]
-            
-            # Convert default services to consistent format
-            media_services = [create_service_dict(s, True) for s in default_media_services]
-            system_services = [create_service_dict(s, True) for s in default_system_services]
-            
-            # Add custom services
-            media_services.extend([create_service_dict(s) for s in custom_services if s['section'] == 'media'])
-            system_services.extend([create_service_dict(s) for s in custom_services if s['section'] == 'system'])
-            
-            print("Final media services:", media_services)  # Debug print
-            print("Final system services:", system_services)  # Debug print
-
-            # Get weather data
-            cur.execute("SELECT city_name FROM users WHERE username = %s", (session['user'],))
-            result = cur.fetchone()
-            city_name = result['city_name'] if result else None
-            
-            if city_name:
-                try:
-                    # First get coordinates for the city
-                    lat, lon = get_coordinates_for_city(city_name)
-                    # Then get the forecast using those coordinates
-                    forecast_data = get_weekly_forecast(lat, lon)
-                except Exception as e:
-                    print(f"Weather forecast error: {e}")
-                    forecast_data = None
-            else:
-                forecast_data = None
-
-    except Exception as e:
-        print(f"Error: {e}")
-        flash('Error loading services', 'danger')
-        media_services = []
-        system_services = []
-        forecast_data = None
-        city_name = None
+            user_services = cur.fetchall()
     finally:
         conn.close()
-
+    
+    # Organize services by section
+    media_services = []
+    system_services = []
+    
+    # Add default services first
+    default_media_services = [
+        {'name': 'Sonarr', 'url': 'https://drewwilliams.biz/sonarr', 'icon': 'fa-tv'},
+        {'name': 'Radarr', 'url': 'https://drewwilliams.biz/radarr', 'icon': 'fa-film'},
+        {'name': 'NZBGet', 'url': 'https://drewwilliams.biz/nzbget', 'icon': 'fa-download'}
+    ]
+    
+    default_system_services = [
+        {'name': 'Portainer', 'url': 'https://portainer.drewwilliams.biz', 'icon': 'fa-server'},
+        {'name': 'Glances', 'url': 'https://glances.drewwilliams.biz', 'icon': 'fa-tachometer-alt'},
+        {'name': 'Unifi', 'url': 'https://unifi.ui.com', 'icon': 'fa-wifi'}
+    ]
+    
+    # Convert default services to consistent format
+    media_services = [create_service_dict(s, True) for s in default_media_services]
+    system_services = [create_service_dict(s, True) for s in default_system_services]
+    
+    # Add custom services
+    media_services.extend([create_service_dict(s) for s in user_services if s['section'] == 'media'])
+    system_services.extend([create_service_dict(s) for s in user_services if s['section'] == 'system'])
+    
     return render_template('index.html',
                          media_services=media_services,
                          system_services=system_services,
                          forecast_data=forecast_data,
-                         city_name=city_name)
+                         city_name=city_name,
+                         button_width=button_width,
+                         button_height=button_height)
 
 def get_coordinates_for_city(city_name):
     """
