@@ -200,7 +200,9 @@ def get_weekly_forecast(lat, lon):
                     "icon_url": icon_url,
                     "description": description,
                     "temp_min": temp_min,
-                    "temp_max": temp_max
+                    "temp_max": temp_max,
+                    "lat": lat,  # Add latitude
+                    "lon": lon   # Add longitude
                 })
                 
         # Debug logging
