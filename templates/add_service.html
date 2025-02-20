@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Add Service{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/icon-selector.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="settings-container" data-aos="fade-up">
   <div class="settings-card">
@@ -33,12 +38,12 @@
       <div class="form-group">
         <label for="icon">
           <i class="fas fa-icons"></i>
-          Icon (Font Awesome class)
+          Icon
         </label>
         <input type="text" id="icon" name="icon" required class="form-control" 
-               placeholder="e.g., fa-server">
+               placeholder="Click to select an icon">
         <div class="icon-preview">
-          Selected icon: <i id="iconPreview" class="fas"></i>
+          Selected icon: <i id="iconPreview" class="fas fa-fw"></i>
         </div>
       </div>
 
@@ -74,11 +79,8 @@
     </form>
   </div>
 </div>
+{% endblock %}
 
-<script>
-document.getElementById('icon').addEventListener('input', function(e) {
-  const preview = document.getElementById('iconPreview');
-  preview.className = 'fas ' + e.target.value;
-});
-</script>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/icon-selector.js') }}"></script>
 {% endblock %}
