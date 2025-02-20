@@ -1,165 +1,243 @@
-{% extends "base.html" %}
-{% block title %}Login{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Dashboard</title>
+    <style>
+        :root {
+            --primary: #4338ca;
+            --primary-dark: #3730a3;
+            --text-primary: #1f2937;
+            --text-secondary: #4b5563;
+            --bg-primary: #ffffff;
+            --border-light: #e5e7eb;
+        }
 
-{% block head %}
-<style>
-  /* Essential variables */
-  :root {
-    --primary: #4338ca;
-    --primary-dark: #3730a3;
-    --text-primary: #1f2937;
-    --text-secondary: #4b5563;
-    --bg-primary: #ffffff;
-    --border-light: #e5e7eb;
-    --radius-md: 0.5rem;
-    --spacing-sm: 0.5rem;
-    --spacing-md: 1rem;
-    --spacing-lg: 1.5rem;
-    --spacing-xl: 2rem;
-    --font-normal: 400;
-    --font-medium: 500;
-    --glass-bg: rgba(255, 255, 255, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.12);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    --transition-normal: 250ms ease;
-  }
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-  /* Login specific styles */
-  .login-container {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--spacing-xl);
-  }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f3f4f6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
 
-  .login-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(8px);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    padding: var(--spacing-xl);
-    width: 100%;
-    max-width: 400px;
-  }
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 2rem;
+        }
 
-  .login-header {
-    text-align: center;
-    margin-bottom: var(--spacing-xl);
-  }
+        .login-card {
+            background: rgba(255, 255, 255, 0.9);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+        }
 
-  .login-header i {
-    font-size: 3rem;
-    color: var(--primary);
-    margin-bottom: var(--spacing-md);
-  }
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
 
-  .login-header h1 {
-    color: var(--text-primary);
-    font-size: 1.5rem;
-    margin-bottom: var(--spacing-sm);
-  }
+        .login-header-icon {
+            width: 1.5rem;
+            height: 1.5rem;
+            margin: 0 auto 0.5rem;
+            color: var(--primary);
+            display: block;
+        }
 
-  .login-header p {
-    color: var(--text-secondary);
-  }
+        .login-header h1 {
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
 
-  .login-form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-lg);
-  }
+        .login-header p {
+            color: var(--text-secondary);
+        }
 
-  .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-  }
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
 
-  .form-group label {
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-  }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
 
-  .form-group input {
-    width: 100%;
-    padding: var(--spacing-md);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-md);
-    transition: border-color var(--transition-normal);
-  }
+        .form-group label {
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
 
-  .form-group input:focus {
-    outline: none;
-    border-color: var(--primary);
-  }
+        .icon {
+            width: 0.75rem;
+            height: 0.75rem;
+            display: inline-block;
+            flex-shrink: 0;
+        }
 
-  .login-btn {
-    background: var(--primary);
-    color: white;
-    border: none;
-    padding: var(--spacing-md);
-    border-radius: var(--radius-md);
-    font-weight: var(--font-medium);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-    transition: background-color var(--transition-normal);
-  }
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border-light);
+            border-radius: 0.375rem;
+            transition: border-color 0.15s ease;
+            font-size: 1rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
 
-  .login-btn:hover {
-    background: var(--primary-dark);
-  }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.1);
+        }
 
-  @media (max-width: 768px) {
-    .login-card {
-      padding: var(--spacing-lg);
-    }
-  }
-</style>
-{% endblock %}
+        .login-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: background-color 0.15s ease;
+            font-size: 1rem;
+        }
 
-{% block content %}
-{{ super() }}
-<div class="login-container" data-aos="fade-up">
-  <div class="login-card">
-    <div class="login-header">
-      <i class="fas fa-user-circle"></i>
-      <h1>Welcome Back</h1>
-      <p>Please sign in to continue</p>
+        .login-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .alert {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0.375rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .alert-danger {
+            background-color: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-success {
+            background-color: #dcfce7;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+
+        @media (max-width: 640px) {
+            .login-container {
+                padding: 1rem;
+            }
+            
+            .login-card {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #f3f4f6;
+                --text-secondary: #d1d5db;
+                --bg-primary: #1f2937;
+                --border-light: #374151;
+            }
+
+            body {
+                background-color: #111827;
+            }
+
+            .login-card {
+                background: rgba(31, 41, 55, 0.9);
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+
+            .form-group input {
+                background: rgba(17, 24, 39, 0.8);
+                border-color: rgba(255, 255, 255, 0.1);
+                color: var(--text-primary);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <svg class="login-header-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h1>Welcome Back</h1>
+                <p>Please sign in to continue</p>
+            </div>
+
+            <!-- Example alert that can be shown/hidden with JavaScript -->
+            <div class="alert alert-danger" role="alert" style="display: none;">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="alert-message">Invalid username or password</span>
+            </div>
+            
+            <form method="POST" action="/login" class="login-form">
+                <div class="form-group">
+                    <label for="username">
+                        <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        Username
+                    </label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">
+                        <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        Password
+                    </label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                </div>
+                
+                <button type="submit" class="login-btn">
+                    Sign In
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                </button>
+            </form>
+        </div>
     </div>
-    
-    <form method="POST" action="" class="login-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      
-      <div class="form-group">
-        <label for="username">
-          <i class="fas fa-user"></i>
-          Username
-        </label>
-        <input type="text" id="username" name="username" required 
-               class="form-control" autocomplete="username">
-      </div>
-      
-      <div class="form-group">
-        <label for="password">
-          <i class="fas fa-lock"></i>
-          Password
-        </label>
-        <input type="password" id="password" name="password" required 
-               class="form-control" autocomplete="current-password">
-      </div>
-      
-      <button type="submit" class="login-btn">
-        Sign In
-        <i class="fas fa-arrow-right"></i>
-      </button>
-    </form>
-  </div>
-</div>
-{% endblock %}
+</body>
+</html>
