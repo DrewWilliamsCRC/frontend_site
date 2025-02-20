@@ -32,19 +32,21 @@
         </label>
         <div class="slider-container">
           <div class="slider-group">
-            <label class="sub-label">Width:</label>
+            <label class="sub-label" for="button_width">Width:</label>
             <input type="range" id="button_width" name="button_width" 
                    min="50" max="300" step="10"
                    value="{{ button_width }}" class="form-control slider"
-                   oninput="updateSliderValues()">
+                   oninput="updateSliderValues()"
+                   title="Adjust button width">
             <span class="slider-value">{{ button_width }}px</span>
           </div>
           <div class="slider-group">
-            <label class="sub-label">Height:</label>
+            <label class="sub-label" for="button_height">Height:</label>
             <input type="range" id="button_height" name="button_height" 
                    min="50" max="300" step="10"
                    value="{{ button_height }}" class="form-control slider"
-                   oninput="updateSliderValues()">
+                   oninput="updateSliderValues()"
+                   title="Adjust button height">
             <span class="slider-value">{{ button_height }}px</span>
           </div>
         </div>
@@ -98,7 +100,7 @@ function updateSliderValues() {
 }
 
 .text-muted {
-  color: var(--text-light);
+  color: #6b7280;
 }
 
 .settings-form {
@@ -122,7 +124,7 @@ function updateSliderValues() {
 
 .help-text {
   font-size: 0.875rem;
-  color: var(--text-light);
+  color: #4b5563;
 }
 
 .form-control {
@@ -167,10 +169,12 @@ body.dark-mode .settings-card {
 body.dark-mode .form-control {
   background-color: #374151;
   border-color: #4b5563;
-  color: var(--text-dark);
+  color: #e5e7eb;
 }
 
-body.dark-mode .help-text {
+body.dark-mode .text-muted,
+body.dark-mode .help-text,
+body.dark-mode .sub-label {
   color: #9ca3af;
 }
 
@@ -196,7 +200,7 @@ body.dark-mode .help-text {
 .sub-label {
   min-width: 60px;
   font-size: 0.875rem;
-  color: var(--text-light);
+  color: #4b5563;
 }
 
 .slider {
@@ -204,6 +208,7 @@ body.dark-mode .help-text {
   height: 8px;
   border-radius: 4px;
   -webkit-appearance: none;
+  appearance: none;
   background: #e5e7eb;
 }
 

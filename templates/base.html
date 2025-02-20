@@ -24,28 +24,28 @@
   {% endif %}
 
   <!-- Mobile Menu Toggle -->
-  <button class="mobile-menu-toggle">
+  <button class="mobile-menu-toggle" type="button" title="Toggle navigation menu">
     <i class="fas fa-bars"></i>
   </button>
 
   <!-- Sidebar Navigation -->
   <div class="sidebar">
     <div class="sidebar-header">
-      <i class="fas fa-chart-network"></i>
+      <i class="fas fa-chart-bar"></i>
       <span>Dashboard</span>
     </div>
     
     <nav class="sidebar-nav">
       {% if 'user' in session %}
-        <a href="{{ url_for('home') }}" class="nav-item">
+        <a href="{{ url_for('home') }}" class="nav-item {% if request.endpoint == 'home' %}active{% endif %}">
           <i class="fas fa-home"></i>
           <span>Home</span>
         </a>
-        <a href="{{ url_for('user_manager.index') }}" class="nav-item">
+        <a href="{{ url_for('user_manager.index') }}" class="nav-item {% if request.endpoint == 'user_manager.index' %}active{% endif %}">
           <i class="fas fa-users"></i>
           <span>Users</span>
         </a>
-        <a href="{{ url_for('settings') }}" class="nav-item">
+        <a href="{{ url_for('settings') }}" class="nav-item {% if request.endpoint == 'settings' %}active{% endif %}">
           <i class="fas fa-cog"></i>
           <span>Settings</span>
         </a>
@@ -54,7 +54,7 @@
           <span>Logout</span>
         </a>
       {% else %}
-        <a href="{{ url_for('login') }}" class="nav-item">
+        <a href="{{ url_for('login') }}" class="nav-item {% if request.endpoint == 'login' %}active{% endif %}">
           <i class="fas fa-sign-in-alt"></i>
           <span>Login</span>
         </a>
@@ -64,7 +64,7 @@
     <div class="theme-toggle">
       <button id="darkModeToggle" class="theme-btn">
         <i class="fas fa-moon"></i>
-        <span>Dark Mode</span>
+        <span id="themeText">Dark Mode</span>
       </button>
     </div>
   </div>
@@ -98,25 +98,30 @@
       const storedPref = localStorage.getItem("darkMode") === "true";
       const toggleBtn = document.getElementById("darkModeToggle");
       const toggleIcon = toggleBtn.querySelector("i");
+      const themeText = document.getElementById("themeText");
+      
+      function updateThemeUI(isDark) {
+        if (isDark) {
+          toggleIcon.classList.remove("fa-moon");
+          toggleIcon.classList.add("fa-sun");
+          themeText.textContent = "Light Mode";
+        } else {
+          toggleIcon.classList.remove("fa-sun");
+          toggleIcon.classList.add("fa-moon");
+          themeText.textContent = "Dark Mode";
+        }
+      }
       
       if (storedPref) {
         body.classList.add("dark-mode");
-        toggleIcon.classList.remove("fa-moon");
-        toggleIcon.classList.add("fa-sun");
+        updateThemeUI(true);
       }
       
       toggleBtn.addEventListener("click", function() {
         body.classList.toggle("dark-mode");
         const isDark = body.classList.contains("dark-mode");
         localStorage.setItem("darkMode", isDark);
-        
-        if (isDark) {
-          toggleIcon.classList.remove("fa-moon");
-          toggleIcon.classList.add("fa-sun");
-        } else {
-          toggleIcon.classList.remove("fa-sun");
-          toggleIcon.classList.add("fa-moon");
-        }
+        updateThemeUI(isDark);
       });
     });
 

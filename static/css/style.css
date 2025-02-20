@@ -1,20 +1,20 @@
 /* Root variables for consistent colors */
 :root {
     /* Color System */
-    --primary: #4f46e5;
-    --primary-dark: #4338ca;
-    --secondary: #10b981;
-    --accent: #f59e0b;
-    --danger: #ef4444;
-    --success: #22c55e;
-    --warning: #f59e0b;
-    --info: #3b82f6;
+    --primary: #4338ca;
+    --primary-dark: #3730a3;
+    --secondary: #059669;
+    --accent: #d97706;
+    --danger: #dc2626;
+    --success: #16a34a;
+    --warning: #d97706;
+    --info: #2563eb;
     
-    /* Neutral Colors */
+    /* Neutral Colors - Adjusted for better contrast */
     --bg-light: #f9fafb;
-    --bg-dark: #111827;
-    --text-light: #374151;
-    --text-dark: #f3f4f6;
+    --bg-dark: #0f172a;    /* Darker background */
+    --text-light: #1f2937;
+    --text-dark: #f8fafc;  /* Brighter text for dark mode */
     
     /* Spacing */
     --spacing-xs: 0.25rem;
@@ -119,9 +119,31 @@ body {
     transition: all var(--transition-normal);
 }
 
+.card h3 {
+    color: var(--primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+}
+
+.card p {
+    color: var(--text-light);
+    opacity: 0.9;
+}
+
 .card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
+}
+
+/* Dark mode overrides for cards */
+body.dark-mode .card h3 {
+    color: #a5b4fc;  /* Light purple, matching service cards */
+}
+
+body.dark-mode .card p {
+    color: #e2e8f0;
+    opacity: 0.9;
 }
 
 /* Service Grid */
@@ -132,17 +154,46 @@ body {
     margin-top: var(--spacing-xl);
 }
 
+/* Service Cards - Light Mode (Default) */
 .service-card {
     background-color: white;
-    padding: var(--spacing-lg);
-    border-radius: var(--radius-lg);
     border: 1px solid #e5e7eb;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
     transition: all var(--transition-normal);
 }
 
+.service-card h3 {
+    color: var(--primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+}
+
+.service-card p {
+    color: var(--text-light);
+    opacity: 0.9;
+}
+
 .service-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary);
+}
+
+/* Dark Mode Overrides */
+body.dark-mode .service-card {
+    background-color: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-mode .service-card h3 {
+    color: #a5b4fc;  /* Light purple */
+}
+
+body.dark-mode .service-card p {
+    color: #e2e8f0;
+    opacity: 0.9;
 }
 
 /* Weather Cards */
@@ -191,18 +242,22 @@ body.dark-mode {
 }
 
 body.dark-mode .sidebar {
-    background-color: #1f2937;
-    border-color: #374151;
+    background-color: #1e293b;  /* Slightly lighter than bg-dark */
+    border-color: #334155;      /* Lighter border */
 }
 
 body.dark-mode .card,
 body.dark-mode .service-card {
-    background-color: #1f2937;
-    border-color: #374151;
+    background-color: #1e293b;
+    border-color: #334155;
 }
 
 body.dark-mode .nav-item {
-    color: var(--text-dark);
+    color: #e2e8f0;  /* Brighter text for navigation */
+}
+
+body.dark-mode .theme-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);  /* Lighter hover state */
 }
 
 /* Development Banner */
