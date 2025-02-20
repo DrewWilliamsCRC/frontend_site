@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Edit Service{% endblock %}
 {% block content %}
-<div class="form-container" data-aos="fade-up">
-  <div class="form-card">
-    <div class="form-header">
+<div class="settings-container" data-aos="fade-up">
+  <div class="settings-card">
+    <div class="settings-header">
       <h1>
         <i class="fas fa-cog"></i>
         Edit Service: {{ service.name }}
       </h1>
+      <p class="text-muted">Update service details</p>
     </div>
 
-    <form method="POST" action="{{ url_for('edit_service', service_id=service.id) }}" class="service-form">
+    <form method="POST" action="{{ url_for('edit_service', service_id=service.id) }}" class="settings-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       
       <div class="form-group">
@@ -61,7 +62,7 @@
       </div>
       
       <div class="form-actions">
-        <button type="submit" class="btn-submit">
+        <button type="submit" class="btn-save">
           <i class="fas fa-save"></i>
           Save Changes
         </button>
@@ -75,8 +76,159 @@
 </div>
 
 <style>
-/* Reuse the styles from add_service.html */
-{% include 'add_service.html' %}
+.settings-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: var(--spacing-md);
+}
+
+.settings-card {
+  background-color: white;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.settings-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.settings-header h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.text-muted {
+  color: var(--text-light);
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.form-group label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-weight: 500;
+}
+
+.form-control {
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 2px solid #e5e7eb;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.btn-save,
+.btn-cancel {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-save {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-cancel {
+  background-color: #e5e7eb;
+  color: var(--text-light);
+  text-decoration: none;
+}
+
+.btn-save:hover,
+.btn-cancel:hover {
+  transform: translateY(-2px);
+}
+
+.btn-save:hover {
+  background-color: var(--primary-dark);
+}
+
+.btn-cancel:hover {
+  background-color: #d1d5db;
+}
+
+.icon-preview {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.icon-preview i {
+  font-size: 1.5rem;
+  color: var(--primary);
+}
+
+/* Dark mode styles */
+body.dark-mode .settings-card {
+  background-color: #1f2937;
+}
+
+body.dark-mode .form-control {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: var(--text-dark);
+}
+
+body.dark-mode .btn-cancel {
+  background-color: #374151;
+  color: var(--text-dark);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .settings-card {
+    padding: var(--spacing-lg);
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .btn-save,
+  .btn-cancel {
+    width: 100%;
+    justify-content: center;
+  }
+}
 </style>
 
 <script>
