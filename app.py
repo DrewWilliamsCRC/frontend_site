@@ -74,10 +74,8 @@ if not DATABASE_URL:
     raise ValueError("No DATABASE_URL set for the Flask application.")
 
 def get_db_connection():
-    """
-    Returns a new database connection using psycopg2 and a RealDictCursor.
-    """
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.cursor_factory = psycopg2.extras.RealDictCursor
     return conn
 
 def init_db():
@@ -231,6 +229,28 @@ def sanitize_city_name(city):
         # Fall back to a default value if nothing remains.
         return sanitized if sanitized else "New York"
 
+def create_service_dict(service, is_default=False):
+    """Helper function to create consistent service dictionaries"""
+    if is_default:
+        return {
+            'id': None,
+            'name': service['name'],
+            'url': service['url'],
+            'icon': service['icon'],
+            'description': '',
+            'is_default': True,
+            'section': service.get('section', '')
+        }
+    return {
+        'id': service['id'],
+        'name': service['name'],
+        'url': service['url'],
+        'icon': service['icon'],
+        'description': service['description'],
+        'is_default': False,
+        'section': service['section']
+    }
+
 # -----------------------------------------------------------------------------------
 # Routes
 # -----------------------------------------------------------------------------------
@@ -245,48 +265,80 @@ def auth_check():
 
 @app.route('/')
 def home():
-    """Home route."""
     if 'user' not in session:
         return redirect(url_for('login'))
         
-    # Get user's city and weather data
-    city_name, button_width, button_height = get_user_settings(session['user'])
-    print(f"City name from settings: {city_name}")
-    
-    lat, lon = get_coordinates_for_city(city_name)
-    print(f"Coordinates for {city_name}: lat={lat}, lon={lon}")
-    
-    forecast_data = get_weekly_forecast(lat, lon) if lat and lon else []
-    print(f"Forecast data: {forecast_data}")
-    
-    # Get custom services
     conn = get_db_connection()
     try:
-        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+        with conn.cursor() as cur:
+            # Get custom services with their order
             cur.execute(
                 """SELECT * FROM custom_services 
                    WHERE user_id = (
                        SELECT id FROM users WHERE username = %s
                    )
-                   ORDER BY section, created_at""",
+                   ORDER BY section, COALESCE(display_order, EXTRACT(EPOCH FROM created_at)::bigint), created_at""",
                 (session['user'],)
             )
-            custom_services = [dict(row) for row in cur.fetchall()]
+            custom_services = cur.fetchall()
+            print("Custom services from DB:", custom_services)  # Debug print
             
-            # Group services by section
-            media_services = [s for s in custom_services if s['section'] == 'media']
-            system_services = [s for s in custom_services if s['section'] == 'system']
+            # Define default services with their sections
+            default_media_services = [
+                {'name': 'Sonarr', 'url': 'http://sonarr:8989', 'icon': 'fa-tv'},
+                {'name': 'Radarr', 'url': 'http://radarr:7878', 'icon': 'fa-film'},
+                {'name': 'NZBGet', 'url': 'http://nzbget:6789', 'icon': 'fa-download'}
+            ]
             
-            return render_template('index.html',
-                                user=session['user'],
-                                city_name=city_name,
-                                forecast_data=forecast_data,
-                                media_services=media_services,
-                                system_services=system_services,
-                                button_width=button_width,
-                                button_height=button_height)
+            default_system_services = [
+                {'name': 'Portainer', 'url': 'http://portainer:9000', 'icon': 'fa-server'},
+                {'name': 'Glances', 'url': 'http://glances:61208', 'icon': 'fa-tachometer-alt'},
+                {'name': 'Unifi', 'url': 'https://unifi:8443', 'icon': 'fa-wifi'}
+            ]
+            
+            # Convert default services to consistent format
+            media_services = [create_service_dict(s, True) for s in default_media_services]
+            system_services = [create_service_dict(s, True) for s in default_system_services]
+            
+            # Add custom services
+            media_services.extend([create_service_dict(s) for s in custom_services if s['section'] == 'media'])
+            system_services.extend([create_service_dict(s) for s in custom_services if s['section'] == 'system'])
+            
+            print("Final media services:", media_services)  # Debug print
+            print("Final system services:", system_services)  # Debug print
+
+            # Get weather data
+            cur.execute("SELECT city_name FROM users WHERE username = %s", (session['user'],))
+            result = cur.fetchone()
+            city_name = result['city_name'] if result else None
+            
+            if city_name:
+                try:
+                    # First get coordinates for the city
+                    lat, lon = get_coordinates_for_city(city_name)
+                    # Then get the forecast using those coordinates
+                    forecast_data = get_weekly_forecast(lat, lon)
+                except Exception as e:
+                    print(f"Weather forecast error: {e}")
+                    forecast_data = None
+            else:
+                forecast_data = None
+
+    except Exception as e:
+        print(f"Error: {e}")
+        flash('Error loading services', 'danger')
+        media_services = []
+        system_services = []
+        forecast_data = None
+        city_name = None
     finally:
         conn.close()
+
+    return render_template('index.html',
+                         media_services=media_services,
+                         system_services=system_services,
+                         forecast_data=forecast_data,
+                         city_name=city_name)
 
 def get_coordinates_for_city(city_name):
     """
@@ -585,6 +637,80 @@ def edit_service(service_id):
         conn.rollback()
         flash(f'Error updating service: {str(e)}', 'danger')
         return redirect(url_for('home'))
+    finally:
+        conn.close()
+
+@app.route('/services/reorder', methods=['POST'])
+def reorder_services():
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+        
+    data = request.get_json()
+    section = data.get('section')
+    service_ids = data.get('serviceIds')
+    
+    if not section or not service_ids:
+        return jsonify({'error': 'Missing required data'}), 400
+        
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            for index, service_id in enumerate(service_ids):
+                cur.execute(
+                    """UPDATE custom_services 
+                       SET display_order = %s 
+                       WHERE id = %s AND user_id = (
+                           SELECT id FROM users WHERE username = %s
+                       )""",
+                    (index, service_id, session['user'])
+                )
+            conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/services/reorder-default', methods=['POST'])
+def reorder_default_services():
+    if 'user' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+        
+    data = request.get_json()
+    section = data.get('section')
+    service_names = data.get('serviceNames')
+    
+    if not section or not service_names:
+        return jsonify({'error': 'Missing required data'}), 400
+        
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # First, delete existing orders for this user and section
+            cur.execute(
+                """DELETE FROM default_service_order 
+                   WHERE user_id = (SELECT id FROM users WHERE username = %s)
+                   AND section = %s""",
+                (session['user'], section)
+            )
+            
+            # Insert new orders
+            for index, name in enumerate(service_names):
+                cur.execute(
+                    """INSERT INTO default_service_order 
+                       (user_id, service_name, display_order, section)
+                       VALUES (
+                           (SELECT id FROM users WHERE username = %s),
+                           %s, %s, %s
+                       )""",
+                    (session['user'], name, index, section)
+                )
+            conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
     finally:
         conn.close()
 

@@ -15,61 +15,33 @@
       <h2><i class="fas fa-film"></i> Media Management</h2>
     </div>
     <div class="service-grid">
-      <!-- Default Media Services -->
-      <div class="service-card">
-        <a href="https://drewwilliams.biz/sonarr" target="_blank" class="service-link">
-          <div class="service-icon">
-            <i class="fas fa-tv"></i>
-          </div>
-          <h3>Sonarr</h3>
-          <p>TV Show Management</p>
-        </a>
-      </div>
-
-      <div class="service-card">
-        <a href="https://drewwilliams.biz/radarr" target="_blank" class="service-link">
-          <div class="service-icon">
-            <i class="fas fa-film"></i>
-          </div>
-          <h3>Radarr</h3>
-          <p>Movie Management</p>
-        </a>
-      </div>
-
-      <div class="service-card">
-        <a href="http://drewwilliams.biz/nzbget" target="_blank" class="service-link">
-          <div class="service-icon">
-            <i class="fas fa-download"></i>
-          </div>
-          <h3>NZBGet</h3>
-          <p>Download Management</p>
-        </a>
-      </div>
-
-      <!-- Custom Media Services -->
       {% for service in media_services %}
-        <div class="service-card">
-          <!-- Edit button -->
-          <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn-edit-service" title="Edit service">
-            <i class="fas fa-cog"></i>
-          </a>
-          
-          <!-- Delete button -->
-          <form method="POST" action="{{ url_for('delete_service', service_id=service.id) }}"
-                class="delete-service" onsubmit="return confirm('Delete this service?');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn-delete-service" title="Delete service">
-              <i class="fas fa-trash-alt"></i>
-            </button>
-          </form>
+        <div class="service-card" {% if not service.is_default %}data-service-id="{{ service['id'] }}"{% endif %}>
+          {% if not service.is_default and service['id'] is not none %}
+            <!-- Edit button -->
+            <a href="{{ url_for('edit_service', service_id=service['id']) }}" class="btn-edit-service" title="Edit service">
+              <i class="fas fa-cog"></i>
+            </a>
+            
+            <!-- Delete button -->
+            <form method="POST" action="{{ url_for('delete_service', service_id=service['id']) }}"
+                  class="delete-service" onsubmit="return confirm('Delete this service?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-delete-service" title="Delete service">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </form>
+          {% endif %}
           
           <!-- Service link wrapper -->
-          <a href="{{ service.url }}" target="_blank" class="service-link">
+          <a href="{{ service['url'] }}" target="_blank" class="service-link">
             <div class="service-icon">
-              <i class="fas {{ service.icon }}"></i>
+              <i class="fas {{ service['icon'] }}"></i>
             </div>
-            <h3>{{ service.name }}</h3>
-            <p>{{ service.description }}</p>
+            <h3>{{ service['name'] }}</h3>
+            {% if service['description'] %}
+              <p>{{ service['description'] }}</p>
+            {% endif %}
           </a>
         </div>
       {% endfor %}
@@ -91,71 +63,33 @@
       <h2><i class="fas fa-server"></i> System Management</h2>
     </div>
     <div class="service-grid">
-      <!-- Default System Services -->
-      <div class="service-card">
-        <a href="https://unifi.ui.com" target="_blank" class="service-link">
-          <div class="service-icon">
-            <i class="fas fa-wifi"></i>
-          </div>
-          <h3>Unifi Controller</h3>
-          <p>Network Management</p>
-        </a>
-      </div>
-
-      <div class="service-card">
-        <a href="https://vscode.drewwilliams.biz" target="_blank" class="service-link">
-          <div class="service-icon">
-            <i class="fas fa-code"></i>
-          </div>
-          <h3>Code Server</h3>
-          <p>Web IDE</p>
-        </a>
-      </div>
-
-      <div class="service-card">
-        <a href="https://portainer.drewwilliams.biz" target="_blank" class="service-link">
-          <div class="service-icon">
-            <i class="fas fa-boxes"></i>
-          </div>
-          <h3>Portainer</h3>
-          <p>Container Management</p>
-        </a>
-      </div>
-
-      <div class="service-card">
-        <a href="https://glances.drewwilliams.biz" target="_blank" class="service-link">
-          <div class="service-icon">
-            <i class="fas fa-tachometer-alt"></i>
-          </div>
-          <h3>Glances</h3>
-          <p>System Monitoring</p>
-        </a>
-      </div>
-
-      <!-- Custom System Services -->
       {% for service in system_services %}
-        <div class="service-card">
-          <!-- Edit button -->
-          <a href="{{ url_for('edit_service', service_id=service.id) }}" class="btn-edit-service" title="Edit service">
-            <i class="fas fa-cog"></i>
-          </a>
-          
-          <!-- Delete button -->
-          <form method="POST" action="{{ url_for('delete_service', service_id=service.id) }}"
-                class="delete-service" onsubmit="return confirm('Delete this service?');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn-delete-service" title="Delete service">
-              <i class="fas fa-trash-alt"></i>
-            </button>
-          </form>
+        <div class="service-card" {% if not service.is_default %}data-service-id="{{ service['id'] }}"{% endif %}>
+          {% if not service.is_default and service['id'] is not none %}
+            <!-- Edit button -->
+            <a href="{{ url_for('edit_service', service_id=service['id']) }}" class="btn-edit-service" title="Edit service">
+              <i class="fas fa-cog"></i>
+            </a>
+            
+            <!-- Delete button -->
+            <form method="POST" action="{{ url_for('delete_service', service_id=service['id']) }}"
+                  class="delete-service" onsubmit="return confirm('Delete this service?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn-delete-service" title="Delete service">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </form>
+          {% endif %}
           
           <!-- Service link wrapper -->
-          <a href="{{ service.url }}" target="_blank" class="service-link">
+          <a href="{{ service['url'] }}" target="_blank" class="service-link">
             <div class="service-icon">
-              <i class="fas {{ service.icon }}"></i>
+              <i class="fas {{ service['icon'] }}"></i>
             </div>
-            <h3>{{ service.name }}</h3>
-            <p>{{ service.description }}</p>
+            <h3>{{ service['name'] }}</h3>
+            {% if service['description'] %}
+              <p>{{ service['description'] }}</p>
+            {% endif %}
           </a>
         </div>
       {% endfor %}
@@ -173,11 +107,10 @@
 
   <!-- Weather Section -->
   {% if forecast_data %}
-  <section class="dashboard-section" data-aos="fade-up">
-    <h2 class="section-title">
-      <i class="fas fa-cloud-sun"></i>
-      Weather Forecast for {{ city_name }}
-    </h2>
+  <section class="section">
+    <div class="section-header">
+      <h2><i class="fas fa-cloud-sun"></i> Weather Forecast for {{ city_name }}</h2>
+    </div>
     <div class="weather-grid">
       {% for day in forecast_data %}
       <div class="weather-card">
@@ -193,6 +126,40 @@
 </div>
 
 <style>
+.service-card {
+  position: relative;
+  background-color: white;
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  border: 1px solid #e5e7eb;
+  transition: all var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-edit-service,
+.btn-delete-service {
+  position: absolute;
+  top: 10px;
+  background: none;
+  border: none;
+  color: var(--text-light);
+  padding: 5px;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  z-index: 2;
+}
+
+.btn-edit-service {
+  right: 40px;
+}
+
+.btn-delete-service {
+  right: 10px;
+}
+
 .dashboard-header {
   margin-bottom: var(--spacing-xl);
 }
@@ -217,22 +184,9 @@
 
 .service-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax({{ button_width }}px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--button-width, 280px), 1fr));
   gap: var(--spacing-md);
-}
-
-.service-card {
-  position: relative;
-  background-color: white;
-  padding: var(--spacing-lg);
-  border-radius: var(--radius-lg);
-  border: 1px solid #e5e7eb;
-  height: {{ button_height }}px;
-  transition: all var(--transition-normal);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  width: 100%;
 }
 
 .service-link {
@@ -244,6 +198,8 @@
   justify-content: center;
   width: 100%;
   height: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .service-link h3 {
@@ -254,40 +210,6 @@
 .service-link p {
   color: var(--text-light);
   opacity: 0.9;
-}
-
-.btn-edit-service,
-.btn-delete-service {
-  position: absolute;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: var(--spacing-xs);
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-  z-index: 2;
-}
-
-.btn-edit-service {
-  top: var(--spacing-sm);
-  left: var(--spacing-sm);
-  color: var(--primary);
-}
-
-.btn-delete-service {
-  top: var(--spacing-sm);
-  right: var(--spacing-sm);
-  color: var(--danger);
-}
-
-.service-card:hover .btn-edit-service,
-.service-card:hover .btn-delete-service {
-  opacity: 1;
-}
-
-.delete-service {
-  margin: 0;
-  padding: 0;
 }
 
 .service-icon {
@@ -395,8 +317,8 @@ body.dark-mode .weather-icon {
 
 /* Dark mode adjustments */
 body.dark-mode .service-card {
-  background-color: #1f2937;
-  border-color: #374151;
+  background-color: var(--bg-dark);
+  border-color: var(--border-dark);
 }
 
 body.dark-mode .service-link {
@@ -414,6 +336,16 @@ body.dark-mode .service-link p {
 
 body.dark-mode .service-card:hover {
   background-color: #2d3748;
+}
+
+body.dark-mode .btn-edit-service,
+body.dark-mode .btn-delete-service {
+  color: var(--text-dark);
+}
+
+body.dark-mode .btn-edit-service:hover,
+body.dark-mode .btn-delete-service:hover {
+  color: var(--primary-dark);
 }
 
 /* Responsive adjustments */
@@ -459,5 +391,87 @@ body.dark-mode .service-card:hover {
 body.dark-mode .section-header h2 {
   color: var(--text-light);
 }
+
+.default-services {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--button-width, 280px), 1fr));
+    gap: var(--spacing-md);
+    width: 100%;
+    margin-bottom: var(--spacing-md);
+}
+
+.sortable-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--button-width, 280px), 1fr));
+    gap: var(--spacing-md);
+    width: 100%;
+    margin-bottom: var(--spacing-md);
+}
+
+.sortable-ghost {
+    opacity: 0.5;
+    background-color: var(--primary);
+}
+
+.sortable-chosen {
+    background-color: var(--primary);
+}
+
+.sortable-drag {
+    opacity: 0.8;
+}
+
+body.dark-mode .sortable-chosen {
+    background-color: var(--primary-dark);
+}
+
+.service-card:not(.add-card) {
+    cursor: move;
+}
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const mediaGrid = document.querySelector('.service-grid');
+    const systemGrid = document.querySelector('.section:nth-child(2) .service-grid');
+    
+    function initSortable(gridElement, section) {
+        if (!gridElement) return;
+        
+        new Sortable(gridElement, {
+            animation: 150,
+            filter: '.add-card',  // Don't allow sorting the "Add" card
+            onEnd: function(evt) {
+                // Get all service cards except the "Add" card
+                const serviceCards = Array.from(evt.target.children)
+                    .filter(card => !card.classList.contains('add-card'));
+                
+                // Get service IDs, filtering out any null/undefined values
+                const serviceIds = serviceCards
+                    .map(card => card.dataset.serviceId)
+                    .filter(Boolean);  // This will remove any undefined or null values
+                
+                // Only send request if we have service IDs to reorder
+                if (serviceIds.length > 0) {
+                    fetch('/services/reorder', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                        },
+                        body: JSON.stringify({
+                            section: section,
+                            serviceIds: serviceIds
+                        })
+                    }).catch(error => console.error('Error:', error));
+                }
+            }
+        });
+    }
+    
+    initSortable(mediaGrid, 'media');
+    initSortable(systemGrid, 'system');
+});
+</script>
 {% endblock %}
