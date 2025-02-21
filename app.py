@@ -7,7 +7,7 @@ from datetime import datetime
 import re
 import psycopg2
 from psycopg2.extras import RealDictCursor
-
+import logging
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_caching import Cache
@@ -662,7 +662,8 @@ def reorder_services():
         return jsonify({'success': True})
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 500
+        logging.error("Error in reorder_services: %s", str(e))
+        return jsonify({'error': 'An internal error has occurred!'}), 500
     finally:
         conn.close()
 
@@ -704,7 +705,8 @@ def reorder_default_services():
         return jsonify({'success': True})
     except Exception as e:
         conn.rollback()
-        return jsonify({'error': str(e)}), 500
+        logging.error("Error in reorder_default_services: %s", str(e))
+        return jsonify({'error': 'An internal error has occurred!'}), 500
     finally:
         conn.close()
 
