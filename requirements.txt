@@ -1,6 +1,6 @@
 Flask
-Werkzeug
-requests
+Werkzeug==3.0.6 # added by Snyk 
+requests==2.32.2 # added by Snyk
 flask-caching
 Flask-WTF
 Flask-Limiter
@@ -9,3 +9,4 @@ psycopg2-binary
 gunicorn
 click
 zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
+urllib3==2.2.2 # not directly required, pinned by Snyk to avoid a vulnerability
