@@ -483,8 +483,11 @@ def weather_details(dt):
     """Redirect to detailed weather information on the National Weather Service for the selected forecast day."""
     lat = request.args.get('lat')
     lon = request.args.get('lon')
-    if not lat or not lon:
-        flash("Coordinates are missing for weather details.", "warning")
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except (TypeError, ValueError):
+        flash("Invalid coordinates for weather details.", "warning")
         return redirect(url_for('home'))
     nws_url = f"https://forecast.weather.gov/MapClick.php?lat={lat}&lon={lon}"
     return redirect(nws_url)
