@@ -91,31 +91,26 @@
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script src="{{ url_for('static', filename='js/sidebar.js') }}" defer></script>
   <script>
-    // Initialize button dimensions from server-side settings
-    {% if 'user' in session %}
-    document.documentElement.style.setProperty('--button-width', '{{ button_width }}px');
-    document.documentElement.style.setProperty('--button-height', '{{ button_height }}px');
-    {% endif %}
-    
-    AOS.init();
-    
-    document.addEventListener("DOMContentLoaded", function() {
+    // Move initialization code after sidebar.js loads
+    window.addEventListener('load', function() {
+      // Initialize button dimensions from server-side settings
+      {% if 'user' in session %}
+      document.documentElement.style.setProperty('--button-width', '{{ button_width }}px');
+      document.documentElement.style.setProperty('--button-height', '{{ button_height }}px');
+      {% endif %}
+      
+      AOS.init();
+      
+      // Initialize dark mode
       const body = document.body;
-      const storedPref = localStorage.getItem("darkMode") === "true";
-      const toggleBtn = document.getElementById("darkModeToggle");
-      const toggleIcon = toggleBtn.querySelector("i");
-      const themeText = document.getElementById("themeText");
+      const storedPref = localStorage.getItem('darkMode');
       
       function updateThemeUI(isDark) {
-        if (isDark) {
-          toggleIcon.classList.remove("fa-moon");
-          toggleIcon.classList.add("fa-sun");
-          themeText.textContent = "Light Mode";
-        } else {
-          toggleIcon.classList.remove("fa-sun");
-          toggleIcon.classList.add("fa-moon");
-          themeText.textContent = "Dark Mode";
+        const themeText = document.getElementById('themeText');
+        if (themeText) {
+          themeText.textContent = isDark ? 'Light Mode' : 'Dark Mode';
         }
       }
       
@@ -123,35 +118,6 @@
         body.classList.add("dark-mode");
         updateThemeUI(true);
       }
-      
-      toggleBtn.addEventListener("click", function() {
-        body.classList.toggle("dark-mode");
-        const isDark = body.classList.contains("dark-mode");
-        localStorage.setItem("darkMode", isDark);
-        updateThemeUI(isDark);
-      });
-    });
-
-    // Mobile menu functionality
-    document.addEventListener('DOMContentLoaded', function() {
-      const menuToggle = document.querySelector('.mobile-menu-toggle');
-      const sidebar = document.querySelector('.sidebar');
-      const body = document.body;
-
-      menuToggle.addEventListener('click', function() {
-        sidebar.classList.toggle('active');
-        body.classList.toggle('menu-active');
-      });
-
-      // Close menu when clicking outside
-      document.addEventListener('click', function(e) {
-        if (body.classList.contains('menu-active') && 
-            !sidebar.contains(e.target) && 
-            !menuToggle.contains(e.target)) {
-          sidebar.classList.remove('active');
-          body.classList.remove('menu-active');
-        }
-      });
     });
   </script>
   {% block scripts %}{% endblock %}

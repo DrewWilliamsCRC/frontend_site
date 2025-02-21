@@ -124,18 +124,94 @@ body {
     padding: var(--spacing-md);
     display: flex;
     flex-direction: column;
-    transition: all var(--transition-normal);
+    z-index: 1050;
+    transition: transform 0.3s ease;
 }
 
 .main-content {
     margin-left: var(--sidebar-width);
     padding: var(--spacing-xl);
     min-height: 100vh;
+    transition: margin-left 0.3s ease;
 }
 
-.content-wrapper {
-    max-width: 1200px;
-    margin: 0 auto;
+/* Mobile Menu Toggle Button */
+.mobile-menu-toggle {
+    display: none;
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1100;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 0.75rem;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    -webkit-appearance: none;
+    appearance: none;
+    outline: none;
+}
+
+.mobile-menu-toggle i {
+    font-size: 1.25rem;
+    width: 100%;
+    text-align: center;
+    color: var(--text-primary);
+    pointer-events: none;
+}
+
+.mobile-menu-toggle:hover {
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-md);
+}
+
+.dark-mode .mobile-menu-toggle {
+    background: var(--bg-dark);
+    border-color: var(--border-medium);
+}
+
+.dark-mode .mobile-menu-toggle i {
+    color: var(--text-dark);
+}
+
+/* Mobile Responsive Sidebar */
+@media (max-width: 768px) {
+    .mobile-menu-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sidebar {
+        transform: translateX(-100%);
+        box-shadow: var(--shadow-lg);
+        visibility: hidden;
+        opacity: 0;
+        transition: transform 0.3s ease, visibility 0s linear 0.3s, opacity 0.3s ease;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+        visibility: visible;
+        opacity: 1;
+        transition: transform 0.3s ease, visibility 0s linear 0s, opacity 0.3s ease;
+    }
+
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+        padding-top: calc(1rem + 40px);
+    }
+}
+
+/* Dark mode adjustments */
+.dark-mode .sidebar {
+    background: var(--bg-dark);
+    border-color: var(--border-medium);
 }
 
 /* Sidebar Components */
@@ -1781,4 +1857,77 @@ body:has(.dev-banner) {
 
 .dark-mode .theme-btn:hover i {
     color: #fbbf24;
+}
+
+/* Mobile Menu Toggle Button */
+.mobile-menu-toggle {
+    display: none;
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1100;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 0.75rem;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-fast);
+    -webkit-appearance: none;
+    appearance: none;
+    outline: none;
+}
+
+.mobile-menu-toggle i {
+    font-size: 1.25rem;
+    width: 100%;
+    text-align: center;
+    color: var(--text-primary);
+    pointer-events: none;
+}
+
+.mobile-menu-toggle:hover {
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-md);
+}
+
+.dark-mode .mobile-menu-toggle {
+    background: var(--bg-dark);
+    border-color: var(--border-medium);
+}
+
+.dark-mode .mobile-menu-toggle i {
+    color: var(--text-dark);
+}
+
+/* Mobile Responsive Sidebar */
+@media (max-width: 768px) {
+    .mobile-menu-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sidebar {
+        transform: translateX(-100%);
+        box-shadow: var(--shadow-lg);
+        visibility: hidden;
+        opacity: 0;
+        transition: transform 0.3s ease, visibility 0s linear 0.3s, opacity 0.3s ease;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+        visibility: visible;
+        opacity: 1;
+        transition: transform 0.3s ease, visibility 0s linear 0s, opacity 0.3s ease;
+    }
+
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+        padding-top: calc(1rem + 40px);
+    }
 }
