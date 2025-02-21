@@ -23,7 +23,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Only run Docker login and push on main branch
+      # Only run Docker login on main branch
       - name: Log into Docker Hub
         if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
@@ -38,6 +38,5 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
-          tags: dawttu00/dawttu_private:frontend
-          # Replace with your actual Docker Hub username and repository name
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
