@@ -9,4 +9,4 @@ psycopg2-binary
 gunicorn
 click
 zipp==3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
-urllib3==2.2.2 # not directly required, pinned by Snyk to avoid a vulnerability
+urllib3==2.3.0 # not directly required, pinned by Snyk to avoid a vulnerability
