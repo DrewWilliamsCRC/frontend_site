@@ -10,7 +10,6 @@ updates:
       - "dependencies"
       - "python"
     ignore:
-      # Ignore patch updates for non-critical packages
       - dependency-name: "*"
         update-types: ["version-update:semver-patch"]
 
@@ -33,14 +32,3 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
-
-# Configuration options
-registries:
-  python-index:
-    type: python-index
-    url: https://pypi.org/simple/
-
-# General settings
-commit-message:
-  prefix: "deps"
-  include: "scope"
