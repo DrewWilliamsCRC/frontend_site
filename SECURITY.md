@@ -2,20 +2,79 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Currently supported versions of this web application:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| 1.x.x   | :white_check_mark: |
+| < 1.0   | :x:                |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+We take the security of our web application seriously. If you believe you've found a security vulnerability, please follow these steps:
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+### Reporting Process
+
+1. **DO NOT** create a public GitHub issue for the vulnerability.
+2. Send an email to [INSERT_SECURITY_EMAIL] with:
+   - A detailed description of the vulnerability
+   - Steps to reproduce the issue
+   - Potential impact of the vulnerability
+   - Any possible mitigations you've identified
+
+### What to Expect
+
+- You will receive an acknowledgment within 48 hours
+- We will validate and investigate the reported vulnerability
+- We aim to provide regular updates every 5 business days
+- Once resolved, we will notify you and discuss public disclosure details
+
+## Security Best Practices
+
+### For Contributors
+
+1. **Dependencies**
+   - Keep all dependencies up to date
+   - Regularly run `pip install --upgrade` for Python packages
+   - Review Docker base images for security updates
+
+2. **Environment Variables**
+   - Never commit `.env` files
+   - Use `.env.example` as a template
+   - Keep sensitive credentials out of the codebase
+
+3. **Code Security**
+   - Follow OWASP security guidelines
+   - Implement proper input validation
+   - Use prepared statements for database queries
+   - Enable CORS appropriately
+   - Keep debug mode disabled in production
+
+### For Users
+
+1. **Authentication**
+   - Use strong passwords
+   - Enable two-factor authentication if available
+   - Keep your access tokens secure
+
+2. **API Usage**
+   - Protect your API keys
+   - Use HTTPS for all requests
+   - Implement rate limiting where necessary
+
+## Security Features
+
+Our application implements several security measures:
+
+- HTTPS encryption for all traffic
+- Input sanitization
+- SQL injection protection
+- XSS protection
+- CSRF tokens
+- Secure session handling
+- Rate limiting
+- Docker container isolation
+
+## Acknowledgments
+
+We would like to thank all security researchers who have helped improve our security. A list of acknowledged researchers will be maintained here (with their permission).
