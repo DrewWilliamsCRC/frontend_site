@@ -61,8 +61,8 @@
           Section
         </label>
         <select id="section" name="section" required class="form-control">
-          <option value="media">Media Management</option>
-          <option value="system">System Management</option>
+          <option value="media" {% if request.args.get('section') == 'media' %}selected{% endif %}>Media Management</option>
+          <option value="system" {% if request.args.get('section') == 'system' %}selected{% endif %}>System Management</option>
         </select>
       </div>
       

@@ -1290,6 +1290,11 @@ body.dark-mode .btn-ghost:hover {
     text-align: center;
 }
 
+/* Add New Service button specific styles */
+.service-card.add-card h3 {
+    font-size: var(--font-size-base);  /* Using the base font size (16px) instead of the default h3 size */
+}
+
 /* Dark mode service card styles */
 .dark-mode .service-card {
     background-color: var(--bg-primary-dark);
@@ -1930,4 +1935,40 @@ body:has(.dev-banner) {
         width: 100%;
         padding-top: calc(1rem + 40px);
     }
+}
+
+/* Service Link Tooltip */
+.service-link {
+    position: relative;
+}
+
+.service-link[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background-color: var(--bg-dark);
+    color: var(--text-dark);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    z-index: 1000;
+    box-shadow: var(--shadow-md);
+    pointer-events: none;
+    opacity: 0;
+    animation: fadeIn var(--transition-fast) forwards;
+}
+
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+    }
+}
+
+/* Dark mode tooltip adjustments */
+.dark-mode .service-link[title]:hover::after {
+    background-color: var(--bg-light);
+    color: var(--text-primary);
 }

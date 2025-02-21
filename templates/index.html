@@ -19,14 +19,11 @@
     <div class="service-grid">
       {% for service in system_services %}
         <div class="service-card" {% if not service.is_default %}data-service-id="{{ service['id'] }}"{% endif %}>
-          <a href="{{ service['url'] }}" target="_blank" class="service-link">
+          <a href="{{ service['url'] }}" target="_blank" class="service-link" {% if service['description'] %}title="{{ service['description'] }}"{% endif %}>
             <div class="service-icon">
               <i class="fas {{ service['icon'] }}"></i>
             </div>
             <h3>{{ service['name'] }}</h3>
-            {% if service['description'] %}
-              <p>{{ service['description'] }}</p>
-            {% endif %}
           </a>
           {% if not service.is_default and service['id'] is not none %}
             <div class="service-actions">
@@ -44,12 +41,11 @@
           {% endif %}
         </div>
       {% endfor %}
-      <a href="{{ url_for('add_service') }}" class="service-card add-card">
+      <a href="{{ url_for('add_service', section='system') }}" class="service-card add-card" title="Create a custom service link">
         <div class="service-icon">
           <i class="fas fa-plus-circle"></i>
         </div>
         <h3>Add New Service</h3>
-        <p>Create a custom service link</p>
       </a>
     </div>
   </section>
@@ -62,14 +58,11 @@
     <div class="service-grid">
       {% for service in media_services %}
         <div class="service-card" {% if not service.is_default %}data-service-id="{{ service['id'] }}"{% endif %}>
-          <a href="{{ service['url'] }}" target="_blank" class="service-link">
+          <a href="{{ service['url'] }}" target="_blank" class="service-link" {% if service['description'] %}title="{{ service['description'] }}"{% endif %}>
             <div class="service-icon">
               <i class="fas {{ service['icon'] }}"></i>
             </div>
             <h3>{{ service['name'] }}</h3>
-            {% if service['description'] %}
-              <p>{{ service['description'] }}</p>
-            {% endif %}
           </a>
           {% if not service.is_default and service['id'] is not none %}
             <div class="service-actions">
@@ -87,12 +80,11 @@
           {% endif %}
         </div>
       {% endfor %}
-      <a href="{{ url_for('add_service') }}" class="service-card add-card">
+      <a href="{{ url_for('add_service', section='media') }}" class="service-card add-card" title="Create a custom service link">
         <div class="service-icon">
           <i class="fas fa-plus-circle"></i>
         </div>
         <h3>Add New Service</h3>
-        <p>Create a custom service link</p>
       </a>
     </div>
   </section>
