@@ -1,4 +1,4 @@
-# Frontend Site with User Auth (Flask) - last updated 2-20-2024
+# Frontend Site with User Auth (Flask) - last updated 2-21-2024
 
 A modern web application built with Flask that provides secure user authentication, dynamic content, and an interactive dashboard. Features weather forecasts, random pet images, and quick access to various services.
 
@@ -284,3 +284,99 @@ The application uses SimpleCache with:
 ### Development Mode
 
 Run the Flask development server:
+
+```
+python3 app.py
+```
+
+### Production Deployment
+
+Use Docker Compose to run the application in production:
+
+```bash
+docker compose up -d
+```
+
+---
+
+## Database Management
+
+### PostgreSQL
+
+The application uses PostgreSQL as its database. Ensure you have PostgreSQL installed and running on your system.
+
+### Database Schema
+
+The application will automatically create the required database schema on startup. You can also manually initialize the database schema using the following command:
+
+```bash
+python3 -c "from app import init_db; init_db()"
+```
+
+---
+
+## Configuration
+
+### Environment Variables
+
+The application uses environment variables to configure its behavior. You can set these variables in a `.env` file or using your operating system's environment variable settings.
+
+### Required Environment Variables
+
+- `SECRET_KEY`: A secret key used for secure session management.
+- `OWM_API_KEY`: Your OpenWeatherMap API key.
+- `FLASK_DEBUG`: A flag to enable or disable debug mode.
+- `FLASK_ENV`: The environment in which the application is running (e.g., development, production).
+- `PORT`: The port number on which the application will listen.
+- `DATABASE_URL`: The URL of the PostgreSQL database.
+
+---
+
+## Frontend Details
+
+### Templates
+
+The application uses Jinja2 templates to render its frontend. The templates are located in the `templates` directory.
+
+### Static Files
+
+The application serves static files from the `static` directory.
+
+---
+
+## Admin User Management
+
+### Admin Dashboard
+
+The application provides an admin dashboard for managing users. The dashboard is accessible at `/admin`.
+
+### User Management
+
+The admin dashboard allows you to list, add, edit, and delete users.
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit changes
+4. Push to the branch
+5. Open a Pull Request
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+## Acknowledgements
+
+* OpenWeatherMap API for providing weather data
+* Dog API for providing random dog images
+* Cat API for providing random cat images
+* Flask and its dependencies for providing a robust web framework
+* Docker and Docker Compose for providing a containerized deployment solution
+* PostgreSQL for providing a robust database solution
