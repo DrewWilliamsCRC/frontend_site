@@ -1,11 +1,11 @@
 # Use an official Python runtime as a parent image
-FROM python:3.13.2-slim
+FROM python:3.14-rc-alpine3.21
 
 # Set a working directory
 WORKDIR /app
 
 # Install system dependencies (if needed)
-RUN apt-get update && apt-get install -y build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
+RUN apk update && apk add --no-cache build-base postgresql-dev python3-dev && rm -rf /var/cache/apk/*
 
 # Install Python dependencies
 COPY requirements.txt .
