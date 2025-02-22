@@ -1,17 +1,18 @@
-# Frontend Site with User Auth (Flask) - last updated 2-21-2024
+# Frontend Site with User Auth (Flask) - last updated 3-21-2024
 
 A modern web application built with Flask that provides secure user authentication, dynamic content, and an interactive dashboard. Features weather forecasts, random pet images, and quick access to various services.
 
 ## Key Features
 
-- 🔐 **Secure Authentication** - User registration and login with password hashing
-- 🌤️ **Weather Dashboard** - 5-day forecast using OpenWeatherMap API
-- 🐱 **Random Pet Images** - Integration with Dog and Cat APIs
-- 🎯 **Service Quick Links** - Easy access to media and system services
-- 👤 **User Management** - Admin dashboard for user administration
-- 🌙 **Dark Mode** - Toggle between light and dark themes
-- 📱 **Responsive Design** - Optimized for all device sizes
-- 🐳 **Docker Ready** - Containerized deployment support
+- 🔐 **Secure Authentication** - User registration and login with Werkzeug password hashing and rate limiting
+- 🌤️ **Weather Dashboard** - 5-day forecast using OpenWeatherMap API with city customization
+- 🐱 **Random Pet Images** - Integration with Dog and Cat APIs with instant refresh
+- 🎯 **Service Quick Links** - Customizable dashboard for media and system services
+- 👤 **User Management** - Admin dashboard for user administration with CSRF protection
+- 🌙 **Dark Mode** - System-aware dark mode with smooth transitions
+- 📱 **Responsive Design** - Mobile-first design with modern UI components
+- 🐳 **Docker Ready** - Production-grade containerized deployment
+- 🔒 **Security First** - HTTPS enforcement, secure sessions, and input validation
 
 ## Quick Start
 
@@ -57,22 +58,44 @@ docker compose up -d
 ## Project Structure
 
 ```
-├── app.py                 # Main Flask application
+├── app.py                 # Main Flask application with security middleware
 ├── src/
-│   └── user_manager.py    # User management blueprint
-├── templates/             # HTML templates
-├── static/               # CSS and assets
-├── Dockerfile
-└── docker-compose.yml
+│   ├── user_manager.py    # User management blueprint with auth checks
+│   └── manage_db.py       # Database management with security practices
+├── templates/             # Jinja2 templates with CSRF protection
+├── static/               # Static assets and secure CSP headers
+├── Dockerfile            # Production-ready Docker configuration
+└── docker-compose.yml    # Orchestration with security best practices
 ```
 
 ## Security Features
 
-- Password hashing with Werkzeug
-- CSRF protection
-- Rate limiting
-- Secure session configuration
-- HTTPS-only cookies in production
+- **Authentication & Authorization**
+  - Password hashing using Werkzeug's secure implementation
+  - Rate limiting on login attempts (5 per minute)
+  - Session-based authentication with secure cookie handling
+  - Admin-only routes protection
+
+- **Web Security**
+  - CSRF protection on all forms
+  - XSS protection through proper escaping
+  - SQL injection protection using parameterized queries
+  - Secure headers configuration
+  - HTTPS enforcement in production
+
+- **Session Security**
+  - HttpOnly cookie flags
+  - Secure cookie flags in production
+  - SameSite=Lax cookie attribute
+  - Domain-specific cookie scope
+  - Configurable session timeouts
+
+- **Infrastructure Security**
+  - Docker container isolation
+  - Environment-based configuration
+  - Secure secret management
+  - Database connection pooling
+  - Regular security updates
 
 ## API Integration
 
@@ -259,8 +282,8 @@ For detailed documentation and API references, visit our [Wiki](link-to-wiki).
 
 3. **Rate Limiting:**
    Default limits are configured to:
-   - 200 requests per day
-   - 50 requests per hour
+   - 200 requests per day per IP
+   - 50 requests per hour per IP
    
 4. **CSRF Protection:**
    All forms are protected against Cross-Site Request Forgery attacks.
@@ -323,60 +346,77 @@ The application uses environment variables to configure its behavior. You can se
 
 ### Required Environment Variables
 
-- `SECRET_KEY`: A secret key used for secure session management.
-- `OWM_API_KEY`: Your OpenWeatherMap API key.
-- `FLASK_DEBUG`: A flag to enable or disable debug mode.
-- `FLASK_ENV`: The environment in which the application is running (e.g., development, production).
-- `PORT`: The port number on which the application will listen.
-- `DATABASE_URL`: The URL of the PostgreSQL database.
+- `SECRET_KEY`: A secure random key for session management (32+ bytes recommended)
+- `OWM_API_KEY`: OpenWeatherMap API key for weather data
+- `FLASK_DEBUG`: Debug mode flag (disabled in production)
+- `FLASK_ENV`: Runtime environment (development/production)
+- `PORT`: Application port number
+- `DATABASE_URL`: PostgreSQL connection string (with SSL in production)
+- `SESSION_COOKIE_DOMAIN`: Domain for session cookies
+- `SESSION_COOKIE_SECURE`: HTTPS-only cookie flag
+- `RATELIMIT_ENABLED`: Toggle rate limiting functionality
 
----
+### Security Configuration
 
-## Frontend Details
+1. **Generate a Strong Secret Key:**
+   ```bash
+   python3 -c "import secrets; print(secrets.token_hex(32))"
+   ```
+   Add the generated key to your `.env` file.
 
-### Templates
+2. **Configure Session Security:**
+   - Production settings enforce HTTPS-only cookies
+   - Local development allows HTTP cookies
+   - All cookies are HttpOnly and use SameSite=Lax
+   - Session cookies are domain-scoped
 
-The application uses Jinja2 templates to render its frontend. The templates are located in the `templates` directory.
+3. **Rate Limiting:**
+   Default limits are configured to:
+   - 200 requests per day per IP
+   - 50 requests per hour per IP
+   - 5 login attempts per minute
 
-### Static Files
+4. **CSRF Protection:**
+   - All forms include CSRF tokens
+   - Tokens are rotated regularly
+   - Invalid tokens return 403 errors
 
-The application serves static files from the `static` directory.
+## Production Deployment
 
----
+### Security Checklist
 
-## Admin User Management
+1. **Environment Setup**
+   - [ ] Generate new SECRET_KEY
+   - [ ] Configure secure DATABASE_URL
+   - [ ] Set FLASK_DEBUG=0
+   - [ ] Enable rate limiting
+   - [ ] Configure HTTPS
 
-### Admin Dashboard
+2. **Docker Security**
+   - [ ] Use non-root user
+   - [ ] Set resource limits
+   - [ ] Enable security options
+   - [ ] Regular base image updates
 
-The application provides an admin dashboard for managing users. The dashboard is accessible at `/admin`.
+3. **Database Security**
+   - [ ] Strong passwords
+   - [ ] SSL connections
+   - [ ] Regular backups
+   - [ ] Access control
 
-### User Management
-
-The admin dashboard allows you to list, add, edit, and delete users.
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit changes
-4. Push to the branch
-5. Open a Pull Request
-
----
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
+4. **Monitoring**
+   - [ ] Error logging
+   - [ ] Access logging
+   - [ ] Rate limit alerts
+   - [ ] Security scanning
 
 ## Acknowledgements
 
-* OpenWeatherMap API for providing weather data
-* Dog API for providing random dog images
-* Cat API for providing random cat images
-* Flask and its dependencies for providing a robust web framework
-* Docker and Docker Compose for providing a containerized deployment solution
-* PostgreSQL for providing a robust database solution
+* OpenWeatherMap API for weather data
+* Dog and Cat APIs for pet images
+* Flask and its extensions for the web framework
+* Werkzeug for security features
+* Docker for containerization
+* PostgreSQL for database management
+* Bootstrap and Font Awesome for UI components
+* The security community for best practices
