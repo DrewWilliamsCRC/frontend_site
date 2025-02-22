@@ -98,7 +98,7 @@
     <div class="weather-grid">
       {% for day in forecast_data %}
       <div class="weather-card">
-        <a href="https://weather.com/weather/today/l/{{ '%0.4f' % day.lat }},{{ '%0.4f' % day.lon }}" class="weather-link" target="_blank">
+        <a href="https://weather.com/weather/today/l/{{ '%0.4f' % day.lat }},{{ '%0.4f' % day.lon }}" class="weather-link" target="_blank" rel="noopener">
           <h3>{{ day.date_str }}</h3>
           <img src="{{ day.icon_url }}" alt="{{ day.description }}">
           <p class="temp-range">{{ day.temp_min }}°F - {{ day.temp_max }}°F</p>
