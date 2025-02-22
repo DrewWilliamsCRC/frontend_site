@@ -1,13 +1,21 @@
+# Load environment variables from .env file for configuration management
 from dotenv import load_dotenv
 load_dotenv()
 
+# Standard library imports
 import os
 import requests
 from datetime import datetime
 import re
+
+# Database related imports
 import psycopg2
 from psycopg2.extras import RealDictCursor
+
+# Logging functionality
 import logging
+
+# Flask and related extension imports
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_caching import Cache
@@ -16,55 +24,74 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+# Initialize Flask application
 app = Flask(__name__)
 
-# Retrieve a strong, environment-specific secret key.
-# Do not provide a fallback in production!
+# Security Configuration
+# ---------------------
+# Configure application secret key from environment variable
+# This key is used for session management and CSRF protection
 app.secret_key = os.environ.get("SECRET_KEY")
 if not app.secret_key:
     raise ValueError("No SECRET_KEY set for Flask application. Please set the SECRET_KEY environment variable.")
 
-# Production secure session cookie configuration.
+# Session Cookie Configuration
+# --------------------------
+# Production settings for secure cookie handling
 app.config.update({
-    'SESSION_COOKIE_DOMAIN': '.drewwilliams.biz',
-    'SESSION_COOKIE_SECURE': True,       # Only send cookies over HTTPS in production.
-    'SESSION_COOKIE_HTTPONLY': True,       # Prevent JavaScript access to cookies.
-    'SESSION_COOKIE_SAMESITE': 'Lax'
+    'SESSION_COOKIE_DOMAIN': '.drewwilliams.biz',  # Domain for which the cookie is valid
+    'SESSION_COOKIE_SECURE': True,     # Ensures cookies are only sent over HTTPS
+    'SESSION_COOKIE_HTTPONLY': True,   # Prevents JavaScript access to session cookies
+    'SESSION_COOKIE_SAMESITE': 'Lax'  # Provides CSRF protection while maintaining usability
 })
 
-# For local development (when running on 127.0.0.1), override the cookie settings.
+# Development Environment Configuration
+# ----------------------------------
+# Override cookie settings for local development environment
 if os.environ.get("FLASK_ENV") == "development":
     app.config.update({
-        'SESSION_COOKIE_DOMAIN': None,  # Use the current domain (i.e., localhost)
-        'SESSION_COOKIE_SECURE': False    # Allow cookies over HTTP in development.
+        'SESSION_COOKIE_DOMAIN': None,    # Use default domain for local development
+        'SESSION_COOKIE_SECURE': False    # Allow HTTP in development environment
     })
 
-# Disable rate limiting for now.
-app.config["RATELIMIT_ENABLED"] = False
+# Rate Limiting Configuration
+# -------------------------
+app.config["RATELIMIT_ENABLED"] = False  # Rate limiting currently disabled
 
-# Initialize CSRF Protection
+# Security Middleware Setup
+# -----------------------
+# Initialize CSRF Protection to prevent cross-site request forgery attacks
 csrf = CSRFProtect(app)
 
-# Initialize Flask-Limiter with the client's IP address as the key.
+# Rate Limiting Setup
+# -----------------
+# Configure request rate limiting based on client IP address
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"]
+    default_limits=["200 per day", "50 per hour"]  # Default rate limits
 )
 limiter.init_app(app)
 
-# Initialize cache: In-memory cache with 5-minute default timeout
+# Caching Configuration
+# -------------------
+# Setup in-memory cache for improved performance
 cache = Cache(app, config={
     'CACHE_TYPE': 'SimpleCache',
-    'CACHE_DEFAULT_TIMEOUT': 300,  # 5 minutes
+    'CACHE_DEFAULT_TIMEOUT': 300,  # Cache entries expire after 5 minutes
 })
 
-# Use a relative path for the database file:
+# Application Base Directory
+# ------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Instead of hard-coding the API key,
+# API Configuration
+# ---------------
+# OpenWeatherMap API key configuration
 OWM_API_KEY = os.environ.get("OWM_API_KEY", "default_api_key_for_dev")
 
-# Select the appropriate DATABASE_URL depending on the environment
+# Database Configuration
+# --------------------
+# Select appropriate database URL based on environment
 if os.environ.get("FLASK_ENV") == "development":
     DATABASE_URL = os.environ.get("DEV_DATABASE_URL", os.environ.get("DATABASE_URL"))
 else:
@@ -73,15 +100,33 @@ else:
 if not DATABASE_URL:
     raise ValueError("No DATABASE_URL set for the Flask application.")
 
+# Database Connection Functions
+# ------------------------
 def get_db_connection():
+    """
+    Establishes and returns a connection to the PostgreSQL database.
+    
+    Returns:
+        psycopg2.extensions.connection: A connection object with RealDictCursor factory set
+        for returning results as dictionaries instead of tuples.
+    """
     conn = psycopg2.connect(DATABASE_URL)
     conn.cursor_factory = psycopg2.extras.RealDictCursor
     return conn
 
 def init_db():
     """
-    Initializes the database schema for the users table.
-    Uses PostgreSQL-specific SQL syntax, with SERIAL for auto-increment.
+    Initializes the database schema by creating the required tables if they don't exist.
+    
+    Creates a 'users' table with the following columns:
+    - id: Auto-incrementing primary key
+    - username: Unique identifier for each user
+    - password_hash: Securely stored password hash
+    - city_name: User's preferred city for weather information
+    - button_width: Custom width for UI buttons (default: 200)
+    - button_height: Custom height for UI buttons (default: 200)
+    
+    Note: Uses PostgreSQL-specific SQL syntax with SERIAL for auto-increment.
     """
     try:
         conn = get_db_connection()
@@ -103,13 +148,21 @@ def init_db():
         print("Error initializing the database:", e)
 
 # -----------------------------------------------------------------------------------
-# Helper functions
+# Helper Functions
 # -----------------------------------------------------------------------------------
 
 def get_user_settings(username):
     """
-    Retrieves the city setting for the given username using PostgreSQL.
-    Falls back to a default city ("New York") if no value is found.
+    Retrieves user-specific settings from the database.
+    
+    Args:
+        username (str): The username whose settings should be retrieved
+        
+    Returns:
+        tuple: A tuple containing (city_name, button_width, button_height)
+               If no settings are found, returns default values:
+               - Default city: "New York"
+               - Default button dimensions: 200x200
     """
     default_city = "New York"
     conn = get_db_connection()
@@ -130,8 +183,19 @@ def get_user_settings(username):
 @cache.memoize(timeout=300)  # Cache for 5 minutes
 def fetch_random_dog():
     """
-    Fetch a random dog image from https://dog.ceo/api/breeds/image/random.
-    Returns the image URL, or a fallback image URL if the API call fails.
+    Fetches a random dog image from the Dog API (dog.ceo).
+    
+    Uses caching to prevent excessive API calls and improve performance.
+    Results are cached for 5 minutes before a new API call is made.
+    
+    Returns:
+        str: URL of a random dog image
+             If the API call fails, returns a fallback placeholder image URL
+    
+    Note:
+        - Uses dog.ceo/api/breeds/image/random endpoint
+        - Implements a 5-second timeout for API calls
+        - Includes error handling for failed API requests
     """
     fallback_url = "https://via.placeholder.com/300?text=No+Dog+Image"
     try:
@@ -147,8 +211,20 @@ def fetch_random_dog():
 @cache.memoize(timeout=300)  # Cache for 5 minutes
 def fetch_random_cat():
     """
-    Fetch a random cat image from The Cat API.
-    Returns the image URL, or a fallback image if the API call fails.
+    Fetches a random cat image from The Cat API.
+    
+    Uses caching to prevent excessive API calls and improve performance.
+    Results are cached for 5 minutes before a new API call is made.
+    
+    Returns:
+        str: URL of a random cat image
+             If the API call fails, returns a fallback placeholder image URL
+    
+    Note:
+        - Uses api.thecatapi.com/v1/images/search endpoint
+        - Implements a 5-second timeout for API calls
+        - Includes error handling for failed API requests
+        - Response format is a list containing image objects
     """
     fallback_url = "https://via.placeholder.com/300?text=No+Cat+Image"
     try:
@@ -165,9 +241,32 @@ def fetch_random_cat():
 @cache.memoize(timeout=300)  # Cache for 5 minutes
 def get_weekly_forecast(lat, lon):
     """
-    Calls OWM One Call API for daily forecast (up to 7 days),
-    but we'll slice to the first 5 days for a "5-day" forecast.
-    Returns a list of daily forecast dicts.
+    Retrieves a 5-day weather forecast using OpenWeatherMap's One Call API.
+    
+    Uses caching to prevent excessive API calls and improve performance.
+    Results are cached for 5 minutes before a new API call is made.
+    
+    Args:
+        lat (float): Latitude of the location
+        lon (float): Longitude of the location
+        
+    Returns:
+        list: List of dictionaries containing daily forecast data.
+              Each dictionary contains:
+              - dt: Unix timestamp for the day
+              - date_str: Formatted date string (e.g., "Jan 01")
+              - icon_url: URL for weather condition icon
+              - description: Text description of weather
+              - temp_min: Minimum temperature in Fahrenheit
+              - temp_max: Maximum temperature in Fahrenheit
+              - lat: Latitude of the location
+              - lon: Longitude of the location
+    
+    Note:
+        - Uses OpenWeatherMap's 3.0/onecall endpoint
+        - Returns data in imperial units (Fahrenheit)
+        - Only includes first 5 days of the available 7-day forecast
+        - Implements error handling and debug logging
     """
     url = (
         f"http://api.openweathermap.org/data/3.0/onecall"
@@ -215,9 +314,26 @@ def get_weekly_forecast(lat, lon):
 
 def sanitize_city_name(city):
     """
-    Validate and sanitize the city name.
-    Only allow letters, numbers, spaces, commas, periods, hyphens, and apostrophes.
-    If invalid characters are found, they are removed.
+    Validates and sanitizes user-provided city names for safe usage in API calls.
+    
+    Args:
+        city (str): The city name to sanitize
+        
+    Returns:
+        str: Sanitized city name containing only allowed characters:
+             - Letters (A-Z, a-z)
+             - Numbers (0-9)
+             - Spaces
+             - Commas
+             - Periods
+             - Hyphens
+             - Apostrophes
+             
+    Note:
+        - Strips leading/trailing whitespace
+        - Removes any disallowed characters
+        - Falls back to "New York" if sanitization results in empty string
+        - Preserves common city name formats (e.g., "St. Louis", "Winston-Salem")
     """
     city = city.strip()
     # Define a regex pattern that only allows the specified characters
@@ -232,7 +348,38 @@ def sanitize_city_name(city):
         return sanitized if sanitized else "New York"
 
 def create_service_dict(service, is_default=False):
-    """Helper function to create consistent service dictionaries"""
+    """
+    Creates a standardized dictionary representation of a service entry.
+    
+    This helper function ensures consistent structure for both default and 
+    user-defined services throughout the application.
+    
+    Args:
+        service (dict): Raw service data containing at minimum:
+                       - name: Service name
+                       - url: Service URL
+                       - icon: Icon identifier/URL
+                       Optional for user services:
+                       - id: Database ID
+                       - description: Service description
+                       - section: Service category/section
+        is_default (bool): Whether this is a default service (True) or 
+                          user-defined service (False)
+    
+    Returns:
+        dict: Standardized service dictionary containing:
+              - id: Database ID (None for default services)
+              - name: Service name
+              - url: Service URL
+              - icon: Icon identifier/URL
+              - description: Service description (empty for default services)
+              - is_default: Boolean flag indicating if it's a default service
+              - section: Service category/section (empty string if not specified)
+    
+    Note:
+        Default services are built-in services that cannot be modified by users.
+        User services are stored in the database and can be customized.
+    """
     if is_default:
         return {
             'id': None,
@@ -248,9 +395,9 @@ def create_service_dict(service, is_default=False):
         'name': service['name'],
         'url': service['url'],
         'icon': service['icon'],
-        'description': service['description'],
+        'description': service.get('description', ''),
         'is_default': False,
-        'section': service['section']
+        'section': service.get('section', '')
     }
 
 # -----------------------------------------------------------------------------------

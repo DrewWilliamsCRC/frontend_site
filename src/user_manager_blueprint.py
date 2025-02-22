@@ -1,3 +1,13 @@
+# User Management Blueprint
+# ----------------------
+# This module provides a Flask Blueprint for managing user accounts.
+# It includes routes and functionality for:
+# - Viewing all users
+# - Adding new users
+# - Editing existing users
+# - Deleting users
+# All routes require authentication and proper session management.
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 import os
 import psycopg2
@@ -5,16 +15,24 @@ from werkzeug.security import generate_password_hash
 from contextlib import contextmanager
 from psycopg2.extras import RealDictCursor
 
+# Initialize Blueprint with template directory configuration
 user_manager_bp = Blueprint("user_manager", __name__, template_folder="templates")
 
-# Before each request to any admin route, check if the user is logged in.
 @user_manager_bp.before_request
 def require_login():
+    """
+    Authentication middleware for all routes in this blueprint.
+    
+    Checks for active user session before allowing access to any
+    user management routes. Redirects to login page if no session exists.
+    """
     if "user" not in session:
         flash("Please log in to access admin pages.", "warning")
         return redirect(url_for("login"))
 
-# Read the connection string from environment variables.
+# Database Configuration
+# --------------------
+# Select appropriate database URL based on environment
 if os.environ.get("FLASK_ENV") == "development":
     DATABASE_URL = os.environ.get("DEV_DATABASE_URL", os.environ.get("DATABASE_URL"))
 else:
@@ -24,15 +42,29 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL is not set. Please set it for the environment!")
 
 def get_db_connection():
-    # Return a new PostgreSQL connection with RealDictCursor
+    """
+    Creates and returns a new database connection.
+    
+    Returns:
+        psycopg2.extensions.connection: Database connection configured with
+        RealDictCursor for dictionary-style result access
+    """
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
 
 @user_manager_bp.route("/users")
 def index():
+    """
+    Displays a list of all users in the system.
+    
+    Retrieves basic user information (ID, username, city) for all users
+    and renders them in the user management index template.
+    
+    Returns:
+        str: Rendered HTML template with user list
+    """
     conn = get_db_connection()
     try:
-        # Use a cursor to execute queries
         with conn.cursor() as cur:
             cur.execute("SELECT id, username, city_name FROM users")
             users = cur.fetchall()
@@ -42,6 +74,26 @@ def index():
 
 @user_manager_bp.route("/users/add", methods=["GET", "POST"])
 def add_user():
+    """
+    Handles user creation through a web form.
+    
+    GET: Displays the user creation form
+    POST: Processes the form submission and creates a new user
+    
+    Form Fields:
+        - username: User's login name (required, unique)
+        - password: User's password (required)
+        - city_name: User's preferred city (optional)
+    
+    Returns:
+        GET: Rendered HTML template with user creation form
+        POST: Redirect to user list on success, back to form on error
+    
+    Note:
+        - Implements proper input sanitization
+        - Handles username uniqueness conflicts
+        - Uses secure password hashing
+    """
     if request.method == "POST":
         # Strip inputs to remove extraneous spaces.
         username = request.form.get("username", "").strip()
@@ -68,6 +120,30 @@ def add_user():
 
 @user_manager_bp.route("/users/edit/<int:user_id>", methods=["GET", "POST"])
 def edit_user(user_id):
+    """
+    Handles user information updates through a web form.
+    
+    GET: Displays the user edit form with current values
+    POST: Processes the form submission and updates the user
+    
+    Args:
+        user_id (int): ID of the user to edit
+    
+    Form Fields:
+        - username: User's login name (required, unique)
+        - password: User's new password (optional)
+        - city_name: User's preferred city (optional)
+    
+    Returns:
+        GET: Rendered HTML template with user edit form
+        POST: Redirect to user list on success, back to form on error
+    
+    Note:
+        - Only updates password if new one is provided
+        - Maintains existing password hash if no new password given
+        - Handles username uniqueness conflicts
+        - Implements proper transaction management
+    """
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -109,6 +185,20 @@ def edit_user(user_id):
 
 @user_manager_bp.route("/users/delete/<int:user_id>", methods=["POST"])
 def delete_user(user_id):
+    """
+    Handles user deletion requests.
+    
+    Args:
+        user_id (int): ID of the user to delete
+    
+    Returns:
+        Redirect to user list with success message
+    
+    Note:
+        - Only accepts POST requests for safety
+        - Associated data (e.g., custom services) are deleted via CASCADE
+        - Implements proper transaction management
+    """
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:

@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+
+# Database Management Module
+# ------------------------
+# This module provides a comprehensive set of tools for managing the application's
+# database, including user management and custom services. It supports both
+# command-line interface (CLI) operations and programmatic access.
+
 import os
 import sys
 import psycopg2
@@ -10,9 +17,12 @@ from psycopg2 import IntegrityError
 import click
 from flask.cli import with_appcontext
 
-# Load environment variables from .env (if used)
+# Load environment variables from .env file
 load_dotenv()
 
+# Database Configuration
+# --------------------
+# Select the appropriate database URL based on the environment
 if os.environ.get("FLASK_ENV") == "development":
     DATABASE_URL = os.environ.get("DEV_DATABASE_URL", os.environ.get("DATABASE_URL"))
 else:
@@ -23,7 +33,16 @@ if not DATABASE_URL:
 
 def get_db_connection():
     """
-    Establish a connection to the PostgreSQL database.
+    Establishes a connection to the PostgreSQL database.
+    
+    Returns:
+        psycopg2.extensions.connection: Database connection with RealDictCursor
+        
+    Raises:
+        SystemExit: If connection fails, exits with error message
+        
+    Note:
+        Uses RealDictCursor to return results as dictionaries instead of tuples
     """
     try:
         conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
@@ -34,7 +53,31 @@ def get_db_connection():
 
 def create_table(conn):
     """
-    Create the users table if it does not exist.
+    Creates the required database tables if they don't exist.
+    
+    Creates two tables:
+    1. users:
+       - id: Auto-incrementing primary key
+       - username: Unique user identifier
+       - password_hash: Securely hashed password
+       - city_name: User's preferred city
+       
+    2. custom_services:
+       - id: Auto-incrementing primary key
+       - user_id: Foreign key to users table
+       - name: Service name
+       - url: Service URL
+       - icon: Icon identifier
+       - description: Optional service description
+       - section: Service category
+       - created_at: Timestamp of creation
+       
+    Args:
+        conn: Active database connection
+        
+    Note:
+        Uses CASCADE on delete for custom_services to automatically
+        remove a user's services when the user is deleted
     """
     with conn.cursor() as cur:
         cur.execute("""
@@ -64,7 +107,14 @@ def create_table(conn):
 
 def list_users(conn):
     """
-    List all users in the database.
+    Retrieves and displays all users from the database.
+    
+    Args:
+        conn: Active database connection
+        
+    Output:
+        Prints a formatted list of users with their ID, username, and city
+        If no users exist, prints "No users found."
     """
     with conn.cursor() as cur:
         cur.execute("SELECT * FROM users ORDER BY id;")
@@ -78,7 +128,22 @@ def list_users(conn):
 
 def add_user(conn):
     """
-    Add a new user to the database through a CLI prompt.
+    Interactively adds a new user to the database through CLI prompts.
+    
+    Args:
+        conn: Active database connection
+        
+    Process:
+        1. Prompts for username (required)
+        2. Securely prompts for password (required)
+        3. Prompts for city name (optional)
+        4. Hashes the password using Werkzeug's implementation
+        5. Stores the user data in the database
+        
+    Note:
+        - Handles duplicate username conflicts
+        - Uses secure password input (no echo)
+        - Implements proper transaction management
     """
     username = input("Enter username: ").strip()
     if not username:
@@ -88,7 +153,7 @@ def add_user(conn):
     if not password:
         print("Password cannot be empty.")
         return
-    # Hash the password (for example purposes, using werkzeug's generate_password_hash)
+    # Hash the password using Werkzeug's secure implementation
     password_hash = generate_password_hash(password)
     city_name = input("Enter city name (optional): ").strip()
     
@@ -109,7 +174,19 @@ def add_user(conn):
 
 def delete_user(conn):
     """
-    Delete a user by their ID.
+    Deletes a user and their associated data from the database.
+    
+    Args:
+        conn: Active database connection
+        
+    Process:
+        1. Prompts for user ID
+        2. Validates ID format
+        3. Deletes user if found
+        4. Associated custom_services are automatically deleted via CASCADE
+        
+    Note:
+        Implements proper transaction management with rollback on error
     """
     user_id = input("Enter user ID to delete: ").strip()
     if not user_id.isdigit():
@@ -127,7 +204,14 @@ def delete_user(conn):
 
 def show_help():
     """
-    Display the help message listing available commands.
+    Displays help information for the database management commands.
+    
+    Lists all available commands with their descriptions:
+    - init: Database initialization
+    - list: User listing
+    - add: User addition
+    - delete: User deletion
+    - help: Help display
     """
     help_text = """
 Usage: python manage_db.py [command]
@@ -142,6 +226,16 @@ Commands:
     print(help_text)
 
 def init_db():
+    """
+    Initializes the database schema by creating required tables.
+    
+    This function is similar to create_table() but operates independently
+    with its own connection management. It's primarily used during
+    application setup and testing.
+    
+    Note:
+        Automatically commits changes and properly closes the connection
+    """
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -169,15 +263,23 @@ def init_db():
             conn.commit()
     print("Database initialized or updated.")
 
+# Click CLI Command Group
+# ---------------------
 @click.group()
 def cli():
-    """Database management commands."""
+    """Database management command group for Click CLI interface."""
     pass
 
 @cli.command()
 @with_appcontext
 def init():
-    """Initialize the database tables."""
+    """
+    Click command to initialize the database tables.
+    
+    This command is accessible via the Flask CLI and creates
+    all necessary database tables using the application's
+    database connection.
+    """
     from app import get_db_connection
     conn = get_db_connection()
     try:
@@ -191,7 +293,12 @@ def init():
 @cli.command()
 @with_appcontext
 def add_user_cli():
-    """Add a new user through CLI."""
+    """
+    Click command to add a new user through the CLI.
+    
+    This command provides a CLI wrapper around the add_user function,
+    managing the database connection within the Flask application context.
+    """
     from app import get_db_connection
     conn = get_db_connection()
     try:
@@ -200,7 +307,7 @@ def add_user_cli():
         conn.close()
 
 if __name__ == '__main__':
-    # Add the parent directory to sys.path so we can import app
+    # Add the parent directory to sys.path to allow importing app module
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0, parent_dir)
     cli() 
