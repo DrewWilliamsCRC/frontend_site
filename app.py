@@ -295,22 +295,16 @@ def get_weekly_forecast(lat, lon):
     )
     forecast_list = []
     try:
-        # Track API call
-        now = datetime.now()
-        current_day = now.strftime('%Y-%m-%d')
-        day_calls = cache.get('owm_api_calls_day_' + current_day) or []
-        day_calls.append({
-            'timestamp': now.strftime('%Y-%m-%d %H:%M:%S'),
-            'endpoint': 'onecall'
+        # Track API call in database
+        track_api_call('openweathermap', 'onecall', {
+            'lat': lat,
+            'lon': lon,
+            'endpoint': 'forecast'
         })
-        cache.set('owm_api_calls_day_' + current_day, day_calls, timeout=86400)
         
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
         data = resp.json()
-        
-        # Debug logging
-        print(f"Weather API Response: {data}")
         
         if "daily" in data:
             daily_data = data["daily"][:5]  # Take the first 5 days
@@ -349,15 +343,12 @@ def get_current_weather(lat, lon):
     )
     
     try:
-        # Track API call
-        now = datetime.now()
-        current_day = now.strftime('%Y-%m-%d')
-        day_calls = cache.get('owm_api_calls_day_' + current_day) or []
-        day_calls.append({
-            'timestamp': now.strftime('%Y-%m-%d %H:%M:%S'),
-            'endpoint': 'current'
+        # Track API call in database
+        track_api_call('openweathermap', 'current', {
+            'lat': lat,
+            'lon': lon,
+            'endpoint': 'weather'
         })
-        cache.set('owm_api_calls_day_' + current_day, day_calls, timeout=86400)
         
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
@@ -1260,9 +1251,14 @@ def get_news():
         })
 
     try:
-        now = datetime.now()
-        current_day = now.strftime('%Y-%m-%d')
-        
+        # Check daily API limit first
+        day_stats = get_api_usage('gnews', 'day')
+        if day_stats['remaining'] <= 0:
+            return jsonify({
+                'error': 'Daily API limit reached',
+                'articles': []
+            })
+
         # Get user's preferred categories
         conn = get_db_connection()
         try:
@@ -1276,20 +1272,6 @@ def get_news():
         finally:
             conn.close()
 
-        # Track API call
-        day_calls = cache.get('gnews_api_calls_day_' + current_day) or []
-        day_calls.append({
-            'timestamp': now.strftime('%Y-%m-%d %H:%M:%S'),
-            'endpoint': 'top-headlines'
-        })
-        cache.set('gnews_api_calls_day_' + current_day, day_calls, timeout=86400)
-
-        if len(day_calls) >= 100:  # Gnews free tier limit
-            return jsonify({
-                'error': 'Daily API limit reached',
-                'articles': []
-            })
-
         all_articles = []
         for category in categories:
             # Try to get cached news for this category
@@ -1299,6 +1281,9 @@ def get_news():
             if cached_news and cached_news.get('articles'):
                 all_articles.extend(cached_news['articles'])
                 continue
+
+            # Track API call before making the request
+            track_api_call('gnews', 'top-headlines', {'category': category})
 
             # If no cached news, make API call
             url = "https://gnews.io/api/v4/top-headlines"
@@ -1311,13 +1296,27 @@ def get_news():
             }
 
             response = requests.get(url, params=params, timeout=5)
+            
+            # Handle rate limit and auth responses
+            if response.status_code == 429:
+                app.logger.warning("Gnews API rate limit reached")
+                return jsonify({
+                    'error': 'Daily API limit reached',
+                    'articles': []
+                })
+            elif response.status_code == 403:
+                app.logger.error("Gnews API key invalid or expired")
+                return jsonify({
+                    'error': 'API key invalid or expired',
+                    'articles': []
+                })
+            
             response.raise_for_status()
             news_data = response.json()
 
             # Cache the results for 5 minutes
-            cache.set(cache_key, news_data, timeout=300)
-            
             if news_data.get('articles'):
+                cache.set(cache_key, news_data, timeout=300)
                 all_articles.extend(news_data['articles'])
 
         # Shuffle articles to mix categories
@@ -1327,12 +1326,23 @@ def get_news():
             'articles': all_articles[:20]  # Limit to 20 articles total
         })
 
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         app.logger.error(f"Error fetching news: {str(e)}")
-        return jsonify({
-            'error': 'Error fetching news',
-            'articles': []
-        })
+        if "429" in str(e):
+            return jsonify({
+                'error': 'Daily API limit reached',
+                'articles': []
+            })
+        elif "403" in str(e):
+            return jsonify({
+                'error': 'API key invalid or expired',
+                'articles': []
+            })
+        else:
+            return jsonify({
+                'error': 'Unable to fetch news at this time',
+                'articles': []
+            })
 
 @app.route('/api/news/usage')
 def news_api_usage():

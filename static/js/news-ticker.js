@@ -77,6 +77,15 @@ class NewsTicker {
                 text-align: center;
                 color: var(--text-color);
                 padding: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                font-size: 14px;
+            }
+
+            .news-error i {
+                color: #dc2626;
             }
 
             @keyframes ticker {
@@ -99,8 +108,19 @@ class NewsTicker {
     async fetchNews() {
         try {
             const response = await fetch('/api/news');
-            if (!response.ok) throw new Error('Network response was not ok');
-            return await response.json();
+            const data = await response.json();
+            
+            console.log('News API Response:', {
+                status: response.status,
+                ok: response.ok,
+                data: data
+            });
+            
+            if (!response.ok || data.error) {
+                return { error: data.error || 'Failed to fetch news' };
+            }
+            
+            return data;
         } catch (error) {
             console.error('Error fetching news:', error);
             return { error: 'Failed to fetch news' };
@@ -108,33 +128,45 @@ class NewsTicker {
     }
 
     async updateNews() {
-        const now = new Date();
-        console.log('Starting news update at:', now.toLocaleTimeString());
-
         try {
-            const data = await this.fetchNews();
-
+            const response = await this.fetchNews();
+            
+            console.log('News Ticker Response:', response);
+            
             // Clear existing content
             this.tickerContent.innerHTML = '';
-
-            if (data.error) {
-                this.tickerContent.innerHTML = `
+            
+            if (response.error) {
+                console.log('Error type:', response.error);
+                let errorMessage;
+                if (response.error === 'Daily API limit reached') {
+                    errorMessage = 'News updates paused - Daily API limit reached. Updates will resume tomorrow.';
+                } else if (response.error === 'API key invalid or expired' || response.error === 'API key not configured') {
+                    errorMessage = 'News updates unavailable - Please check API configuration.';
+                } else {
+                    errorMessage = 'Unable to fetch news at this time. Please try again later.';
+                }
+                
+                console.log('Displaying error message:', errorMessage);
+                
+                this.container.innerHTML = `
                     <div class="news-error">
-                        ${data.error}
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span>${errorMessage}</span>
                     </div>`;
                 return;
             }
 
-            if (!data.articles || data.articles.length === 0) {
-                this.tickerContent.innerHTML = `
+            if (!response.articles || response.articles.length === 0) {
+                this.container.innerHTML = `
                     <div class="news-error">
-                        No news available at this time
+                        <span>No news available at this time</span>
                     </div>`;
                 return;
             }
 
             // Create news items
-            const newsItems = data.articles.map(article => `
+            const newsItems = response.articles.map(article => `
                 <div class="news-item">
                     <a href="${article.url}" target="_blank" rel="noopener noreferrer">
                         ${article.title}
@@ -146,9 +178,10 @@ class NewsTicker {
 
         } catch (error) {
             console.error('Error updating news:', error);
-            this.tickerContent.innerHTML = `
+            this.container.innerHTML = `
                 <div class="news-error">
-                    Error loading news
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>Error loading news</span>
                 </div>`;
         }
     }
