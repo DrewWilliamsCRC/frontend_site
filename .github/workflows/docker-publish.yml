@@ -49,6 +49,9 @@ jobs:
           ALPHA_VANTAGE_API_KEY="test-key"
           GNEWS_API_KEY="test-key"
           TARGETARCH=${{ steps.platform.outputs.arch }}
+          POSTGRES_HOST_AUTH_METHOD=scram-sha-256
+          POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+          POSTGRES_PASSWORD_ENCRYPTION=scram-sha-256
           EOF
 
       - name: Run Docker tests

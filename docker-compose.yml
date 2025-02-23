@@ -88,7 +88,9 @@ services:
       - no-new-privileges:true
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:exec,mode=1777
+      - /run:mode=1777
+      - /var/run:mode=1777
     logging:
       driver: "json-file"
       options:
