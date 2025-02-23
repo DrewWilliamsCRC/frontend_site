@@ -102,12 +102,15 @@ docker compose up -d
 - **OpenWeather API** - Weather forecasts
 - **Dog API** - Random dog images
 - **Cat API** - Random cat images
+- **Gnews API** - News headlines ticker (100 requests/day limit)
 
 ## Cache Configuration
 
 - 5-minute default timeout
 - In-memory storage
 - Automatic invalidation
+- News headlines cached for 5 minutes
+- API usage tracking for rate limits
 
 ## Contributing
 
@@ -152,17 +155,19 @@ For detailed documentation and API references, visit our [Wiki](link-to-wiki).
 
 - **User Authentication:** Secure registration and login with hashed passwords (using Werkzeug) and session-based mechanisms.
 - **Dynamic Home Page:** Displays a randomized dog image and a random cat image, both of which can be refreshed with a simple click.
+- **News Ticker:** Real-time news headlines from Gnews API, displayed in a smooth scrolling ticker at the top of the page.
 - **Weather Forecast:** Provides a dynamic 5-day weather forecast (sourced from the OpenWeatherMap API) based on a user-defined city. Each forecast card shows temperature in Celsius, weather description, and weather icon.
 - **Service Dashboard:** Quick access buttons for external services such as Sonarr, Radarr, NZBGet, Unifi Controller, Code Server, and monitoring tools (e.g., Portainer and Glances).
 - **User Settings:** Allows users to update their preferred city to tailor the weather information.
 - **Admin User Management:** A dedicated administration section (accessible under `/admin`) enables listing, adding, editing, and deleting users.
 - **Database Support:** Uses PostgreSQL for robust data storage in both development and production environments.
-- **Caching:** Uses Flask-Caching to cache responses from external APIs (dog and cat images, weather forecasts) for improved performance.
+- **Caching:** Uses Flask-Caching to cache responses from external APIs (news headlines, dog and cat images, weather forecasts) for improved performance.
 - **Dark Mode:** A dark mode toggle is provided on every page, allowing users to switch between light and dark themes.
 - **Improved UI & Responsiveness:** Modern templates and CSS styles with enhanced dark mode support and improved responsiveness across devices.
 - **Dockerized Environment:** Comes with Docker and Docker Compose configurations to ease containerized deployment in production.
 - **Rate Limiting:** Implements Flask-Limiter for API rate limiting (currently disabled but configurable).
 - **CSRF Protection:** Implements Flask-WTF CSRF protection for enhanced security.
+- **API Usage Monitoring:** Tracks and displays usage statistics for external APIs to prevent rate limit issues.
 
 ---
 

@@ -1,19 +1,27 @@
 # Load environment variables from .env file for configuration management
 from dotenv import load_dotenv
 import os
+import random
 
 # Load environment variables before any other configuration
 print("Loading environment variables from .env file...")
 load_dotenv()
 
-# Debug log for API key
+# Debug log for API keys
 alpha_vantage_key = os.environ.get("ALPHA_VANTAGE_API_KEY")
+gnews_api_key = os.environ.get("GNEWS_API_KEY")
+
 if alpha_vantage_key:
     print("Alpha Vantage API key loaded successfully")
-    # Only print first few characters for security
     print(f"API key starts with: {alpha_vantage_key[:4]}...")
 else:
     print("Warning: ALPHA_VANTAGE_API_KEY not found in environment variables")
+
+if gnews_api_key:
+    print("Gnews API key loaded successfully")
+    print(f"API key starts with: {gnews_api_key[:4]}...")
+else:
+    print("Warning: GNEWS_API_KEY not found in environment variables")
 
 # Standard library imports
 import requests
@@ -159,7 +167,8 @@ def init_db():
                     password_hash TEXT NOT NULL,
                     city_name TEXT,
                     button_width INTEGER DEFAULT 200,
-                    button_height INTEGER DEFAULT 200
+                    button_height INTEGER DEFAULT 200,
+                    news_categories TEXT
                 );
             """)
             conn.commit()
@@ -189,14 +198,14 @@ def get_user_settings(username):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT city_name, button_width, button_height FROM users WHERE username=%s;", (username,))
+            cur.execute("SELECT city_name, button_width, button_height, news_categories FROM users WHERE username=%s;", (username,))
             row = cur.fetchone()
             if row and row['city_name']:
-                return row['city_name'], row['button_width'], row['button_height']
-            return default_city, 200, 200
+                return row['city_name'], row['button_width'], row['button_height'], row['news_categories'].split(',') if row['news_categories'] else ['general']
+            return default_city, 200, 200, ['general']
     except Exception as e:
         print("Error retrieving user settings:", e)
-        return default_city, 200, 200
+        return default_city, 200, 200, ['general']
     finally:
         conn.close()
 
@@ -261,34 +270,7 @@ def fetch_random_cat():
 
 @cache.memoize(timeout=300)  # Cache for 5 minutes
 def get_weekly_forecast(lat, lon):
-    """
-    Retrieves a 5-day weather forecast using OpenWeatherMap's One Call API.
-    
-    Uses caching to prevent excessive API calls and improve performance.
-    Results are cached for 5 minutes before a new API call is made.
-    
-    Args:
-        lat (float): Latitude of the location
-        lon (float): Longitude of the location
-        
-    Returns:
-        list: List of dictionaries containing daily forecast data.
-              Each dictionary contains:
-              - dt: Unix timestamp for the day
-              - date_str: Formatted date string (e.g., "Jan 01")
-              - icon_url: URL for weather condition icon
-              - description: Text description of weather
-              - temp_min: Minimum temperature in Fahrenheit
-              - temp_max: Maximum temperature in Fahrenheit
-              - lat: Latitude of the location
-              - lon: Longitude of the location
-    
-    Note:
-        - Uses OpenWeatherMap's 3.0/onecall endpoint
-        - Returns data in imperial units (Fahrenheit)
-        - Only includes first 5 days of the available 7-day forecast
-        - Implements error handling and debug logging
-    """
+    """Retrieves a 5-day weather forecast using OpenWeatherMap's One Call API."""
     url = (
         f"http://api.openweathermap.org/data/3.0/onecall"
         f"?lat={lat}&lon={lon}&exclude=current,minutely,hourly,alerts"
@@ -297,6 +279,16 @@ def get_weekly_forecast(lat, lon):
     )
     forecast_list = []
     try:
+        # Track API call
+        now = datetime.now()
+        current_day = now.strftime('%Y-%m-%d')
+        day_calls = cache.get('owm_api_calls_day_' + current_day) or []
+        day_calls.append({
+            'timestamp': now.strftime('%Y-%m-%d %H:%M:%S'),
+            'endpoint': 'onecall'
+        })
+        cache.set('owm_api_calls_day_' + current_day, day_calls, timeout=86400)
+        
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
         data = resp.json()
@@ -321,13 +313,10 @@ def get_weekly_forecast(lat, lon):
                     "description": description,
                     "temp_min": temp_min,
                     "temp_max": temp_max,
-                    "lat": lat,  # Add latitude
-                    "lon": lon   # Add longitude
+                    "lat": lat,
+                    "lon": lon
                 })
                 
-        # Debug logging
-        print(f"Processed forecast data: {forecast_list}")
-        
     except Exception as e:
         print(f"[ERROR] Failed to fetch daily forecast: {e}")
         print(f"URL attempted: {url}")
@@ -335,24 +324,7 @@ def get_weekly_forecast(lat, lon):
 
 @cache.memoize(timeout=300)  # Cache for 5 minutes
 def get_current_weather(lat, lon):
-    """
-    Retrieves current weather conditions using OpenWeatherMap's Current Weather API.
-    
-    Uses caching to prevent excessive API calls and improve performance.
-    Results are cached for 5 minutes before a new API call is made.
-    
-    Args:
-        lat (float): Latitude of the location
-        lon (float): Longitude of the location
-        
-    Returns:
-        dict: Dictionary containing current weather data:
-              - temp: Current temperature in Fahrenheit
-              - description: Text description of weather
-              - icon_url: URL for weather condition icon
-              - feels_like: "Feels like" temperature in Fahrenheit
-              Or None if the API call fails
-    """
+    """Retrieves current weather conditions using OpenWeatherMap's Current Weather API."""
     url = (
         f"https://api.openweathermap.org/data/2.5/weather"
         f"?lat={lat}&lon={lon}"
@@ -361,6 +333,16 @@ def get_current_weather(lat, lon):
     )
     
     try:
+        # Track API call
+        now = datetime.now()
+        current_day = now.strftime('%Y-%m-%d')
+        day_calls = cache.get('owm_api_calls_day_' + current_day) or []
+        day_calls.append({
+            'timestamp': now.strftime('%Y-%m-%d %H:%M:%S'),
+            'endpoint': 'current'
+        })
+        cache.set('owm_api_calls_day_' + current_day, day_calls, timeout=86400)
+        
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
         data = resp.json()
@@ -575,7 +557,7 @@ def home():
         return redirect(url_for('login'))
     
     # Get user settings
-    city_name, button_width, button_height = get_user_settings(session['user'])
+    city_name, button_width, button_height, news_categories = get_user_settings(session['user'])
     
     # Get coordinates for the city
     lat, lon = get_coordinates_for_city(city_name)
@@ -636,7 +618,8 @@ def home():
                          current_weather=current_weather,
                          city_name=city_name,
                          button_width=button_width,
-                         button_height=button_height)
+                         button_height=button_height,
+                         news_categories=news_categories)
 
 def get_coordinates_for_city(city_name):
     """
@@ -667,7 +650,7 @@ def get_coordinates_for_city(city_name):
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
-    """User can set their city_name."""
+    """User can set their city_name and news preferences."""
     if 'user' not in session:
         return redirect(url_for('login'))
 
@@ -675,6 +658,10 @@ def settings():
         city_name = request.form.get('city_name', '')
         button_width = request.form.get('button_width', '200')
         button_height = request.form.get('button_height', '200')
+        news_categories = request.form.getlist('news_categories')  # Get multiple selected values
+        
+        # Convert list to comma-separated string for storage
+        categories_str = ','.join(news_categories) if news_categories else 'general'
         
         conn = get_db_connection()
         try:
@@ -683,9 +670,10 @@ def settings():
                     """UPDATE users 
                        SET city_name = %s, 
                            button_width = %s,
-                           button_height = %s 
+                           button_height = %s,
+                           news_categories = %s
                        WHERE username = %s""",
-                    (city_name, button_width, button_height, session['user'])
+                    (city_name, button_width, button_height, categories_str, session['user'])
                 )
                 conn.commit()
             flash('Settings updated successfully!', 'success')
@@ -701,20 +689,22 @@ def settings():
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT city_name, button_width, button_height FROM users WHERE username = %s",
+                "SELECT city_name, button_width, button_height, news_categories FROM users WHERE username = %s",
                 (session['user'],)
             )
             user_settings = cur.fetchone()
             city_name = user_settings['city_name'] if user_settings else ''
             button_width = user_settings.get('button_width', 200)
             button_height = user_settings.get('button_height', 200)
+            news_categories = user_settings.get('news_categories', 'general').split(',')
     finally:
         conn.close()
     
     return render_template('settings.html', 
                          city_name=city_name,
                          button_width=button_width,
-                         button_height=button_height)
+                         button_height=button_height,
+                         news_categories=news_categories)
 
 @app.route('/login', methods=['GET', 'POST'])
 @limiter.limit("5 per minute", methods=["POST"], error_message="Too many login attempts, please try again in a minute.")
@@ -1074,27 +1064,27 @@ def get_stock_data(symbol):
 
 @app.route('/api/usage')
 def api_usage():
-    """View Alpha Vantage API usage statistics."""
+    """View API usage statistics for all APIs."""
     if 'user' not in session:
         return redirect(url_for('login'))
         
     now = datetime.now()
-    
-    # Get current hour's API calls
     current_hour = now.strftime('%Y-%m-%d %H')
-    hour_calls = cache.get('api_calls_hour_' + current_hour) or []
-    
-    # Get current day's API calls
     current_day = now.strftime('%Y-%m-%d')
-    day_calls = cache.get('api_calls_day_' + current_day) or []
     
-    # Calculate statistics
-    hour_limit = 4_500  # 75 calls/min * 60 min
-    day_limit = 108_000  # 75 calls/min * 60 min * 24 hours
+    # Get API calls for all services
+    hour_calls = cache.get('api_calls_hour_' + current_hour) or []
+    day_calls = cache.get('api_calls_day_' + current_day) or []
+    gnews_day_calls = cache.get('gnews_api_calls_day_' + current_day) or []
+    owm_day_calls = cache.get('owm_api_calls_day_' + current_day) or []
     
     # Format timestamps
     hour_time = datetime.strptime(current_hour, '%Y-%m-%d %H')
     day_time = datetime.strptime(current_day, '%Y-%m-%d')
+    
+    # Alpha Vantage statistics
+    hour_limit = 4_500  # 75 calls/min * 60 min
+    day_limit = 108_000  # 75 calls/min * 60 min * 24 hours
     
     stats = {
         'hour': {
@@ -1110,8 +1100,149 @@ def api_usage():
             'period': day_time.strftime('%H:%M:%S %m/%d/%Y')
         }
     }
+
+    # Gnews statistics
+    gnews_day_limit = 100  # Free tier limit
+    gnews_stats = {
+        'day': {
+            'used': len(gnews_day_calls),
+            'limit': gnews_day_limit,
+            'remaining': gnews_day_limit - len(gnews_day_calls),
+            'period': day_time.strftime('%H:%M:%S %m/%d/%Y')
+        }
+    }
+
+    # OpenWeatherMap statistics
+    owm_day_limit = 1000  # Free tier limit
+    owm_stats = {
+        'day': {
+            'used': len(owm_day_calls),
+            'limit': owm_day_limit,
+            'remaining': owm_day_limit - len(owm_day_calls),
+            'period': day_time.strftime('%H:%M:%S %m/%d/%Y')
+        }
+    }
     
-    return render_template('api_usage.html', stats=stats)
+    return render_template('api_usage.html', 
+                         stats=stats, 
+                         gnews_stats=gnews_stats,
+                         owm_stats=owm_stats)
+
+@app.route('/api/news')
+def get_news():
+    """API endpoint to get latest news headlines."""
+    if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    if not gnews_api_key:
+        return jsonify({
+            'error': 'API key not configured',
+            'articles': []
+        })
+
+    try:
+        now = datetime.now()
+        current_day = now.strftime('%Y-%m-%d')
+        
+        # Get user's preferred categories
+        conn = get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT news_categories FROM users WHERE username = %s",
+                    (session['user'],)
+                )
+                result = cur.fetchone()
+                categories = result['news_categories'].split(',') if result and result['news_categories'] else ['general']
+        finally:
+            conn.close()
+
+        # Track API call
+        day_calls = cache.get('gnews_api_calls_day_' + current_day) or []
+        day_calls.append({
+            'timestamp': now.strftime('%Y-%m-%d %H:%M:%S'),
+            'endpoint': 'top-headlines'
+        })
+        cache.set('gnews_api_calls_day_' + current_day, day_calls, timeout=86400)
+
+        if len(day_calls) >= 100:  # Gnews free tier limit
+            return jsonify({
+                'error': 'Daily API limit reached',
+                'articles': []
+            })
+
+        all_articles = []
+        for category in categories:
+            # Try to get cached news for this category
+            cache_key = f'latest_news_us_{category}'
+            cached_news = cache.get(cache_key)
+            
+            if cached_news and cached_news.get('articles'):
+                all_articles.extend(cached_news['articles'])
+                continue
+
+            # If no cached news, make API call
+            url = "https://gnews.io/api/v4/top-headlines"
+            params = {
+                "token": gnews_api_key,
+                "lang": "en",
+                "country": "us",
+                "category": category,
+                "max": 10
+            }
+
+            response = requests.get(url, params=params, timeout=5)
+            response.raise_for_status()
+            news_data = response.json()
+
+            # Cache the results for 5 minutes
+            cache.set(cache_key, news_data, timeout=300)
+            
+            if news_data.get('articles'):
+                all_articles.extend(news_data['articles'])
+
+        # Shuffle articles to mix categories
+        random.shuffle(all_articles)
+        
+        return jsonify({
+            'articles': all_articles[:20]  # Limit to 20 articles total
+        })
+
+    except Exception as e:
+        app.logger.error(f"Error fetching news: {str(e)}")
+        return jsonify({
+            'error': 'Error fetching news',
+            'articles': []
+        })
+
+@app.route('/api/news/usage')
+def news_api_usage():
+    """View Gnews API usage statistics."""
+    if 'user' not in session:
+        return redirect(url_for('login'))
+        
+    now = datetime.now()
+    
+    # Get current day's API calls
+    current_day = now.strftime('%Y-%m-%d')
+    day_calls = cache.get('gnews_api_calls_day_' + current_day) or []
+    
+    # Calculate statistics
+    day_limit = 100  # Gnews free tier limit
+    
+    # Format timestamp
+    day_time = datetime.strptime(current_day, '%Y-%m-%d')
+    
+    stats = {
+        'day': {
+            'used': len(day_calls),
+            'limit': day_limit,
+            'remaining': day_limit - len(day_calls),
+            'period': day_time.strftime('%H:%M:%S %m/%d/%Y')
+        }
+    }
+    
+    return render_template('news_api_usage.html', stats=stats)
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.

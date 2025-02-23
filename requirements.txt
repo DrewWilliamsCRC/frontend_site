@@ -10,3 +10,4 @@ gunicorn
 click
 zipp==3.21.0 # not directly required, pinned by Snyk to avoid a vulnerability
 urllib3==2.3.0 # not directly required, pinned by Snyk to avoid a vulnerability
+gnews==0.3.6 # for news ticker feature
