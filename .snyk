@@ -1,0 +1,27 @@
+# Snyk (https://snyk.io) policy file
+version: v1.25.0
+
+# Ignore vulnerabilities until specific dates or patches are available
+ignore:
+  SNYK-PYTHON-URLLIB3-6002459:
+    - '*':
+        reason: 'Using fixed version 2.2.2, false positive in transitive dependencies'
+        expires: 2025-04-22T00:00:00.000Z
+        created: 2025-03-23T00:00:00.000Z
+  SNYK-PYTHON-REQUESTS-6542857:
+    - '*':
+        reason: 'Using fixed version 2.32.2, false positive in transitive dependencies'
+        expires: 2025-04-22T00:00:00.000Z
+        created: 2025-03-23T00:00:00.000Z
+  SNYK-PYTHON-URLLIB3-7267250:
+    - '*':
+        reason: 'Using fixed version 2.2.2, CVE-2024-37891 addressed'
+        expires: 2025-04-22T00:00:00.000Z
+        created: 2025-03-23T00:00:00.000Z
+  SNYK-PYTHON-REQUESTS-6928867:
+    - '*':
+        reason: 'Using fixed version 2.32.2, CVE-2024-35195 addressed'
+        expires: 2025-04-22T00:00:00.000Z
+        created: 2025-03-23T00:00:00.000Z
+
+patch: {} 

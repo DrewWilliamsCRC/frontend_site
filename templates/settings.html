@@ -24,6 +24,44 @@
                placeholder="Enter your city name">
         <p class="help-text">This city will be used for weather forecasts</p>
       </div>
+
+      <div class="form-group">
+        <label>
+          <i class="fas fa-newspaper"></i>
+          News Categories
+        </label>
+        <div class="checkbox-group">
+          <div class="checkbox-item">
+            <input type="checkbox" id="general" name="news_categories" value="general" {% if 'general' in news_categories %}checked{% endif %}>
+            <label for="general">General News</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="business" name="news_categories" value="business" {% if 'business' in news_categories %}checked{% endif %}>
+            <label for="business">Business</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="technology" name="news_categories" value="technology" {% if 'technology' in news_categories %}checked{% endif %}>
+            <label for="technology">Technology</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="entertainment" name="news_categories" value="entertainment" {% if 'entertainment' in news_categories %}checked{% endif %}>
+            <label for="entertainment">Entertainment</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="sports" name="news_categories" value="sports" {% if 'sports' in news_categories %}checked{% endif %}>
+            <label for="sports">Sports</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="science" name="news_categories" value="science" {% if 'science' in news_categories %}checked{% endif %}>
+            <label for="science">Science</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="health" name="news_categories" value="health" {% if 'health' in news_categories %}checked{% endif %}>
+            <label for="health">Health</label>
+          </div>
+        </div>
+        <p class="help-text">Select categories to show in the news ticker</p>
+      </div>
       
       <div class="form-group">
         <label for="button_size">
@@ -60,6 +98,55 @@
     </form>
   </div>
 </div>
+
+<style>
+.checkbox-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
+
+.checkbox-item label {
+  font-size: 14px;
+  color: var(--text-color);
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+}
+
+.dark-mode .checkbox-group {
+  background: var(--bg-color);
+  border-color: var(--border-color);
+}
+
+.dark-mode .checkbox-item label {
+  color: var(--text-color);
+}
+
+@media (max-width: 768px) {
+  .checkbox-group {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
+</style>
 
 <script>
 function updateSliderValues() {

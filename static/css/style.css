@@ -1977,22 +1977,18 @@ body.dark-mode .btn-ghost:hover {
     position: fixed;
     top: 0;
     left: 0;
-    right: 0;
-    background-color: #fbbf24;
-    color: #7c2d12;
+    width: 100%;
+    background-color: #ff6b6b;
+    color: white;
     text-align: center;
-    padding: var(--spacing-sm);
-    font-weight: var(--font-semibold);
-    z-index: 9999;
-    font-size: var(--font-size-sm);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    box-shadow: var(--shadow-sm);
+    padding: 5px;
+    font-weight: bold;
+    z-index: 1000;
 }
 
-/* Adjust body padding when dev banner is present */
-body:has(.dev-banner) {
-    padding-top: calc(var(--spacing-sm) * 2 + 1.5rem);
+/* Adjust main content padding when dev banner is present */
+body.has-dev-banner .content {
+    padding-top: calc(40px + 30px); /* news ticker height + dev banner height */
 }
 
 /* Dark mode dev banner */
