@@ -114,4 +114,9 @@
 /* Pause animation on hover */
 .stock-ticker:hover {
   animation-play-state: paused;
+}
+
+/* Add padding to main content to prevent overlap */
+.main-content {
+  padding-bottom: 60px !important; /* 40px for ticker height + 20px extra padding */
 } 
