@@ -1,9 +1,12 @@
 name: Docker Build and Test
 
+# Separate triggers for different events
 on:
-  push:
-    branches: [ "main" ]
+  # PR events only trigger tests
   pull_request:
+    branches: [ "main" ]
+  # Push to main triggers both tests and publish
+  push:
     branches: [ "main" ]
 
 env:
@@ -13,7 +16,8 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  test-and-publish:
+  # Test job runs on both PR and push events
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -59,16 +63,35 @@ jobs:
           chmod +x test-docker-build.sh
           ./test-docker-build.sh
 
-      # Only run Docker Hub publishing steps if all tests pass, we're on main branch, and it's not a PR
+  # Publish job only runs on push to main, never on PRs
+  publish:
+    # Only run this job on push events (not PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test  # Requires test job to pass first
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify not PR
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Error: Publishing should never run on PRs"
+          exit 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log into Docker Hub
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.platform == 'linux/amd64' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push Docker image
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.platform == 'linux/amd64' }}
         uses: docker/build-push-action@v6
         with:
           context: .
