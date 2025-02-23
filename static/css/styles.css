@@ -1,0 +1,10 @@
+.mock-data-indicator {
+  font-size: 0.8em;
+  color: #888;
+  margin-left: 4px;
+  font-style: italic;
+}
+
+.mock-data {
+  opacity: 0.9;
+} 

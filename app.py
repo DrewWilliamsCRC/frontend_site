@@ -1,12 +1,26 @@
 # Load environment variables from .env file for configuration management
 from dotenv import load_dotenv
+import os
+
+# Load environment variables before any other configuration
+print("Loading environment variables from .env file...")
 load_dotenv()
 
+# Debug log for API key
+alpha_vantage_key = os.environ.get("ALPHA_VANTAGE_API_KEY")
+if alpha_vantage_key:
+    print("Alpha Vantage API key loaded successfully")
+    # Only print first few characters for security
+    print(f"API key starts with: {alpha_vantage_key[:4]}...")
+else:
+    print("Warning: ALPHA_VANTAGE_API_KEY not found in environment variables")
+
 # Standard library imports
-import os
 import requests
 from datetime import datetime
 import re
+import json
+from functools import lru_cache
 
 # Database related imports
 import psycopg2
@@ -88,6 +102,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # ---------------
 # OpenWeatherMap API key configuration
 OWM_API_KEY = os.environ.get("OWM_API_KEY", "default_api_key_for_dev")
+# Alpha Vantage API key configuration
+ALPHA_VANTAGE_API_KEY = os.environ.get("ALPHA_VANTAGE_API_KEY")
+
+if not ALPHA_VANTAGE_API_KEY:
+    print("Warning: ALPHA_VANTAGE_API_KEY not set. Stock ticker will display error message.")
+else:
+    print("Alpha Vantage API key is configured")
 
 # Database Configuration
 # --------------------
@@ -399,6 +420,71 @@ def create_service_dict(service, is_default=False):
         'is_default': False,
         'section': service.get('section', '')
     }
+
+@lru_cache(maxsize=100)
+def get_cached_stock_data(symbol):
+    """
+    Fetch and cache stock data from Alpha Vantage API.
+    Data is delayed by 15 minutes, so we cache for 60 seconds to stay well within rate limits
+    while ensuring data is relatively fresh when the 15-minute update occurs.
+    """
+    print(f"Fetching data for symbol: {symbol}")  # Debug log
+
+    # Return error state if no API key is available
+    if not ALPHA_VANTAGE_API_KEY:
+        print("No API key available")  # Debug log
+        return {
+            'price': '0.00',
+            'change': '0.00',
+            'error': 'API key not configured'
+        }
+
+    try:
+        url = f"https://www.alphavantage.co/query"
+        params = {
+            "function": "GLOBAL_QUOTE",
+            "symbol": symbol,
+            "apikey": ALPHA_VANTAGE_API_KEY
+        }
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        
+        print(f"Raw API response for {symbol}:", data)  # Debug log
+
+        # Check for rate limit messages
+        if "Note" in data or "Information" in data:
+            error_msg = data.get("Note", data.get("Information", ""))
+            print(f"API limit message: {error_msg}")
+            return {
+                'price': '0.00',
+                'change': '0.00',
+                'error': 'API rate limit reached - Please try again later'
+            }
+
+        if "Global Quote" in data and data["Global Quote"]:
+            quote = data["Global Quote"]
+            print(f"Quote data for {symbol}:", quote)  # Debug log
+            return {
+                'price': quote.get('05. price', '0.00'),
+                'change': quote.get('10. change percent', '0.00%').rstrip('%'),
+                'error': None
+            }
+        
+        print(f"No quote data available for {symbol}")
+        return {
+            'price': '0.00',
+            'change': '0.00',
+            'error': 'No data available'
+        }
+
+    except Exception as e:
+        print(f"Error fetching data for {symbol}:", str(e))
+        return {
+            'price': '0.00',
+            'change': '0.00',
+            'error': 'Error fetching data'
+        }
 
 # -----------------------------------------------------------------------------------
 # Routes
@@ -861,6 +947,23 @@ def reorder_default_services():
 def inject_is_dev_mode():
     # This will be True when FLASK_ENV is set to "development"
     return dict(is_dev_mode=(os.environ.get("FLASK_ENV") == "development"))
+
+@app.route('/api/stock/<symbol>')
+def get_stock_data(symbol):
+    """API endpoint to get stock data for a given symbol."""
+    if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = get_cached_stock_data(symbol)
+    print(f"Fetched data for {symbol}: {data}")  # Debug log
+    response_data = {
+        'symbol': symbol,
+        'price': data['price'],
+        'change': data['change'],
+        'error': data['error']
+    }
+    print(f"Sending response for {symbol}: {response_data}")  # Debug log
+    return jsonify(response_data)
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.
