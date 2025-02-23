@@ -3,65 +3,77 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <div class="dashboard-header mb-4" data-aos="fade-down">
-    <h1 class="welcome-text">
-      <i class="fas fa-hand-wave"></i>
-      Welcome{% if 'user' in session %}, {{ session['user'] }}{% endif %}!
-    </h1>
-  </div>
-
-  <!-- Market Indices Section -->
-  <div class="market-indices mb-4">
-    <div class="row">
-      <div class="col-md-4">
-        <a href="https://www.google.com/finance/quote/.DJI:INDEXDJX" class="index-link" target="_blank" rel="noopener noreferrer">
-          <div class="index-card" id="dow-card">
-            <div class="index-title">
-              <i class="fas fa-chart-line"></i>
-              <span>Dow Jones</span>
-            </div>
-            <div class="index-data">
-              <div class="loading-spinner">
-                <i class="fas fa-spinner fa-spin"></i>
-              </div>
+<!-- Market Indices Section -->
+<div class="market-indices">
+  <div class="row g-2">
+    <div class="col-md-3">
+      <a href="https://www.google.com/finance/quote/.DJI:INDEXDJX" class="index-link" target="_blank" rel="noopener noreferrer">
+        <div class="index-card" data-index="DJI">
+          <div class="index-title">
+            <i class="fas fa-chart-line"></i>
+            <span>Dow Jones</span>
+          </div>
+          <div class="index-data">
+            <div class="loading-spinner">
+              <i class="fas fa-spinner fa-spin"></i>
+              <span>Loading...</span>
             </div>
           </div>
-        </a>
-      </div>
-      <div class="col-md-4">
-        <a href="https://www.google.com/finance/quote/.INX:INDEXSP" class="index-link" target="_blank" rel="noopener noreferrer">
-          <div class="index-card" id="sp500-card">
-            <div class="index-title">
-              <i class="fas fa-chart-line"></i>
-              <span>S&P 500</span>
-            </div>
-            <div class="index-data">
-              <div class="loading-spinner">
-                <i class="fas fa-spinner fa-spin"></i>
-              </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-3">
+      <a href="https://www.google.com/finance/quote/.INX:INDEXSP" class="index-link" target="_blank" rel="noopener noreferrer">
+        <div class="index-card" data-index="SPX">
+          <div class="index-title">
+            <i class="fas fa-chart-line"></i>
+            <span>S&P 500</span>
+          </div>
+          <div class="index-data">
+            <div class="loading-spinner">
+              <i class="fas fa-spinner fa-spin"></i>
+              <span>Loading...</span>
             </div>
           </div>
-        </a>
-      </div>
-      <div class="col-md-4">
-        <a href="https://www.google.com/finance/quote/.IXIC:INDEXNASDAQ" class="index-link" target="_blank" rel="noopener noreferrer">
-          <div class="index-card" id="nasdaq-card">
-            <div class="index-title">
-              <i class="fas fa-chart-line"></i>
-              <span>NASDAQ</span>
-            </div>
-            <div class="index-data">
-              <div class="loading-spinner">
-                <i class="fas fa-spinner fa-spin"></i>
-              </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-3">
+      <a href="https://www.google.com/finance/quote/.IXIC:INDEXNASDAQ" class="index-link" target="_blank" rel="noopener noreferrer">
+        <div class="index-card" data-index="IXIC">
+          <div class="index-title">
+            <i class="fas fa-chart-line"></i>
+            <span>NASDAQ</span>
+          </div>
+          <div class="index-data">
+            <div class="loading-spinner">
+              <i class="fas fa-spinner fa-spin"></i>
+              <span>Loading...</span>
             </div>
           </div>
-        </a>
-      </div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-3">
+      <a href="https://www.google.com/finance/quote/VIXY:NYSEARCA" class="index-link" target="_blank" rel="noopener noreferrer">
+        <div class="index-card" data-index="VIXY">
+          <div class="index-title">
+            <i class="fas fa-chart-bar"></i>
+            <span>VIX</span>
+          </div>
+          <div class="index-data">
+            <div class="loading-spinner">
+              <i class="fas fa-spinner fa-spin"></i>
+              <span>Loading...</span>
+            </div>
+          </div>
+        </div>
+      </a>
     </div>
   </div>
+</div>
 
+<div class="container mt-4">
   <div class="dashboard-grid">
     <!-- System Management Section -->
     <section class="section">
@@ -165,82 +177,10 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='js/market-indices.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize market indices
-    function updateMarketIndices() {
-        const indices = [
-            { symbol: 'DJI', elementId: 'dow-card', name: 'Dow Jones', etf: 'DIA' },
-            { symbol: 'SPX', elementId: 'sp500-card', name: 'S&P 500', etf: 'SPY' },
-            { symbol: 'IXIC', elementId: 'nasdaq-card', name: 'NASDAQ', etf: 'QQQ' }
-        ];
-
-        indices.forEach(index => {
-            const card = document.getElementById(index.elementId);
-            const dataDiv = card.querySelector('.index-data');
-            
-            // Show loading state with ETF info
-            dataDiv.innerHTML = `
-                <div class="loading-spinner">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <div>Fetching ${index.name} data (${index.etf})...</div>
-                    <div class="update-info">Last update: ${new Date().toLocaleTimeString()}</div>
-                    <div class="update-info">(Updates every 5 minutes)</div>
-                </div>
-            `;
-
-            fetch(`/api/stock/${index.symbol}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        dataDiv.innerHTML = `
-                            <div class="error-message">
-                                <i class="fas fa-exclamation-circle"></i>
-                                <div>${data.error}</div>
-                                <div class="retry-button" onclick="updateMarketIndices()">
-                                    <i class="fas fa-sync"></i> Retry
-                                </div>
-                            </div>
-                        `;
-                        return;
-                    }
-
-                    const changeValue = parseFloat(data.change);
-                    const changeClass = changeValue >= 0 ? 'positive' : 'negative';
-                    const arrowIcon = changeValue >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
-                    
-                    dataDiv.innerHTML = `
-                        <div class="price">$${data.price}</div>
-                        <div class="change ${changeClass}">
-                            <i class="fas ${arrowIcon}"></i>
-                            ${Math.abs(changeValue).toFixed(2)}%
-                        </div>
-                        <div class="update-info">
-                            Based on ${index.etf} ETF
-                            <br>
-                            Last update: ${new Date().toLocaleTimeString()}
-                        </div>
-                    `;
-                })
-                .catch(error => {
-                    dataDiv.innerHTML = `
-                        <div class="error-message">
-                            <i class="fas fa-exclamation-circle"></i>
-                            <div>Error fetching data</div>
-                            <div class="retry-button" onclick="updateMarketIndices()">
-                                <i class="fas fa-sync"></i> Retry
-                            </div>
-                        </div>
-                    `;
-                });
-        });
-    }
-
-    // Update indices immediately and then every 5 minutes
-    updateMarketIndices();
-    setInterval(updateMarketIndices, 300000);
-
-    // Existing sortable initialization code
+    // Initialize sortable grids
     const systemGrid = document.querySelector('.service-grid');
     const mediaGrid = document.querySelector('.section:nth-child(2) .service-grid');
     
@@ -404,6 +344,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .dark-mode .index-link:hover .index-card {
     box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
+}
+
+.market-indices .description {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+    font-style: italic;
+}
+
+.dark-mode .market-indices .description {
+    color: rgba(255, 255, 255, 0.5);
 }
 </style>
 {% endblock %}
