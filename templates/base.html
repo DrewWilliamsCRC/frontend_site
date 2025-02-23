@@ -37,12 +37,33 @@
       <span>Dashboard</span>
     </div>
     
+    {% if current_weather %}
+    <div class="current-weather" onclick="scrollToForecast()" role="button" tabindex="0" title="Click to view full forecast">
+      <div class="weather-icon">
+        <img src="{{ current_weather.icon_url }}" alt="{{ current_weather.description }}">
+      </div>
+      <div class="weather-info">
+        <div class="current-temp">{{ current_weather.temp }}°F</div>
+        <div class="feels-like">Feels like {{ current_weather.feels_like }}°F</div>
+        <div class="weather-desc">{{ current_weather.description }}</div>
+      </div>
+    </div>
+    {% endif %}
+    
     <nav class="sidebar-nav">
       {% if 'user' in session %}
         <a href="{{ url_for('home') }}" class="nav-item {% if request.endpoint == 'home' %}active{% endif %}">
           <i class="fas fa-home"></i>
           <span>Home</span>
         </a>
+        <div class="nav-item" onclick="scrollToSection('media')" role="button" tabindex="0" title="View Media Management">
+          <i class="fas fa-film"></i>
+          <span>Media Management</span>
+        </div>
+        <div class="nav-item" onclick="scrollToSection('system')" role="button" tabindex="0" title="View System Management">
+          <i class="fas fa-server"></i>
+          <span>System Management</span>
+        </div>
         <a href="{{ url_for('user_manager.index') }}" class="nav-item {% if request.endpoint == 'user_manager.index' %}active{% endif %}">
           <i class="fas fa-users"></i>
           <span>Users</span>
@@ -138,6 +159,58 @@
         easing: 'ease-in-out'
       });
     });
+
+    // Function to scroll to a specific section
+    function scrollToSection(sectionType) {
+      let selector;
+      switch(sectionType) {
+        case 'media':
+          selector = '.section h2:contains("Media Management")';
+          break;
+        case 'system':
+          selector = '.section h2:contains("System Management")';
+          break;
+        case 'forecast':
+          selector = '.section:has(.weather-grid)';
+          break;
+        default:
+          return;
+      }
+
+      // Find all section headers
+      const headers = document.querySelectorAll('.section h2');
+      let targetSection = null;
+
+      // Find the section with the matching header text
+      headers.forEach(header => {
+        if (sectionType === 'media' && header.textContent.includes('Media Management')) {
+          targetSection = header.closest('.section');
+        } else if (sectionType === 'system' && header.textContent.includes('System Management')) {
+          targetSection = header.closest('.section');
+        } else if (sectionType === 'forecast' && header.closest('.section').querySelector('.weather-grid')) {
+          targetSection = header.closest('.section');
+        }
+      });
+
+      if (targetSection) {
+        // Close mobile menu if open
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar.classList.contains('active')) {
+          sidebar.classList.remove('active');
+        }
+        
+        // Scroll to section
+        targetSection.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+    }
+
+    // Function to scroll to forecast section (for backward compatibility)
+    function scrollToForecast() {
+      scrollToSection('forecast');
+    }
   </script>
   {% block scripts %}{% endblock %}
 </body>

@@ -333,6 +333,53 @@ def get_weekly_forecast(lat, lon):
         print(f"URL attempted: {url}")
     return forecast_list
 
+@cache.memoize(timeout=300)  # Cache for 5 minutes
+def get_current_weather(lat, lon):
+    """
+    Retrieves current weather conditions using OpenWeatherMap's Current Weather API.
+    
+    Uses caching to prevent excessive API calls and improve performance.
+    Results are cached for 5 minutes before a new API call is made.
+    
+    Args:
+        lat (float): Latitude of the location
+        lon (float): Longitude of the location
+        
+    Returns:
+        dict: Dictionary containing current weather data:
+              - temp: Current temperature in Fahrenheit
+              - description: Text description of weather
+              - icon_url: URL for weather condition icon
+              - feels_like: "Feels like" temperature in Fahrenheit
+              Or None if the API call fails
+    """
+    url = (
+        f"https://api.openweathermap.org/data/2.5/weather"
+        f"?lat={lat}&lon={lon}"
+        f"&units=imperial"
+        f"&appid={OWM_API_KEY}"
+    )
+    
+    try:
+        resp = requests.get(url, timeout=5)
+        resp.raise_for_status()
+        data = resp.json()
+        
+        if "main" in data and "weather" in data and len(data["weather"]) > 0:
+            icon_code = data["weather"][0]["icon"]
+            return {
+                "temp": round(data["main"]["temp"], 1),
+                "description": data["weather"][0]["description"],
+                "icon_url": f"https://openweathermap.org/img/wn/{icon_code}@2x.png",
+                "feels_like": round(data["main"]["feels_like"], 1)
+            }
+            
+    except Exception as e:
+        print(f"[ERROR] Failed to fetch current weather: {e}")
+        print(f"URL attempted: {url}")
+    
+    return None
+
 def sanitize_city_name(city):
     """
     Validates and sanitizes user-provided city names for safe usage in API calls.
@@ -533,10 +580,12 @@ def home():
     # Get coordinates for the city
     lat, lon = get_coordinates_for_city(city_name)
     
-    # Get forecast data if coordinates are available
+    # Get forecast data and current weather if coordinates are available
     forecast_data = None
+    current_weather = None
     if lat and lon:
         forecast_data = get_weekly_forecast(lat, lon)
+        current_weather = get_current_weather(lat, lon)
     
     # Get services from database
     conn = get_db_connection()
@@ -584,6 +633,7 @@ def home():
                          media_services=media_services,
                          system_services=system_services,
                          forecast_data=forecast_data,
+                         current_weather=current_weather,
                          city_name=city_name,
                          button_width=button_width,
                          button_height=button_height)
@@ -980,13 +1030,14 @@ def get_stock_data(symbol):
 
     # Map index symbols to their Alpha Vantage symbols and conversion factors
     index_map = {
-        'DJI': {'symbol': 'DIA', 'factor': 100.0},    # Dow Jones Industrial Average ETF
-        'SPX': {'symbol': 'SPY', 'factor': 10.0},     # S&P 500 ETF
-        'IXIC': {'symbol': 'QQQ', 'factor': 1.0}      # NASDAQ 100 ETF
+        'DJI': {'symbol': 'DIA', 'factor': 100.0},  # DIA ETF tracks Dow/100
+        'SPX': {'symbol': 'SPY', 'factor': 10.0},   # SPY ETF tracks S&P 500/10
+        'IXIC': {'symbol': 'QQQ', 'factor': 100.0}, # QQQ ETF tracks NASDAQ-100/100
+        'VIXY': {'symbol': 'VIXY', 'factor': 1.0}   # ProShares VIX Short-Term Futures ETF
     }
 
-    # Use ETF symbols for indices (they provide more reliable data)
-    index_info = index_map.get(symbol)
+    # Use ETF symbols for indices (except for VIX which uses direct symbol)
+    index_info = index_map.get(symbol)  # No need to strip ^ anymore
     av_symbol = index_info['symbol'] if index_info else symbol
     print(f"Using symbol: {av_symbol} for {symbol}")  # Debug log
     
@@ -996,9 +1047,15 @@ def get_stock_data(symbol):
     # Special handling for indices that need scaling
     if index_info and not data['error'] and data['price'] != '0.00':
         try:
-            # Convert ETF price to index value
-            price = float(data['price']) * index_info['factor']
-            data['price'] = f"{price:,.2f}"
+            # Only scale ETF-based indices
+            if symbol != '^VIX':
+                # Convert ETF price to index value
+                price = float(data['price']) * index_info['factor']
+                data['price'] = f"{price:,.2f}"
+            else:
+                # For VIX, use the price directly
+                price = float(data['price'])
+                data['price'] = f"{price:.2f}"
             
             # Convert percentage change (remains the same percentage)
             change = float(data['change'])
