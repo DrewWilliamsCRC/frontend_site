@@ -1,4 +1,4 @@
-# Frontend Site with User Auth (Flask) - last updated 3-21-2024
+# Frontend Site with User Auth (Flask) - last updated 2-23-2024
 
 A modern web application built with Flask that provides secure user authentication, dynamic content, and an interactive dashboard. Features weather forecasts, random pet images, and quick access to various services.
 
