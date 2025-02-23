@@ -37,6 +37,10 @@ echo "Database is ready!"
 echo "Testing database connection with full connection string..."
 PGPASSWORD=$POSTGRES_PASSWORD psql "$DATABASE_URL" -c '\conninfo'
 
+# Initialize the database
+echo "Initializing database..."
+python3 -c "from app import init_db; init_db()"
+
 # Start the Flask application with gunicorn
 echo "Starting Gunicorn with 4 workers..."
 echo "Current directory: $(pwd)"

@@ -1,9 +1,12 @@
 name: Docker Build and Test
 
+# Separate triggers for different events
 on:
-  push:
-    branches: [ "main" ]
+  # PR events only trigger tests
   pull_request:
+    branches: [ "main" ]
+  # Push to main triggers both tests and publish
+  push:
     branches: [ "main" ]
 
 env:
@@ -13,6 +16,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Test job runs on both PR and push events
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -59,14 +63,19 @@ jobs:
           chmod +x test-docker-build.sh
           ./test-docker-build.sh
 
-  build:
-    needs: test
+  # Publish job only runs on push to main, never on PRs
+  publish:
+    # Only run this job on push events (not PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test  # Requires test job to pass first
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
+      - name: Verify not PR
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Error: Publishing should never run on PRs"
+          exit 1
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -77,7 +86,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log into Docker Hub
-        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -88,5 +96,5 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.ref == 'refs/heads/main' }}
+          push: true
           tags: dawttu00/dawttu_private:frontend
