@@ -1,6 +1,6 @@
 Flask
 Werkzeug==3.1.3 # added by Snyk 
-requests==2.26.0  # pinned for gnews compatibility
+requests==2.31.0  # pinned for gnews compatibility
 flask-caching
 Flask-WTF
 Flask-Limiter
@@ -10,4 +10,4 @@ gunicorn
 click
 zipp==3.21.0 # not directly required, pinned by Snyk to avoid a vulnerability
 urllib3<1.27,>=1.21.1  # pinned for requests compatibility
-gnews==0.3.6 # for news ticker feature
+gnews # for news ticker feature
