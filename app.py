@@ -147,19 +147,14 @@ def init_db():
     """
     Initializes the database schema by creating the required tables if they don't exist.
     
-    Creates a 'users' table with the following columns:
-    - id: Auto-incrementing primary key
-    - username: Unique identifier for each user
-    - password_hash: Securely stored password hash
-    - city_name: User's preferred city for weather information
-    - button_width: Custom width for UI buttons (default: 200)
-    - button_height: Custom height for UI buttons (default: 200)
-    
-    Note: Uses PostgreSQL-specific SQL syntax with SERIAL for auto-increment.
+    Creates tables:
+    - users: User account information and preferences
+    - api_usage: Tracks API calls and limits for various services
     """
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
+            # Create users table
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
@@ -168,9 +163,30 @@ def init_db():
                     city_name TEXT,
                     button_width INTEGER DEFAULT 200,
                     button_height INTEGER DEFAULT 200,
-                    news_categories TEXT
+                    news_categories TEXT DEFAULT 'general'
                 );
             """)
+            
+            # Create api_usage table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS api_usage (
+                    id SERIAL PRIMARY KEY,
+                    api_name TEXT NOT NULL,
+                    endpoint TEXT NOT NULL,
+                    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+                    details JSONB,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                -- Index for efficient querying of recent usage
+                CREATE INDEX IF NOT EXISTS idx_api_usage_timestamp 
+                ON api_usage (api_name, timestamp);
+                
+                -- Index for JSON querying if needed
+                CREATE INDEX IF NOT EXISTS idx_api_usage_details 
+                ON api_usage USING GIN (details);
+            """)
+            
             conn.commit()
         conn.close()
         print("Database initialized or updated.")
@@ -538,6 +554,99 @@ def get_cached_stock_data(symbol):
             'change': '0.00',
             'error': 'Error fetching data'
         }
+
+def track_api_call(api_name, endpoint, details=None):
+    """
+    Track an API call in the database.
+    
+    Args:
+        api_name (str): Name of the API service (e.g., 'alpha_vantage', 'gnews', 'openweathermap')
+        endpoint (str): The specific endpoint or operation called
+        details (dict, optional): Additional details about the API call (e.g., parameters, response status)
+    """
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO api_usage (api_name, endpoint, timestamp, details)
+                VALUES (%s, %s, CURRENT_TIMESTAMP, %s)
+            """, (api_name, endpoint, json.dumps(details) if details else None))
+            conn.commit()
+    except Exception as e:
+        print(f"Error tracking API call: {e}")
+    finally:
+        conn.close()
+
+def get_api_usage(api_name, period='day'):
+    """
+    Get API usage statistics for a specific period.
+    
+    Args:
+        api_name (str): Name of the API service
+        period (str): Time period to check ('hour' or 'day')
+    
+    Returns:
+        dict: Contains 'used' and 'remaining' counts based on API limits
+    """
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            if period == 'hour':
+                cur.execute("""
+                    SELECT COUNT(*) 
+                    FROM api_usage 
+                    WHERE api_name = %s 
+                    AND timestamp >= DATE_TRUNC('hour', CURRENT_TIMESTAMP)
+                """, (api_name,))
+            else:  # day
+                cur.execute("""
+                    SELECT COUNT(*) 
+                    FROM api_usage 
+                    WHERE api_name = %s 
+                    AND timestamp >= DATE_TRUNC('day', CURRENT_TIMESTAMP)
+                """, (api_name,))
+            
+            count = cur.fetchone()['count']
+            
+            # Define limits for each API
+            limits = {
+                'alpha_vantage': {'hour': 4500, 'day': 108000},
+                'gnews': {'hour': 4, 'day': 100},
+                'openweathermap': {'hour': 42, 'day': 1000}
+            }
+            
+            limit = limits.get(api_name, {}).get(period, 0)
+            
+            return {
+                'used': count,
+                'remaining': max(0, limit - count),
+                'period': period
+            }
+    except Exception as e:
+        print(f"Error getting API usage: {e}")
+        return {'used': 0, 'remaining': 0, 'period': period}
+    finally:
+        conn.close()
+
+def cleanup_api_usage(days_to_keep=30):
+    """
+    Clean up old API usage records.
+    
+    Args:
+        days_to_keep (int): Number of days of history to retain
+    """
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                DELETE FROM api_usage 
+                WHERE timestamp < CURRENT_TIMESTAMP - INTERVAL '%s days'
+            """, (days_to_keep,))
+            conn.commit()
+    except Exception as e:
+        print(f"Error cleaning up API usage: {e}")
+    finally:
+        conn.close()
 
 # -----------------------------------------------------------------------------------
 # Routes
@@ -1026,105 +1135,115 @@ def get_stock_data(symbol):
         'VIXY': {'symbol': 'VIXY', 'factor': 1.0}   # ProShares VIX Short-Term Futures ETF
     }
 
-    # Use ETF symbols for indices (except for VIX which uses direct symbol)
-    index_info = index_map.get(symbol)  # No need to strip ^ anymore
+    # Use ETF symbols for indices
+    index_info = index_map.get(symbol)
     av_symbol = index_info['symbol'] if index_info else symbol
     print(f"Using symbol: {av_symbol} for {symbol}")  # Debug log
-    
-    data = get_cached_stock_data(av_symbol)
-    print(f"Fetched data for {symbol} ({av_symbol}): {data}")  # Debug log
-    
-    # Special handling for indices that need scaling
-    if index_info and not data['error'] and data['price'] != '0.00':
-        try:
-            # Only scale ETF-based indices
-            if symbol != '^VIX':
-                # Convert ETF price to index value
-                price = float(data['price']) * index_info['factor']
-                data['price'] = f"{price:,.2f}"
-            else:
-                # For VIX, use the price directly
-                price = float(data['price'])
-                data['price'] = f"{price:.2f}"
+
+    # Return error state if no API key is available
+    if not ALPHA_VANTAGE_API_KEY:
+        print("No API key available")  # Debug log
+        return jsonify({
+            'symbol': symbol,
+            'price': '0.00',
+            'change': '0.00',
+            'error': 'API key not configured'
+        })
+
+    try:
+        url = f"https://www.alphavantage.co/query"
+        params = {
+            "function": "GLOBAL_QUOTE",
+            "symbol": av_symbol,
+            "apikey": ALPHA_VANTAGE_API_KEY
+        }
+
+        # Track API call before making request
+        track_api_call('alpha_vantage', 'global_quote', {
+            'symbol': symbol,
+            'mapped_symbol': av_symbol
+        })
+
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        
+        print(f"Raw API response for {symbol}:", data)  # Debug log
+
+        # Check for rate limit messages
+        if "Note" in data or "Information" in data:
+            error_msg = data.get("Note", data.get("Information", ""))
+            print(f"API rate limit hit for {symbol}: {error_msg}")
+            return jsonify({
+                'symbol': symbol,
+                'price': '0.00',
+                'change': '0.00',
+                'error': 'API rate limit reached - Please try again later'
+            })
+
+        if "Global Quote" in data and data["Global Quote"]:
+            quote = data["Global Quote"]
+            price = quote.get('05. price', '0.00')
+            change = quote.get('10. change percent', '0.00%').rstrip('%')
             
-            # Convert percentage change (remains the same percentage)
-            change = float(data['change'])
-            data['change'] = str(change)
-        except (ValueError, TypeError):
-            pass
-    
-    response_data = {
-        'symbol': symbol,
-        'price': data['price'],
-        'change': data['change'],
-        'error': data['error']
-    }
-    print(f"Sending response for {symbol}: {response_data}")  # Debug log
-    return jsonify(response_data)
+            # Scale values for indices
+            if index_info and price != '0.00':
+                try:
+                    price = float(price) * index_info['factor']
+                    price = f"{price:,.2f}"
+                except (ValueError, TypeError):
+                    pass
+
+            return jsonify({
+                'symbol': symbol,
+                'price': price,
+                'change': change,
+                'error': None
+            })
+        
+        return jsonify({
+            'symbol': symbol,
+            'price': '0.00',
+            'change': '0.00',
+            'error': 'No data available'
+        })
+
+    except Exception as e:
+        print(f"Error fetching data for {symbol}: {str(e)}")
+        return jsonify({
+            'symbol': symbol,
+            'price': '0.00',
+            'change': '0.00',
+            'error': 'Error fetching data'
+        })
 
 @app.route('/api/usage')
 def api_usage():
     """View API usage statistics for all APIs."""
     if 'user' not in session:
         return redirect(url_for('login'))
-        
-    now = datetime.now()
-    current_hour = now.strftime('%Y-%m-%d %H')
-    current_day = now.strftime('%Y-%m-%d')
-    
-    # Get API calls for all services
-    hour_calls = cache.get('api_calls_hour_' + current_hour) or []
-    day_calls = cache.get('api_calls_day_' + current_day) or []
-    gnews_day_calls = cache.get('gnews_api_calls_day_' + current_day) or []
-    owm_day_calls = cache.get('owm_api_calls_day_' + current_day) or []
-    
-    # Format timestamps
-    hour_time = datetime.strptime(current_hour, '%Y-%m-%d %H')
-    day_time = datetime.strptime(current_day, '%Y-%m-%d')
-    
-    # Alpha Vantage statistics
-    hour_limit = 4_500  # 75 calls/min * 60 min
-    day_limit = 108_000  # 75 calls/min * 60 min * 24 hours
-    
-    stats = {
-        'hour': {
-            'used': len(hour_calls),
-            'limit': hour_limit,
-            'remaining': hour_limit - len(hour_calls),
-            'period': hour_time.strftime('%H:%M:%S %m/%d/%Y')
-        },
-        'day': {
-            'used': len(day_calls),
-            'limit': day_limit,
-            'remaining': day_limit - len(day_calls),
-            'period': day_time.strftime('%H:%M:%S %m/%d/%Y')
-        }
+
+    # Get usage statistics for each API
+    alpha_vantage_stats = {
+        'hour': get_api_usage('alpha_vantage', 'hour'),
+        'day': get_api_usage('alpha_vantage', 'day')
     }
 
-    # Gnews statistics
-    gnews_day_limit = 100  # Free tier limit
     gnews_stats = {
-        'day': {
-            'used': len(gnews_day_calls),
-            'limit': gnews_day_limit,
-            'remaining': gnews_day_limit - len(gnews_day_calls),
-            'period': day_time.strftime('%H:%M:%S %m/%d/%Y')
-        }
+        'hour': get_api_usage('gnews', 'hour'),
+        'day': get_api_usage('gnews', 'day')
     }
 
-    # OpenWeatherMap statistics
-    owm_day_limit = 1000  # Free tier limit
     owm_stats = {
-        'day': {
-            'used': len(owm_day_calls),
-            'limit': owm_day_limit,
-            'remaining': owm_day_limit - len(owm_day_calls),
-            'period': day_time.strftime('%H:%M:%S %m/%d/%Y')
-        }
+        'hour': get_api_usage('openweathermap', 'hour'),
+        'day': get_api_usage('openweathermap', 'day')
     }
+
+    # Clean up old records (keep 30 days of history)
+    cleanup_api_usage(30)
     
     return render_template('api_usage.html', 
-                         stats=stats, 
+                         stats=alpha_vantage_stats,
                          gnews_stats=gnews_stats,
                          owm_stats=owm_stats)
 
@@ -1243,6 +1362,35 @@ def news_api_usage():
     }
     
     return render_template('news_api_usage.html', stats=stats)
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint that verifies database connectivity."""
+    try:
+        # Test database connection
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute('SELECT 1')
+            result = cur.fetchone()
+        conn.close()
+        
+        # Log successful health check
+        app.logger.info('Health check passed: database connection successful')
+        
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected',
+            'timestamp': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        # Log the error
+        app.logger.error(f'Health check failed: {str(e)}')
+        
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.
