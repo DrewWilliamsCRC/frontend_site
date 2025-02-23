@@ -9,5 +9,5 @@ psycopg2-binary
 gunicorn
 click
 zipp==3.21.0 # not directly required, pinned by Snyk to avoid a vulnerability
-urllib3<1.27,>=1.21.1  # pinned for requests compatibility
+urllib3==2.2.2 # pinned for requests compatibility
 gnews # for news ticker feature
