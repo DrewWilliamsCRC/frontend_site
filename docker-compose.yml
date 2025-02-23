@@ -63,8 +63,6 @@ services:
       - PORT=${PORT}
       - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
       - GNEWS_API_KEY=${GNEWS_API_KEY}
-    volumes:
-      - ./logs:/app/logs
     ports:
       - "127.0.0.1:${PORT}:${PORT}"
     depends_on:
@@ -91,6 +89,7 @@ services:
       - /tmp:exec,mode=1777,size=512M
       - /run:mode=1777,size=64M
       - /var/run:mode=1777,size=64M
+      - /app/logs:mode=1777,size=64M
     logging:
       driver: "json-file"
       options:

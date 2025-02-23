@@ -40,7 +40,8 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 RUN useradd -m appuser && \
     chown -R appuser:appuser /app && \
     mkdir -p /app/logs && \
-    chown -R appuser:appuser /app/logs
+    chown -R appuser:appuser /app/logs && \
+    chmod 1777 /app/logs
 USER appuser
 
 # Add healthcheck
