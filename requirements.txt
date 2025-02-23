@@ -1,6 +1,6 @@
 Flask
 Werkzeug==3.1.3 # added by Snyk 
-requests==2.32.2  # pinned for gnews compatibility
+requests==2.32.2  # security fix for CVE
 flask-caching
 Flask-WTF
 Flask-Limiter
@@ -9,6 +9,9 @@ psycopg2-binary
 gunicorn
 click
 zipp==3.21.0 # not directly required, pinned by Snyk to avoid a vulnerability
-urllib3==2.2.2 # pinned for requests compatibility
-gnews==0.4.0 #  for news ticker feature
+urllib3==2.2.2 # security fix for CVE
+certifi>=2023.7.22 # security requirement
+charset-normalizer~=2.0.0 # requests dependency
+idna>=2.5 # requests dependency
+gnews==0.4.0 # for news ticker feature
 dnspython==2.6.1 # pinned for gnews compatibility   
