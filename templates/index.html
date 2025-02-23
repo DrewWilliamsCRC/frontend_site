@@ -3,117 +3,244 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<div class="dashboard-header" data-aos="fade-down">
-  <h1 class="welcome-text">
-    <i class="fas fa-hand-wave"></i>
-    Welcome{% if 'user' in session %}, {{ session['user'] }}{% endif %}!
-  </h1>
-</div>
+<div class="container mt-4">
+  <div class="dashboard-header mb-4" data-aos="fade-down">
+    <h1 class="welcome-text">
+      <i class="fas fa-hand-wave"></i>
+      Welcome{% if 'user' in session %}, {{ session['user'] }}{% endif %}!
+    </h1>
+  </div>
 
-<div class="dashboard-grid">
-  <!-- System Management Section -->
-  <section class="section">
-    <div class="section-header">
-      <h2><i class="fas fa-server"></i> System Management</h2>
-    </div>
-    <div class="service-grid">
-      {% for service in system_services %}
-        <div class="service-card" {% if not service.is_default %}data-service-id="{{ service['id'] }}"{% endif %}>
-          <a href="{{ service['url'] }}" target="_blank" class="service-link" {% if service['description'] %}title="{{ service['description'] }}"{% endif %}>
-            <div class="service-icon">
-              <i class="fas {{ service['icon'] }}"></i>
+  <!-- Market Indices Section -->
+  <div class="market-indices mb-4">
+    <div class="row">
+      <div class="col-md-4">
+        <a href="https://www.google.com/finance/quote/.DJI:INDEXDJX" class="index-link" target="_blank" rel="noopener noreferrer">
+          <div class="index-card" id="dow-card">
+            <div class="index-title">
+              <i class="fas fa-chart-line"></i>
+              <span>Dow Jones</span>
             </div>
-            <h3>{{ service['name'] }}</h3>
-          </a>
-          {% if not service.is_default and service['id'] is not none %}
-            <div class="service-actions">
-              <a href="{{ url_for('edit_service', service_id=service['id']) }}" class="btn-edit-service" title="Edit service">
-                <i class="fas fa-pen"></i>
-              </a>
-              <form method="POST" action="{{ url_for('delete_service', service_id=service['id']) }}"
-                    class="delete-service" onsubmit="return confirm('Delete this service?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn-delete-service" title="Delete service">
-                  <i class="fas fa-trash-alt"></i>
-                </button>
-              </form>
+            <div class="index-data">
+              <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+              </div>
             </div>
-          {% endif %}
-        </div>
-      {% endfor %}
-      <a href="{{ url_for('add_service', section='system') }}" class="service-card add-card" title="Create a custom service link">
-        <div class="service-icon">
-          <i class="fas fa-plus-circle"></i>
-        </div>
-        <h3>Add New Service</h3>
-      </a>
-    </div>
-  </section>
-
-  <!-- Media Management Section -->
-  <section class="section">
-    <div class="section-header">
-      <h2><i class="fas fa-film"></i> Media Management</h2>
-    </div>
-    <div class="service-grid">
-      {% for service in media_services %}
-        <div class="service-card" {% if not service.is_default %}data-service-id="{{ service['id'] }}"{% endif %}>
-          <a href="{{ service['url'] }}" target="_blank" class="service-link" {% if service['description'] %}title="{{ service['description'] }}"{% endif %}>
-            <div class="service-icon">
-              <i class="fas {{ service['icon'] }}"></i>
-            </div>
-            <h3>{{ service['name'] }}</h3>
-          </a>
-          {% if not service.is_default and service['id'] is not none %}
-            <div class="service-actions">
-              <a href="{{ url_for('edit_service', service_id=service['id']) }}" class="btn-edit-service" title="Edit service">
-                <i class="fas fa-pen"></i>
-              </a>
-              <form method="POST" action="{{ url_for('delete_service', service_id=service['id']) }}"
-                    class="delete-service" onsubmit="return confirm('Delete this service?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn-delete-service" title="Delete service">
-                  <i class="fas fa-trash-alt"></i>
-                </button>
-              </form>
-            </div>
-          {% endif %}
-        </div>
-      {% endfor %}
-      <a href="{{ url_for('add_service', section='media') }}" class="service-card add-card" title="Create a custom service link">
-        <div class="service-icon">
-          <i class="fas fa-plus-circle"></i>
-        </div>
-        <h3>Add New Service</h3>
-      </a>
-    </div>
-  </section>
-
-  <!-- Weather Section -->
-  {% if forecast_data %}
-  <section class="section">
-    <div class="section-header">
-      <h2><i class="fas fa-cloud-sun"></i> Weather Forecast for {{ city_name }}</h2>
-    </div>
-    <div class="weather-grid">
-      {% for day in forecast_data %}
-      <div class="weather-card">
-        <a href="https://weather.com/weather/today/l/{{ '%0.4f' % day.lat }},{{ '%0.4f' % day.lon }}" class="weather-link" target="_blank" rel="noopener">
-          <h3>{{ day.date_str }}</h3>
-          <img src="{{ day.icon_url }}" alt="{{ day.description }}">
-          <p class="temp-range">{{ day.temp_min }}°F - {{ day.temp_max }}°F</p>
-          <p class="weather-desc">{{ day.description }}</p>
+          </div>
         </a>
       </div>
-      {% endfor %}
+      <div class="col-md-4">
+        <a href="https://www.google.com/finance/quote/.INX:INDEXSP" class="index-link" target="_blank" rel="noopener noreferrer">
+          <div class="index-card" id="sp500-card">
+            <div class="index-title">
+              <i class="fas fa-chart-line"></i>
+              <span>S&P 500</span>
+            </div>
+            <div class="index-data">
+              <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-md-4">
+        <a href="https://www.google.com/finance/quote/.IXIC:INDEXNASDAQ" class="index-link" target="_blank" rel="noopener noreferrer">
+          <div class="index-card" id="nasdaq-card">
+            <div class="index-title">
+              <i class="fas fa-chart-line"></i>
+              <span>NASDAQ</span>
+            </div>
+            <div class="index-data">
+              <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
     </div>
-  </section>
-  {% endif %}
+  </div>
+
+  <div class="dashboard-grid">
+    <!-- System Management Section -->
+    <section class="section">
+      <div class="section-header">
+        <h2><i class="fas fa-server"></i> System Management</h2>
+      </div>
+      <div class="service-grid">
+        {% for service in system_services %}
+          <div class="service-card" {% if not service.is_default %}data-service-id="{{ service['id'] }}"{% endif %}>
+            <a href="{{ service['url'] }}" target="_blank" class="service-link" {% if service['description'] %}title="{{ service['description'] }}"{% endif %}>
+              <div class="service-icon">
+                <i class="fas {{ service['icon'] }}"></i>
+              </div>
+              <h3>{{ service['name'] }}</h3>
+            </a>
+            {% if not service.is_default and service['id'] is not none %}
+              <div class="service-actions">
+                <a href="{{ url_for('edit_service', service_id=service['id']) }}" class="btn-edit-service" title="Edit service">
+                  <i class="fas fa-pen"></i>
+                </a>
+                <form method="POST" action="{{ url_for('delete_service', service_id=service['id']) }}"
+                      class="delete-service" onsubmit="return confirm('Delete this service?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn-delete-service" title="Delete service">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+        <a href="{{ url_for('add_service', section='system') }}" class="service-card add-card" title="Create a custom service link">
+          <div class="service-icon">
+            <i class="fas fa-plus-circle"></i>
+          </div>
+          <h3>Add New Service</h3>
+        </a>
+      </div>
+    </section>
+
+    <!-- Media Management Section -->
+    <section class="section">
+      <div class="section-header">
+        <h2><i class="fas fa-film"></i> Media Management</h2>
+      </div>
+      <div class="service-grid">
+        {% for service in media_services %}
+          <div class="service-card" {% if not service.is_default %}data-service-id="{{ service['id'] }}"{% endif %}>
+            <a href="{{ service['url'] }}" target="_blank" class="service-link" {% if service['description'] %}title="{{ service['description'] }}"{% endif %}>
+              <div class="service-icon">
+                <i class="fas {{ service['icon'] }}"></i>
+              </div>
+              <h3>{{ service['name'] }}</h3>
+            </a>
+            {% if not service.is_default and service['id'] is not none %}
+              <div class="service-actions">
+                <a href="{{ url_for('edit_service', service_id=service['id']) }}" class="btn-edit-service" title="Edit service">
+                  <i class="fas fa-pen"></i>
+                </a>
+                <form method="POST" action="{{ url_for('delete_service', service_id=service['id']) }}"
+                      class="delete-service" onsubmit="return confirm('Delete this service?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn-delete-service" title="Delete service">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+        <a href="{{ url_for('add_service', section='media') }}" class="service-card add-card" title="Create a custom service link">
+          <div class="service-icon">
+            <i class="fas fa-plus-circle"></i>
+          </div>
+          <h3>Add New Service</h3>
+        </a>
+      </div>
+    </section>
+
+    <!-- Weather Section -->
+    {% if forecast_data %}
+    <section class="section">
+      <div class="section-header">
+        <h2><i class="fas fa-cloud-sun"></i> Weather Forecast for {{ city_name }}</h2>
+      </div>
+      <div class="weather-grid">
+        {% for day in forecast_data %}
+        <div class="weather-card">
+          <a href="https://weather.com/weather/today/l/{{ '%0.4f' % day.lat }},{{ '%0.4f' % day.lon }}" class="weather-link" target="_blank" rel="noopener">
+            <h3>{{ day.date_str }}</h3>
+            <img src="{{ day.icon_url }}" alt="{{ day.description }}">
+            <p class="temp-range">{{ day.temp_min }}°F - {{ day.temp_max }}°F</p>
+            <p class="weather-desc">{{ day.description }}</p>
+          </a>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize market indices
+    function updateMarketIndices() {
+        const indices = [
+            { symbol: 'DJI', elementId: 'dow-card', name: 'Dow Jones', etf: 'DIA' },
+            { symbol: 'SPX', elementId: 'sp500-card', name: 'S&P 500', etf: 'SPY' },
+            { symbol: 'IXIC', elementId: 'nasdaq-card', name: 'NASDAQ', etf: 'QQQ' }
+        ];
+
+        indices.forEach(index => {
+            const card = document.getElementById(index.elementId);
+            const dataDiv = card.querySelector('.index-data');
+            
+            // Show loading state with ETF info
+            dataDiv.innerHTML = `
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <div>Fetching ${index.name} data (${index.etf})...</div>
+                    <div class="update-info">Last update: ${new Date().toLocaleTimeString()}</div>
+                    <div class="update-info">(Updates every 5 minutes)</div>
+                </div>
+            `;
+
+            fetch(`/api/stock/${index.symbol}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        dataDiv.innerHTML = `
+                            <div class="error-message">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <div>${data.error}</div>
+                                <div class="retry-button" onclick="updateMarketIndices()">
+                                    <i class="fas fa-sync"></i> Retry
+                                </div>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    const changeValue = parseFloat(data.change);
+                    const changeClass = changeValue >= 0 ? 'positive' : 'negative';
+                    const arrowIcon = changeValue >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                    
+                    dataDiv.innerHTML = `
+                        <div class="price">$${data.price}</div>
+                        <div class="change ${changeClass}">
+                            <i class="fas ${arrowIcon}"></i>
+                            ${Math.abs(changeValue).toFixed(2)}%
+                        </div>
+                        <div class="update-info">
+                            Based on ${index.etf} ETF
+                            <br>
+                            Last update: ${new Date().toLocaleTimeString()}
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    dataDiv.innerHTML = `
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <div>Error fetching data</div>
+                            <div class="retry-button" onclick="updateMarketIndices()">
+                                <i class="fas fa-sync"></i> Retry
+                            </div>
+                        </div>
+                    `;
+                });
+        });
+    }
+
+    // Update indices immediately and then every 5 minutes
+    updateMarketIndices();
+    setInterval(updateMarketIndices, 300000);
+
+    // Existing sortable initialization code
     const systemGrid = document.querySelector('.service-grid');
     const mediaGrid = document.querySelector('.section:nth-child(2) .service-grid');
     
@@ -152,4 +279,131 @@ document.addEventListener('DOMContentLoaded', function() {
     initSortable(mediaGrid, 'media');
 });
 </script>
+
+<style>
+/* Market Indices Styles */
+.market-indices .index-card {
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.market-indices .index-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.market-indices .index-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.market-indices .index-data {
+    text-align: center;
+}
+
+.market-indices .price {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.market-indices .change {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 500;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.market-indices .change.positive {
+    color: #22c55e;
+}
+
+.market-indices .change.negative {
+    color: #ef4444;
+}
+
+.market-indices .loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+.market-indices .error-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: #ef4444;
+    font-size: 0.9rem;
+}
+
+.market-indices .retry-button {
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    background-color: rgba(239, 68, 68, 0.1);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.market-indices .retry-button:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+}
+
+.market-indices .update-info {
+    font-size: 0.8rem;
+    opacity: 0.8;
+    color: var(--text-color);
+}
+
+.dark-mode .market-indices .index-card {
+    background: var(--bg-color);
+}
+
+.dark-mode .market-indices .index-title,
+.dark-mode .market-indices .price {
+    color: #fff;
+}
+
+.dark-mode .market-indices .retry-button {
+    background-color: rgba(239, 68, 68, 0.2);
+}
+
+.dark-mode .market-indices .retry-button:hover {
+    background-color: rgba(239, 68, 68, 0.3);
+}
+
+.index-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.index-link:hover .index-card {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.index-card {
+    transition: all 0.3s ease;
+}
+
+.dark-mode .index-link:hover .index-card {
+    box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
+}
+</style>
 {% endblock %}
