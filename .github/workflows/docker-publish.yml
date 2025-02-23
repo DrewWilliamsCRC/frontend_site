@@ -1,9 +1,12 @@
 name: Docker Build and Test
 
+# Separate triggers for different events
 on:
-  push:
-    branches: [ "main" ]
+  # PR events only trigger tests
   pull_request:
+    branches: [ "main" ]
+  # Push to main only triggers publish
+  push:
     branches: [ "main" ]
 
 env:
@@ -13,7 +16,9 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Test job only runs on PRs
   test:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -59,13 +64,10 @@ jobs:
           chmod +x test-docker-build.sh
           ./test-docker-build.sh
 
-  build:
-    needs: test
+  # Publish job only runs on push to main
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -77,7 +79,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log into Docker Hub
-        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -88,5 +89,5 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.ref == 'refs/heads/main' }}
+          push: true
           tags: dawttu00/dawttu_private:frontend
