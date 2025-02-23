@@ -58,10 +58,29 @@ if docker compose exec frontend touch /test 2>/dev/null; then
     exit 1
 fi
 
-# Verify tmpfs
+# Verify tmpfs configuration
 echo "Verifying tmpfs configuration..."
-if ! docker compose exec frontend mount | grep -q "/tmp.*tmpfs"; then
-    echo "Error: tmpfs not properly configured for frontend"
+echo "Checking mount points..."
+docker compose exec frontend mount || true
+echo "Checking if container is running..."
+docker compose ps frontend || true
+
+# More detailed tmpfs verification
+if ! docker compose exec frontend sh -c 'mount | grep -E "tmpfs on (/tmp|/run|/var/run) "'; then
+    echo "Error: Required tmpfs mounts not found"
+    echo "Current mounts:"
+    docker compose exec frontend mount
+    echo "Container logs:"
+    docker compose logs frontend
+    exit 1
+fi
+
+# Verify tmpfs is writable
+echo "Verifying tmpfs is writable..."
+if ! docker compose exec frontend sh -c 'touch /tmp/test && rm /tmp/test'; then
+    echo "Error: /tmp is not writable"
+    echo "Container logs:"
+    docker compose logs frontend
     exit 1
 fi
 

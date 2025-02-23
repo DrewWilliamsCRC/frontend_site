@@ -65,6 +65,9 @@ services:
       - GNEWS_API_KEY=${GNEWS_API_KEY}
     volumes:
       - ./logs:/app/logs
+      - /tmp
+      - /run
+      - /var/run
     ports:
       - "127.0.0.1:${PORT}:${PORT}"
     depends_on:
@@ -88,9 +91,9 @@ services:
       - no-new-privileges:true
     read_only: true
     tmpfs:
-      - /tmp:exec,mode=1777
-      - /run:mode=1777
-      - /var/run:mode=1777
+      - /tmp
+      - /run
+      - /var/run
     logging:
       driver: "json-file"
       options:
