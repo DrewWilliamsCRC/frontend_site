@@ -1388,7 +1388,7 @@ def health_check():
         
         return jsonify({
             'status': 'unhealthy',
-            'error': str(e),
+            'error': 'An internal error has occurred. Please try again later.',
             'timestamp': datetime.now().isoformat()
         }), 500
 
