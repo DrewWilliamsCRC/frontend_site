@@ -420,3 +420,4 @@ The application uses environment variables to configure its behavior. You can se
 * PostgreSQL for database management
 * Bootstrap and Font Awesome for UI components
 * The security community for best practices
+* Alpha Vantage API for stock market data
