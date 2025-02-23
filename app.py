@@ -425,8 +425,8 @@ def create_service_dict(service, is_default=False):
 def get_cached_stock_data(symbol):
     """
     Fetch and cache stock data from Alpha Vantage API.
-    Data is delayed by 15 minutes, so we cache for 60 seconds to stay well within rate limits
-    while ensuring data is relatively fresh when the 15-minute update occurs.
+    Data is cached for 60 seconds to stay within rate limits.
+    Tracks API usage for both regular stocks and market indices.
     """
     print(f"Fetching data for symbol: {symbol}")  # Debug log
 
@@ -446,6 +446,30 @@ def get_cached_stock_data(symbol):
             "symbol": symbol,
             "apikey": ALPHA_VANTAGE_API_KEY
         }
+
+        # Track API call before making request
+        now = datetime.now()
+        
+        # Track by hour
+        current_hour = now.strftime('%Y-%m-%d %H')
+        hour_calls = cache.get('api_calls_hour_' + current_hour) or []
+        hour_calls.append({
+            'timestamp': now.strftime('%Y-%m-%d %H:%M:%S'),
+            'symbol': symbol
+        })
+        cache.set('api_calls_hour_' + current_hour, hour_calls, timeout=3600)
+        
+        # Track by day
+        current_day = now.strftime('%Y-%m-%d')
+        day_calls = cache.get('api_calls_day_' + current_day) or []
+        day_calls.append({
+            'timestamp': now.strftime('%Y-%m-%d %H:%M:%S'),
+            'symbol': symbol
+        })
+        cache.set('api_calls_day_' + current_day, day_calls, timeout=86400)
+
+        print(f"[API Usage] {now.strftime('%Y-%m-%d %H:%M:%S')} - Requesting data for {symbol}")
+
         response = requests.get(url, params=params, timeout=5)
         response.raise_for_status()
         data = response.json()
@@ -455,7 +479,7 @@ def get_cached_stock_data(symbol):
         # Check for rate limit messages
         if "Note" in data or "Information" in data:
             error_msg = data.get("Note", data.get("Information", ""))
-            print(f"API limit message: {error_msg}")
+            print(f"[API Usage] {now.strftime('%Y-%m-%d %H:%M:%S')} - Rate limit hit for {symbol}: {error_msg}")
             return {
                 'price': '0.00',
                 'change': '0.00',
@@ -464,14 +488,14 @@ def get_cached_stock_data(symbol):
 
         if "Global Quote" in data and data["Global Quote"]:
             quote = data["Global Quote"]
-            print(f"Quote data for {symbol}:", quote)  # Debug log
+            print(f"[API Usage] {now.strftime('%Y-%m-%d %H:%M:%S')} - Successfully retrieved data for {symbol}")
             return {
                 'price': quote.get('05. price', '0.00'),
                 'change': quote.get('10. change percent', '0.00%').rstrip('%'),
                 'error': None
             }
         
-        print(f"No quote data available for {symbol}")
+        print(f"[API Usage] {now.strftime('%Y-%m-%d %H:%M:%S')} - No data available for {symbol}")
         return {
             'price': '0.00',
             'change': '0.00',
@@ -479,7 +503,7 @@ def get_cached_stock_data(symbol):
         }
 
     except Exception as e:
-        print(f"Error fetching data for {symbol}:", str(e))
+        print(f"[API Usage] {now.strftime('%Y-%m-%d %H:%M:%S')} - Error fetching data for {symbol}: {str(e)}")
         return {
             'price': '0.00',
             'change': '0.00',
@@ -954,8 +978,34 @@ def get_stock_data(symbol):
     if 'user' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
-    data = get_cached_stock_data(symbol)
-    print(f"Fetched data for {symbol}: {data}")  # Debug log
+    # Map index symbols to their Alpha Vantage symbols and conversion factors
+    index_map = {
+        'DJI': {'symbol': 'DIA', 'factor': 100.0},    # Dow Jones Industrial Average ETF
+        'SPX': {'symbol': 'SPY', 'factor': 10.0},     # S&P 500 ETF
+        'IXIC': {'symbol': 'QQQ', 'factor': 1.0}      # NASDAQ 100 ETF
+    }
+
+    # Use ETF symbols for indices (they provide more reliable data)
+    index_info = index_map.get(symbol)
+    av_symbol = index_info['symbol'] if index_info else symbol
+    print(f"Using symbol: {av_symbol} for {symbol}")  # Debug log
+    
+    data = get_cached_stock_data(av_symbol)
+    print(f"Fetched data for {symbol} ({av_symbol}): {data}")  # Debug log
+    
+    # Special handling for indices that need scaling
+    if index_info and not data['error'] and data['price'] != '0.00':
+        try:
+            # Convert ETF price to index value
+            price = float(data['price']) * index_info['factor']
+            data['price'] = f"{price:,.2f}"
+            
+            # Convert percentage change (remains the same percentage)
+            change = float(data['change'])
+            data['change'] = str(change)
+        except (ValueError, TypeError):
+            pass
+    
     response_data = {
         'symbol': symbol,
         'price': data['price'],
@@ -964,6 +1014,47 @@ def get_stock_data(symbol):
     }
     print(f"Sending response for {symbol}: {response_data}")  # Debug log
     return jsonify(response_data)
+
+@app.route('/api/usage')
+def api_usage():
+    """View Alpha Vantage API usage statistics."""
+    if 'user' not in session:
+        return redirect(url_for('login'))
+        
+    now = datetime.now()
+    
+    # Get current hour's API calls
+    current_hour = now.strftime('%Y-%m-%d %H')
+    hour_calls = cache.get('api_calls_hour_' + current_hour) or []
+    
+    # Get current day's API calls
+    current_day = now.strftime('%Y-%m-%d')
+    day_calls = cache.get('api_calls_day_' + current_day) or []
+    
+    # Calculate statistics
+    hour_limit = 4_500  # 75 calls/min * 60 min
+    day_limit = 108_000  # 75 calls/min * 60 min * 24 hours
+    
+    # Format timestamps
+    hour_time = datetime.strptime(current_hour, '%Y-%m-%d %H')
+    day_time = datetime.strptime(current_day, '%Y-%m-%d')
+    
+    stats = {
+        'hour': {
+            'used': len(hour_calls),
+            'limit': hour_limit,
+            'remaining': hour_limit - len(hour_calls),
+            'period': hour_time.strftime('%H:%M:%S %m/%d/%Y')
+        },
+        'day': {
+            'used': len(day_calls),
+            'limit': day_limit,
+            'remaining': day_limit - len(day_calls),
+            'period': day_time.strftime('%H:%M:%S %m/%d/%Y')
+        }
+    }
+    
+    return render_template('api_usage.html', stats=stats)
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.

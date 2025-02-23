@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}API Usage{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="text-color">Alpha Vantage API Usage</h2>
+  
+  <div class="card mt-4">
+    <div class="card-body">
+      <h5 class="card-title text-color">Current Usage Statistics</h5>
+      
+      <!-- Hourly Stats -->
+      <div class="usage-section mt-3">
+        <h6 class="text-color mb-3">Hourly Usage <span class="timestamp">(as of {{ stats.hour.period }})</span></h6>
+        <div class="row">
+          <div class="col-md-4">
+            <div class="card bg-primary text-white">
+              <div class="card-body">
+                <h6 class="card-subtitle mb-2">Hourly Limit</h6>
+                <h2 class="card-title">{{ "{:,}".format(stats.hour.limit) }}</h2>
+                <p class="card-text">theoretical max</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-4">
+            <div class="card bg-info text-white">
+              <div class="card-body">
+                <h6 class="card-subtitle mb-2">Used Calls</h6>
+                <h2 class="card-title">{{ "{:,}".format(stats.hour.used) }}</h2>
+                <p class="card-text">this hour</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-4">
+            <div class="card bg-success text-white">
+              <div class="card-body">
+                <h6 class="card-subtitle mb-2">Remaining</h6>
+                <h2 class="card-title">{{ "{:,}".format(stats.hour.remaining) }}</h2>
+                <p class="card-text">theoretical</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily Stats -->
+      <div class="usage-section mt-4">
+        <h6 class="text-color mb-3">Daily Usage <span class="timestamp">(as of {{ stats.day.period }})</span></h6>
+        <div class="row">
+          <div class="col-md-4">
+            <div class="card bg-primary text-white">
+              <div class="card-body">
+                <h6 class="card-subtitle mb-2">Daily Limit</h6>
+                <h2 class="card-title">{{ "{:,}".format(stats.day.limit) }}</h2>
+                <p class="card-text">theoretical max</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-4">
+            <div class="card bg-info text-white">
+              <div class="card-body">
+                <h6 class="card-subtitle mb-2">Used Calls</h6>
+                <h2 class="card-title">{{ "{:,}".format(stats.day.used) }}</h2>
+                <p class="card-text">today</p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-4">
+            <div class="card bg-success text-white">
+              <div class="card-body">
+                <h6 class="card-subtitle mb-2">Remaining</h6>
+                <h2 class="card-title">{{ "{:,}".format(stats.day.remaining) }}</h2>
+                <p class="card-text">theoretical</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 api-notes">
+        <h6 class="notes-title">Notes:</h6>
+        <ul class="notes-list">
+          <li>Premium API tier allows up to 75 API calls per minute</li>
+          <li>Each stock symbol requires one API call</li>
+          <li>The ticker currently tracks 30 stocks, refreshing every minute</li>
+          <li>Hourly limit: 4,500 calls (75 calls/min × 60 min)</li>
+          <li>Daily limit: 108,000 calls (4,500 calls/hour × 24 hours)</li>
+          <li>Usage statistics reset every hour/day</li>
+          <li>All limits shown are theoretical maximums based on the per-minute rate</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block styles %}
+<style>
+.text-color {
+  color: var(--text-color) !important;
+}
+
+.card {
+  background-color: var(--bg-color);
+  border-color: var(--border-color);
+}
+
+.card-body {
+  color: var(--text-color);
+}
+
+.api-notes {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  color: var(--text-color);
+}
+
+.notes-title {
+  color: var(--text-color);
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.notes-list {
+  color: var(--text-color);
+  opacity: 0.9;
+  line-height: 1.6;
+  padding-left: 20px;
+}
+
+.notes-list li {
+  margin-bottom: 8px;
+  color: var(--text-color);
+}
+
+.usage-section {
+  padding: 20px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.timestamp {
+  font-size: 0.9em;
+  opacity: 0.8;
+  font-weight: normal;
+}
+
+/* Dark mode specific styles */
+.dark-mode .api-notes {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.dark-mode .notes-list,
+.dark-mode .notes-title,
+.dark-mode .notes-list li {
+  color: #fff;
+}
+
+.dark-mode .card:not(.bg-primary):not(.bg-info):not(.bg-success):not(.bg-warning) {
+  background-color: var(--bg-color);
+  border-color: var(--border-color);
+  color: #fff;
+}
+
+.dark-mode .card-title:not(.text-white),
+.dark-mode .card-body:not(.text-white) {
+  color: #fff !important;
+}
+</style>
+{% endblock %}
+{% endblock %} 
