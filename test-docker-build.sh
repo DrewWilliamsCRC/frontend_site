@@ -39,21 +39,59 @@ echo "Building and starting services..."
 docker compose build
 docker compose up -d
 
+# Function to check container status
+check_container_status() {
+    local service=$1
+    local status=$(docker compose ps --format json $service | grep -o '"State":"[^"]*"' | cut -d'"' -f4)
+    echo $status
+}
+
+# Wait for containers to be running
+echo "Waiting for containers to be running..."
+timeout=60
+elapsed=0
+while [ $elapsed -lt $timeout ]; do
+    frontend_status=$(check_container_status frontend)
+    db_status=$(check_container_status db)
+    
+    echo "Frontend status: $frontend_status"
+    echo "Database status: $db_status"
+    
+    if [ "$frontend_status" = "running" ] && [ "$db_status" = "running" ]; then
+        echo "All containers are running!"
+        break
+    fi
+    
+    if [ "$frontend_status" = "restarting" ]; then
+        echo "Frontend container is restarting. Checking logs..."
+        docker compose logs frontend
+    fi
+    
+    sleep 5
+    elapsed=$((elapsed + 5))
+done
+
+if [ $elapsed -ge $timeout ]; then
+    echo "Error: Containers failed to start within $timeout seconds"
+    docker compose logs
+    exit 1
+fi
+
+# Add a small delay to ensure services are fully initialized
+sleep 10
+
 # Verify security configurations
 echo "Verifying security configurations..."
 # Check if containers are running as non-root
-if [ "$(docker compose exec frontend id -u)" = "0" ]; then
-    echo "Error: Frontend container is running as root"
-    exit 1
-fi
-if [ "$(docker compose exec db id -u)" = "0" ]; then
-    echo "Error: Database container is running as root"
+if ! docker compose exec -T frontend id -u; then
+    echo "Error: Cannot execute command in frontend container"
+    docker compose logs frontend
     exit 1
 fi
 
 # Verify read-only root filesystem
 echo "Verifying read-only filesystem..."
-if docker compose exec frontend touch /test 2>/dev/null; then
+if docker compose exec -T frontend touch /test 2>/dev/null; then
     echo "Error: Frontend container root filesystem is writable"
     exit 1
 fi
@@ -61,15 +99,17 @@ fi
 # Verify tmpfs configuration
 echo "Verifying tmpfs configuration..."
 echo "Checking mount points..."
-docker compose exec frontend mount || true
-echo "Checking if container is running..."
-docker compose ps frontend || true
+if ! docker compose exec -T frontend mount; then
+    echo "Error: Cannot check mount points"
+    docker compose logs frontend
+    exit 1
+fi
 
 # More detailed tmpfs verification
-if ! docker compose exec frontend sh -c 'mount | grep -E "tmpfs on (/tmp|/run|/var/run) "'; then
+if ! docker compose exec -T frontend sh -c 'mount | grep -E "tmpfs on (/tmp|/run|/var/run) "'; then
     echo "Error: Required tmpfs mounts not found"
     echo "Current mounts:"
-    docker compose exec frontend mount
+    docker compose exec -T frontend mount || true
     echo "Container logs:"
     docker compose logs frontend
     exit 1

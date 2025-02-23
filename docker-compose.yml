@@ -65,9 +65,6 @@ services:
       - GNEWS_API_KEY=${GNEWS_API_KEY}
     volumes:
       - ./logs:/app/logs
-      - /tmp
-      - /run
-      - /var/run
     ports:
       - "127.0.0.1:${PORT}:${PORT}"
     depends_on:
@@ -78,7 +75,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 60s
     deploy:
       resources:
         limits:
@@ -91,9 +88,9 @@ services:
       - no-new-privileges:true
     read_only: true
     tmpfs:
-      - /tmp
-      - /run
-      - /var/run
+      - /tmp:exec,mode=1777,size=512M
+      - /run:mode=1777,size=64M
+      - /var/run:mode=1777,size=64M
     logging:
       driver: "json-file"
       options:
