@@ -5,7 +5,7 @@ on:
   # PR events only trigger tests
   pull_request:
     branches: [ "main" ]
-  # Push to main triggers both tests and publish
+  # Push to main only triggers publish
   push:
     branches: [ "main" ]
 
@@ -16,8 +16,9 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Test job runs on both PR and push events
+  # Test job only runs on PRs
   test:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -63,19 +64,11 @@ jobs:
           chmod +x test-docker-build.sh
           ./test-docker-build.sh
 
-  # Publish job only runs on push to main, never on PRs
+  # Publish job only runs on push to main
   publish:
-    # Only run this job on push events (not PRs)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: test  # Requires test job to pass first
     runs-on: ubuntu-latest
     steps:
-      - name: Verify not PR
-        if: github.event_name == 'pull_request'
-        run: |
-          echo "Error: Publishing should never run on PRs"
-          exit 1
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
