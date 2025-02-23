@@ -59,16 +59,16 @@ jobs:
           chmod +x test-docker-build.sh
           ./test-docker-build.sh
 
-      # Only run Docker Hub publishing steps if all tests pass and we're on main branch
+      # Only run Docker Hub publishing steps if all tests pass, we're on main branch, and it's not a PR
       - name: Log into Docker Hub
-        if: ${{ github.ref == 'refs/heads/main' && matrix.platform == 'linux/amd64' }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.platform == 'linux/amd64' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push Docker image
-        if: ${{ github.ref == 'refs/heads/main' && matrix.platform == 'linux/amd64' }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.platform == 'linux/amd64' }}
         uses: docker/build-push-action@v6
         with:
           context: .
