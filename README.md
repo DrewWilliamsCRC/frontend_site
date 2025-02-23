@@ -1,5 +1,7 @@
 # Frontend Site with User Auth (Flask) - last updated 2-23-2024
 
+![Docker Build and Test](https://github.com/dawttu00/frontend_site/actions/workflows/docker-publish.yml/badge.svg)
+
 A modern web application built with Flask that provides secure user authentication, dynamic content, and an interactive dashboard. Features weather forecasts, random pet images, and quick access to various services.
 
 ## Key Features
@@ -414,6 +416,58 @@ The application uses environment variables to configure its behavior. You can se
    - [ ] Access logging
    - [ ] Rate limit alerts
    - [ ] Security scanning
+
+## Production Deployment Checklist
+
+Before deploying to production, ensure the following:
+
+### Security
+- [ ] Generate new strong SECRET_KEY
+- [ ] Update all API keys with production credentials
+- [ ] Set FLASK_DEBUG=0 and FLASK_ENV=production
+- [ ] Enable HTTPS/SSL
+- [ ] Configure secure cookie settings
+- [ ] Set up proper firewall rules
+- [ ] Enable rate limiting
+
+### Database
+- [ ] Use strong PostgreSQL password
+- [ ] Enable SSL for database connections
+- [ ] Configure automated backups
+- [ ] Set up database monitoring
+- [ ] Configure connection pooling
+- [ ] Set appropriate resource limits
+
+### Docker
+- [ ] Update image tags to use specific versions
+- [ ] Configure container resource limits
+- [ ] Enable security options
+- [ ] Set up container monitoring
+- [ ] Configure logging
+- [ ] Set up container restart policies
+
+### Monitoring
+- [ ] Set up error tracking
+- [ ] Configure access logging
+- [ ] Set up performance monitoring
+- [ ] Enable security scanning
+- [ ] Configure alerts
+- [ ] Set up uptime monitoring
+
+### Backup
+- [ ] Configure automated database backups
+- [ ] Set up backup verification
+- [ ] Configure backup retention
+- [ ] Test backup restoration
+- [ ] Document recovery procedures
+
+### Documentation
+- [ ] Update deployment documentation
+- [ ] Document rollback procedures
+- [ ] Update API documentation
+- [ ] Document monitoring setup
+- [ ] Create incident response plan
+- [ ] Document security procedures
 
 ## Acknowledgements
 

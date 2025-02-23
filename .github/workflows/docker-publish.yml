@@ -1,8 +1,8 @@
-name: Docker Build and Push
+name: Docker Build and Test
 
 on:
   push:
-    branches: [ "main" ]  # or "master", depending on your default branch
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -13,7 +13,54 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract platform arch
+        id: platform
+        run: |
+          ARCH=$(echo ${{ matrix.platform }} | cut -d'/' -f2)
+          echo "arch=${ARCH}" >> $GITHUB_OUTPUT
+
+      - name: Create test env file
+        run: |
+          cat << EOF > .env
+          SECRET_KEY="test-key-not-for-production"
+          OWM_API_KEY="test-key"
+          FLASK_DEBUG=0
+          FLASK_ENV=testing
+          PORT=5001
+          POSTGRES_USER=db
+          POSTGRES_PASSWORD=testing123
+          POSTGRES_DB=frontend_db
+          DATABASE_URL=postgresql://db:testing123@db:5432/frontend_db
+          ALPHA_VANTAGE_API_KEY="test-key"
+          GNEWS_API_KEY="test-key"
+          TARGETARCH=${{ steps.platform.outputs.arch }}
+          POSTGRES_HOST_AUTH_METHOD=scram-sha-256
+          POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+          POSTGRES_PASSWORD_ENCRYPTION=scram-sha-256
+          EOF
+
+      - name: Run Docker tests
+        run: |
+          chmod +x test-docker-build.sh
+          ./test-docker-build.sh
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,7 +70,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Only run Docker login on main branch
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log into Docker Hub
         if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
@@ -31,12 +83,10 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: dawttu00/dawttu_private:frontend
