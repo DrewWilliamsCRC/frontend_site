@@ -34,7 +34,7 @@ class StockTicker {
       { symbol: 'WBA', exchange: 'NASDAQ' },   // Walgreens
       { symbol: 'WMT', exchange: 'NYSE' }      // Walmart
     ];
-    this.updateInterval = 60000; // Update every minute
+    this.updateInterval = 300000; // Update every 5 minutes
     this.lastUpdateTime = null;
     this.init();
   }
