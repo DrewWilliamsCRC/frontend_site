@@ -1118,6 +1118,58 @@ def get_stock_data(symbol):
     if 'user' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
 
+    # Handle Treasury yield data
+    if symbol == 'UST10Y':
+        try:
+            url = f"https://www.alphavantage.co/query"
+            params = {
+                "function": "TREASURY_YIELD",
+                "interval": "daily",
+                "maturity": "10year",
+                "apikey": ALPHA_VANTAGE_API_KEY
+            }
+
+            # Track API call
+            track_api_call('alpha_vantage', 'treasury_yield', {
+                'maturity': '10year'
+            })
+
+            response = requests.get(url, params=params, timeout=5)
+            response.raise_for_status()
+            data = response.json()
+
+            if "data" in data:
+                # Get the most recent yield value
+                latest_data = data["data"][0]
+                current_yield = float(latest_data["value"])
+                
+                # Get previous day's yield for change calculation
+                prev_yield = float(data["data"][1]["value"]) if len(data["data"]) > 1 else current_yield
+                change = current_yield - prev_yield
+
+                return jsonify({
+                    'symbol': symbol,
+                    'price': str(current_yield),
+                    'change': str(change),
+                    'error': None
+                })
+
+            return jsonify({
+                'symbol': symbol,
+                'price': '0.00',
+                'change': '0.00',
+                'error': 'No data available'
+            })
+
+        except Exception as e:
+            print(f"Error fetching Treasury data: {str(e)}")
+            return jsonify({
+                'symbol': symbol,
+                'price': '0.00',
+                'change': '0.00',
+                'error': 'Error fetching data'
+            })
+
     # Map index symbols to their Alpha Vantage symbols and conversion factors
     index_map = {
         'DJI': {'symbol': 'DIA', 'factor': 100.0},  # DIA ETF tracks Dow/100
