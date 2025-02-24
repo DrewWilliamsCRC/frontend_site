@@ -27,6 +27,13 @@ class MarketIndices {
                 name: 'VIX',
                 showDollar: true,
                 description: 'ProShares VIX Short-Term Futures ETF'
+            },
+            {
+                symbol: 'UST10Y',
+                name: '10Y Treasury',
+                showDollar: false,
+                isTreasury: true,
+                description: '10-Year Treasury Yield'
             }
         ];
         this.updateInterval = 300000; // 5 minutes
@@ -105,13 +112,21 @@ class MarketIndices {
             // Create and append price element
             const priceDiv = document.createElement('div');
             priceDiv.className = 'price';
-            priceDiv.textContent = `${index.showDollar ? '$' : ''}${priceValue}`;
+            if (index.isTreasury) {
+                priceDiv.textContent = `${priceValue}%`;
+            } else {
+                priceDiv.textContent = `${index.showDollar ? '$' : ''}${priceValue}`;
+            }
             indexData.appendChild(priceDiv);
 
             // Create and append change element
             const changeDiv = document.createElement('div');
             changeDiv.className = 'change';
-            changeDiv.textContent = `${changePrefix}$${changeAmount} (${changePrefix}${Math.abs(changePercent)}%)`;
+            if (index.isTreasury) {
+                changeDiv.textContent = `${changePrefix}${changeAmount}%`;
+            } else {
+                changeDiv.textContent = `${changePrefix}$${changeAmount} (${changePrefix}${Math.abs(changePercent)}%)`;
+            }
             indexData.appendChild(changeDiv);
 
             // Update timestamp with exact format from photo

@@ -6,7 +6,7 @@
 <!-- Market Indices Section -->
 <div class="market-indices">
   <div class="row g-2">
-    <div class="col-md-3">
+    <div class="col-20">
       <a href="https://www.google.com/finance/quote/.DJI:INDEXDJX" class="index-link" target="_blank" rel="noopener noreferrer">
         <div class="index-card" data-index="DJI">
           <div class="index-header">
@@ -26,7 +26,7 @@
         </div>
       </a>
     </div>
-    <div class="col-md-3">
+    <div class="col-20">
       <a href="https://www.google.com/finance/quote/.INX:INDEXSP" class="index-link" target="_blank" rel="noopener noreferrer">
         <div class="index-card" data-index="SPX">
           <div class="index-header">
@@ -46,7 +46,7 @@
         </div>
       </a>
     </div>
-    <div class="col-md-3">
+    <div class="col-20">
       <a href="https://www.google.com/finance/quote/.IXIC:INDEXNASDAQ" class="index-link" target="_blank" rel="noopener noreferrer">
         <div class="index-card" data-index="IXIC">
           <div class="index-header">
@@ -66,13 +66,33 @@
         </div>
       </a>
     </div>
-    <div class="col-md-3">
+    <div class="col-20">
       <a href="https://www.google.com/finance/quote/VIXY:NYSEARCA" class="index-link" target="_blank" rel="noopener noreferrer">
         <div class="index-card" data-index="VIXY">
           <div class="index-header">
             <div class="index-title">
               <i class="fas fa-chart-bar"></i>
               <span>VIX</span>
+            </div>
+            <div class="trend-icon">▲</div>
+          </div>
+          <div class="index-data">
+            <div class="loading-spinner">
+              <i class="fas fa-spinner fa-spin"></i>
+              <span>Loading...</span>
+            </div>
+          </div>
+          <div class="last-update">LAST | 6:33:02 PM EST</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-20">
+      <a href="https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve" class="index-link" target="_blank" rel="noopener noreferrer">
+        <div class="index-card" data-index="UST10Y">
+          <div class="index-header">
+            <div class="index-title">
+              <i class="fas fa-landmark"></i>
+              <span>10Y TREASURY</span>
             </div>
             <div class="trend-icon">▲</div>
           </div>
@@ -240,14 +260,25 @@ document.addEventListener('DOMContentLoaded', function() {
 /* Market Indices Styles */
 .market-indices {
     margin-bottom: 0.75rem;
+    overflow-x: auto;
+    scroll-behavior: smooth;  /* Modern smooth scrolling */
+    width: 100%;
 }
 
 .market-indices .row {
     margin: 0 -0.2rem;
+    display: flex;
+    flex-wrap: nowrap;
+    min-width: min-content;  /* Changed from max-content for better behavior */
+    width: 100%;  /* Ensure full width */
 }
 
-.market-indices .col-md-3 {
+.market-indices .col-20 {
+    flex: 0 0 20%;
+    max-width: 20%;
+    min-width: 220px;
     padding: 0 0.2rem;
+    box-sizing: border-box;  /* Ensure padding is included in width */
 }
 
 .market-indices .index-card {
@@ -260,8 +291,10 @@ document.addEventListener('DOMContentLoaded', function() {
     display: flex;
     flex-direction: column;
     gap: 0;
-    min-height: 90px;
+    min-height: 85px;
     position: relative;
+    width: 100%;
+    box-sizing: border-box;  /* Ensure padding is included in width */
 }
 
 .market-indices .index-card.positive {
@@ -305,6 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
     letter-spacing: 0.75px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     text-decoration: none;
+    white-space: nowrap;  /* Prevent text wrapping */
 }
 
 .market-indices .index-title i {
