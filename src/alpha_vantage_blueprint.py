@@ -3,6 +3,7 @@ import os
 import requests
 from datetime import datetime
 from functools import wraps
+import logging
 
 alpha_vantage_bp = Blueprint('alpha_vantage', __name__)
 
@@ -56,9 +57,25 @@ def api_call(category, function_name):
             'data': data
         })
 
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
+        # Log the actual error for debugging
+        logging.error(f"Alpha Vantage API request error: {str(e)}")
         return jsonify({
-            'error': str(e),
+            'error': 'Failed to fetch data from the API. Please try again later.',
+            'data': None
+        })
+    except ValueError as e:
+        # JSON parsing error
+        logging.error(f"JSON parsing error in Alpha Vantage response: {str(e)}")
+        return jsonify({
+            'error': 'Invalid response format from the API.',
+            'data': None
+        })
+    except Exception as e:
+        # Log unexpected errors but don't expose details to client
+        logging.error(f"Unexpected error in Alpha Vantage API call: {str(e)}")
+        return jsonify({
+            'error': 'An unexpected error occurred. Please try again later.',
             'data': None
         })
 
