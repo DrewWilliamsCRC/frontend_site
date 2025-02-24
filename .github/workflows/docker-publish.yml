@@ -9,6 +9,11 @@ on:
   push:
     branches: [ "main" ]
 
+# Add permissions block
+permissions:
+  contents: read
+  packages: write
+
 env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: docker.io
@@ -20,6 +25,9 @@ jobs:
   test:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64]
