@@ -1817,8 +1817,8 @@ def process_response(response, endpoint):
         app.logger.error(f"Error processing {endpoint} response: {str(e)}")
         app.logger.error(f"Response content: {response.text[:500]}...")  # Log first 500 chars of response
         return {
-            'error': f'Error processing {endpoint.lower().replace("_", " ")} data',
-            'details': f'An error occurred while processing the data: {str(e)}'
+            'error': 'An error occurred while processing the data',
+            'details': 'Please contact support if the issue persists'
         }
 
 if __name__ == '__main__':
