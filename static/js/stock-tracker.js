@@ -6,6 +6,9 @@ class StockTracker {
         this.errorMessage = document.getElementById('errorMessage');
         this.tableHeader = document.getElementById('tableHeader');
         this.tableBody = document.getElementById('tableBody');
+        this.stockForm = document.getElementById('stockForm');
+        this.searchInput = document.getElementById('tableSearch');
+        this.currentData = null; // Store current data for searching
         
         // Add DOW companies list
         this.dowCompanies = [
@@ -50,8 +53,19 @@ class StockTracker {
             }
         };
         
+        // Add pagination state
+        this.currentPage = 1;
+        this.rowsPerPage = 50;
+        
         // Configure endpoint options
         this.endpointConfig = {
+            'STOCK_SYMBOL': {
+                options: ['all'],
+                optionLabels: {
+                    'all': 'Current Price'
+                },
+                columns: ['Symbol', 'Price', 'Change %']
+            },
             'DOW_COMPANIES': {
                 options: ['all'],
                 optionLabels: {
@@ -114,6 +128,13 @@ class StockTracker {
                     'ADA': 'Cardano (ADA)'
                 },
                 columns: ['Timestamp', 'Price', 'Volume']
+            },
+            'INSIDER_TRANSACTIONS': {
+                options: ['all'],
+                optionLabels: {
+                    'all': 'All Transactions'
+                },
+                columns: ['Filing Date', 'Transaction Date', 'Insider Name', 'Title', 'Type', 'Price', 'Shares', 'Security Type', 'Ticker']
             }
         };
         
@@ -123,7 +144,15 @@ class StockTracker {
     init() {
         // Add event listeners
         this.endpointSelector.addEventListener('change', () => this.handleEndpointChange());
-        this.optionsSelector.addEventListener('change', () => this.fetchData());
+        
+        // Add form submit handler
+        this.stockForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleFormSubmit();
+        });
+        
+        // Add search handler
+        this.searchInput.addEventListener('input', () => this.handleSearch());
         
         // Initialize with default selection if present in URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -136,13 +165,16 @@ class StockTracker {
             
             if (option) {
                 this.optionsSelector.value = option;
-                this.fetchData();
             }
         }
     }
     
     handleEndpointChange() {
         const endpoint = this.endpointSelector.value;
+        
+        // Reset search input
+        this.searchInput.value = '';
+        this.currentData = null;
         
         // Add labels to the containers
         this.endpointSelector.parentElement.setAttribute('data-label', 'Select Endpoint');
@@ -164,6 +196,12 @@ class StockTracker {
             });
             
             this.optionsSelector.disabled = false;
+            
+            // Show/hide symbol input based on endpoint type
+            const symbolInputContainer = document.getElementById('symbolInputContainer');
+            if (symbolInputContainer) {
+                symbolInputContainer.style.display = (endpoint === 'INSIDER_TRANSACTIONS' || endpoint === 'STOCK_SYMBOL') ? 'block' : 'none';
+            }
         }
         
         // Clear table
@@ -193,11 +231,44 @@ class StockTracker {
         this.errorMessage.classList.add('d-none');
     }
     
+    async fetchDataFromApi(endpoint, option, symbol = null) {
+        try {
+            let url;
+            if (endpoint === 'DOW_COMPANIES') {
+                url = `/api/stock/${symbol}`;
+            } else if (endpoint === 'INSIDER_TRANSACTIONS') {
+                url = `/api/insider-transactions/${symbol}`;
+            } else {
+                url = `/api/market-data/${endpoint}/${option}`;
+            }
+
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Network response was not ok');
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            return { error: 'Failed to fetch data' };
+        }
+    }
+    
     async fetchData() {
         const endpoint = this.endpointSelector.value;
         const option = this.optionsSelector.value;
         
-        if (!endpoint || !option) return;
+        if (!endpoint) return;
+        
+        // For stock symbol or insider transactions, we need a symbol
+        if (endpoint === 'STOCK_SYMBOL' || endpoint === 'INSIDER_TRANSACTIONS') {
+            const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
+            if (!symbol) {
+                this.showError('Please enter a stock symbol');
+                return;
+            }
+            console.log(`Fetching data for symbol: ${symbol}`);
+        } else if (!option && endpoint !== 'DOW_COMPANIES') {
+            this.showError('Please select an option');
+            return;
+        }
         
         this.showLoading(true);
         this.hideError();
@@ -207,21 +278,55 @@ class StockTracker {
             
             if (endpoint === 'DOW_COMPANIES') {
                 data = await this.fetchDowCompaniesData();
-            } else {
-                const response = await fetch(`/api/market-data/${endpoint}/${option}`);
-                if (!response.ok) throw new Error('Failed to fetch data');
-                const jsonData = await response.json();
-                if (jsonData.error) {
-                    throw new Error(jsonData.error, { cause: jsonData.details });
+            } else if (endpoint === 'STOCK_SYMBOL') {
+                const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
+                console.log(`Making API request for stock symbol: ${symbol}`);
+                
+                const response = await fetch(`/api/stock/${symbol}`);
+                if (!response.ok) throw new Error('Failed to fetch stock data');
+                const stockData = await response.json();
+                
+                if (stockData.error) {
+                    throw new Error(stockData.error);
                 }
-                data = jsonData.data;
+                
+                // Format the stock data for display
+                data = [{
+                    symbol: symbol,
+                    price: stockData.price,
+                    change: stockData.change,
+                    error: stockData.error
+                }];
+                
+            } else if (endpoint === 'INSIDER_TRANSACTIONS') {
+                const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
+                console.log(`Making API request for insider transactions: ${symbol}`);
+                
+                const response = await this.fetchDataFromApi('INSIDER_TRANSACTIONS', 'all', symbol);
+                console.log('Received response:', response);
+                
+                if (response.error) {
+                    throw new Error(response.error);
+                }
+                data = response.data;
+                
+                if (!data || data.length === 0) {
+                    throw new Error('No data available for this symbol');
+                }
+                console.log(`Found ${data.length} transactions`);
+            } else {
+                const response = await this.fetchDataFromApi(endpoint, option);
+                if (response.error) {
+                    throw new Error(response.error);
+                }
+                data = response.data;
             }
             
             this.updateTable(endpoint, data);
             
         } catch (error) {
             console.error('Error fetching data:', error);
-            this.showError(error.message, error.cause);
+            this.showError(error.message);
             this.tableHeader.innerHTML = '';
             this.tableBody.innerHTML = '';
         } finally {
@@ -286,10 +391,14 @@ class StockTracker {
     }
     
     updateTable(endpoint, data) {
-        if (!data || !data.length) {
+        if (!data || (Array.isArray(data) && data.length === 0)) {
             this.showError('No data available');
             return;
         }
+        
+        // Store the current data for searching and pagination
+        this.currentData = Array.isArray(data) ? data : [data];
+        this.currentPage = 1;
         
         const config = this.endpointConfig[endpoint];
         
@@ -300,7 +409,62 @@ class StockTracker {
             </tr>
         `;
         
-        // Update body based on endpoint type
+        // Add pagination controls
+        this.updatePaginationControls();
+        
+        // Update body with first page
+        this.updateTableBody(this.getPageData());
+    }
+    
+    getPageData() {
+        if (!this.currentData) return [];
+        
+        const startIndex = (this.currentPage - 1) * this.rowsPerPage;
+        const endIndex = startIndex + this.rowsPerPage;
+        return this.currentData.slice(startIndex, endIndex);
+    }
+    
+    updatePaginationControls() {
+        if (!this.currentData) return;
+        
+        const totalPages = Math.ceil(this.currentData.length / this.rowsPerPage);
+        
+        // Remove existing pagination if any
+        const existingPagination = document.querySelector('.pagination-controls');
+        if (existingPagination) {
+            existingPagination.remove();
+        }
+        
+        if (totalPages <= 1) return;
+        
+        const paginationHtml = `
+            <div class="pagination-controls">
+                <button class="btn btn-outline-secondary" ${this.currentPage === 1 ? 'disabled' : ''} onclick="stockTracker.changePage(${this.currentPage - 1})">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="pagination-info">Page ${this.currentPage} of ${totalPages}</span>
+                <button class="btn btn-outline-secondary" ${this.currentPage === totalPages ? 'disabled' : ''} onclick="stockTracker.changePage(${this.currentPage + 1})">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        `;
+        
+        this.tableHeader.parentElement.insertAdjacentHTML('afterend', paginationHtml);
+    }
+    
+    changePage(newPage) {
+        if (!this.currentData) return;
+        
+        const totalPages = Math.ceil(this.currentData.length / this.rowsPerPage);
+        if (newPage < 1 || newPage > totalPages) return;
+        
+        this.currentPage = newPage;
+        this.updatePaginationControls();
+        this.updateTableBody(this.getPageData());
+    }
+    
+    updateTableBody(data) {
+        const endpoint = this.endpointSelector.value;
         let bodyHTML = '';
         
         switch (endpoint) {
@@ -313,26 +477,8 @@ class StockTracker {
                         <td class="change-cell ${parseFloat(item.change) >= 0 ? 'positive-change' : 'negative-change'}">
                             ${parseFloat(item.change).toFixed(2)}%
                         </td>
-                        <td class="actions-cell">
-                            <button class="btn-refresh" onclick="stockTracker.refreshSymbol('${item.symbol}')">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </td>
                     </tr>
                 `).join('');
-                
-                // Add refresh all button above the table
-                const refreshAllButton = document.createElement('div');
-                refreshAllButton.className = 'refresh-all-container';
-                refreshAllButton.innerHTML = `
-                    <button class="btn-refresh-all" onclick="stockTracker.refreshAllDowCompanies()">
-                        <i class="fas fa-sync-alt"></i> Refresh All
-                        ${this.cache.DOW_COMPANIES.timestamp ? 
-                            `<span class="last-updated">Last updated: ${new Date(this.cache.DOW_COMPANIES.timestamp).toLocaleTimeString()}</span>` 
-                            : ''}
-                    </button>
-                `;
-                this.tableHeader.parentElement.parentElement.insertBefore(refreshAllButton, this.tableHeader.parentElement);
                 break;
                 
             case 'TOP_GAINERS_LOSERS':
@@ -407,47 +553,96 @@ class StockTracker {
                     </tr>
                 `).join('');
                 break;
+                
+            case 'STOCK_SYMBOL':
+                bodyHTML = data.map(item => `
+                    <tr class="table-row">
+                        <td class="symbol-cell">${item.symbol}</td>
+                        <td class="price-cell">$${parseFloat(item.price).toFixed(2)}</td>
+                        <td class="change-cell ${parseFloat(item.change) >= 0 ? 'positive-change' : 'negative-change'}">
+                            ${parseFloat(item.change).toFixed(2)}%
+                        </td>
+                    </tr>
+                `).join('');
+                break;
+
+            case 'INSIDER_TRANSACTIONS':
+                bodyHTML = data.map(item => `
+                    <tr class="table-row">
+                        <td class="date-cell">${item.filing_date}</td>
+                        <td class="date-cell">${item.transaction_date}</td>
+                        <td class="name-cell">${item.insider_name}</td>
+                        <td class="title-cell">${item.insider_title}</td>
+                        <td class="type-cell">${item.transaction_type}</td>
+                        <td class="price-cell">$${parseFloat(item.price || 0).toFixed(2)}</td>
+                        <td class="shares-cell">${parseInt(item.shares || 0).toLocaleString()}</td>
+                        <td class="type-cell">${item.security_type}</td>
+                        <td class="symbol-cell">${item.ticker}</td>
+                    </tr>
+                `).join('');
+                break;
         }
         
         this.tableBody.innerHTML = bodyHTML;
     }
     
-    async refreshSymbol(symbol) {
-        try {
-            const response = await fetch(`/api/stock/${symbol}`);
-            if (!response.ok) throw new Error(`Failed to fetch ${symbol}`);
-            const data = await response.json();
-            
-            if (data.error) {
-                this.showError(`Error refreshing ${symbol}`, data.error);
+    async handleFormSubmit() {
+        const endpoint = this.endpointSelector.value;
+        const option = this.optionsSelector.value;
+        
+        if (!endpoint) {
+            this.showError('Please select an endpoint');
+            return;
+        }
+        
+        if (!option && endpoint !== 'DOW_COMPANIES') {
+            this.showError('Please select an option');
+            return;
+        }
+        
+        // For insider transactions and stock symbol, validate symbol
+        if (endpoint === 'INSIDER_TRANSACTIONS' || endpoint === 'STOCK_SYMBOL') {
+            const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
+            if (!symbol) {
+                this.showError('Please enter a stock symbol');
                 return;
             }
-            
-            // Update the cached data
-            const company = this.cache.DOW_COMPANIES.data.find(item => item.symbol === symbol);
-            if (company) {
-                company.price = data.price;
-                company.change = data.change;
-                this.cache.DOW_COMPANIES.timestamp = Date.now();
-                
-                // Update the table
-                this.updateTable('DOW_COMPANIES', this.cache.DOW_COMPANIES.data);
+            if (!/^[A-Z]{1,5}$/.test(symbol)) {
+                this.showError('Invalid symbol format. Please enter 1-5 capital letters.');
+                return;
             }
-        } catch (error) {
-            this.showError(`Error refreshing ${symbol}`, error.message);
         }
+        
+        // All validation passed, fetch the data
+        await this.fetchData();
     }
-    
-    async refreshAllDowCompanies() {
-        this.showLoading(true);
-        try {
-            const data = await this.fetchDowCompaniesData(true);
-            this.updateTable('DOW_COMPANIES', data);
-        } catch (error) {
-            this.showError('Error refreshing DOW companies', error.message);
-        } finally {
-            this.showLoading(false);
+
+    handleSearch() {
+        const searchTerm = this.searchInput.value.toLowerCase().trim();
+        
+        if (!this.currentData) {
+            return;
         }
+
+        if (!searchTerm) {
+            // If search is empty, show first page of all data
+            this.currentPage = 1;
+            this.updatePaginationControls();
+            this.updateTableBody(this.getPageData());
+            return;
+        }
+
+        const filteredData = this.currentData.filter(item => {
+            return Object.values(item).some(value => 
+                String(value).toLowerCase().includes(searchTerm)
+            );
+        });
+
+        // Update pagination for filtered data
+        this.currentData = filteredData;
+        this.currentPage = 1;
+        this.updatePaginationControls();
+        this.updateTableBody(this.getPageData());
     }
 }
 
