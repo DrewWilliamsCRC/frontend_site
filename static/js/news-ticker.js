@@ -54,10 +54,10 @@ class NewsTicker {
                 height: 100%;
                 display: flex;
                 align-items: center;
-                animation: ticker 30s linear infinite;
                 white-space: nowrap;
                 color: var(--text-color);
                 padding: 0 20px;
+                will-change: transform;
             }
 
             .news-item {
@@ -101,10 +101,10 @@ class NewsTicker {
 
             @keyframes ticker {
                 0% {
-                    transform: translateX(100%);
+                    transform: translate3d(100%, 0, 0);
                 }
                 100% {
-                    transform: translateX(-100%);
+                    transform: translate3d(-100%, 0, 0);
                 }
             }
 
@@ -170,6 +170,15 @@ class NewsTicker {
         }
     }
 
+    // Fisher-Yates shuffle algorithm
+    shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
     async updateNews() {
         try {
             console.log('Fetching news...');
@@ -189,11 +198,14 @@ class NewsTicker {
 
             console.log(`Received ${result.articles.length} articles`);
             
+            // Shuffle the articles array
+            const shuffledArticles = this.shuffleArray([...result.articles]);
+            
             // Clear existing content
             this.tickerContent.innerHTML = '';
             
             // Add each article to the ticker
-            result.articles.forEach(article => {
+            shuffledArticles.forEach(article => {
                 const newsItem = document.createElement('div');
                 newsItem.className = 'news-item';
                 
@@ -206,6 +218,17 @@ class NewsTicker {
                 newsItem.appendChild(link);
                 this.tickerContent.appendChild(newsItem);
             });
+
+            // Calculate animation duration based on content width
+            // We want to maintain a consistent speed of movement
+            const contentWidth = this.tickerContent.scrollWidth;
+            const viewportWidth = this.container.offsetWidth;
+            const pixelsPerSecond = 800; // Increased from 400 to 800 for 2x speed
+            const totalDistance = contentWidth + viewportWidth;
+            const duration = totalDistance / pixelsPerSecond;
+
+            // Apply the animation
+            this.tickerContent.style.animation = `ticker ${duration}s linear infinite`;
             
             console.log('News ticker updated successfully');
         } catch (error) {

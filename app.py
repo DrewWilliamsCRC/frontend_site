@@ -1333,15 +1333,18 @@ def get_news():
         
         # Try to get cached articles
         cached_articles = cache.get(cache_key)
-        if cached_articles:
+        if cached_articles and not app.debug:  # Only use cache in production
             print(f"Found {len(cached_articles)} cached articles")
             return jsonify({'articles': cached_articles})
         
-        print("No cached articles found, fetching from Guardian API")
+        print("No cached articles found or in development mode, fetching from Guardian API")
         
         # Excluded sections and title patterns
         excluded_sections = ['corrections-and-clarifications', 'for-the-record']
         excluded_patterns = ['corrections and clarifications', 'for the record']
+        
+        # Set page size based on environment
+        page_size = 50 if app.debug else 5  # Get more articles in development mode
         
         # Fetch articles for each section
         for section in user_sections:
@@ -1355,7 +1358,7 @@ def get_news():
                 'api-key': guardian_api_key,
                 'section': section,
                 'show-fields': 'headline,shortUrl',
-                'page-size': 5,
+                'page-size': page_size,
                 'order-by': 'newest'
             }
             
@@ -1392,13 +1395,17 @@ def get_news():
         
         print(f"\nTotal articles collected: {len(all_articles)}")
         
-        # Cache the articles
-        cache_timeout = 300 if app.debug else 600  # 5 minutes in dev, 10 in prod
-        cache.set(cache_key, all_articles, timeout=cache_timeout)
-        print(f"Articles cached with timeout: {cache_timeout} seconds")
+        # Only cache in production
+        if not app.debug:
+            cache_timeout = 300  # 5 minutes in prod
+            cache.set(cache_key, all_articles, timeout=cache_timeout)
+            print(f"Articles cached with timeout: {cache_timeout} seconds")
+        else:
+            print("Skipping cache in development mode")
         
-        # Track API usage
-        track_api_call('guardian', 'news')
+        # Track API usage only in production
+        if not app.debug:
+            track_api_call('guardian', 'news')
         
         return jsonify({'articles': all_articles})
         
