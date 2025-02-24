@@ -1339,8 +1339,16 @@ def get_news():
         
         print("No cached articles found, fetching from Guardian API")
         
+        # Excluded sections and title patterns
+        excluded_sections = ['corrections-and-clarifications', 'for-the-record']
+        excluded_patterns = ['corrections and clarifications', 'for the record']
+        
         # Fetch articles for each section
         for section in user_sections:
+            if section.lower() in excluded_sections:
+                print(f"Skipping excluded section: {section}")
+                continue
+                
             print(f"\nFetching articles for section: {section}")
             
             params = {
@@ -1367,6 +1375,12 @@ def get_news():
                     print(f"Found {len(section_articles)} articles in section {section}")
                     
                     for article in section_articles:
+                        # Skip articles with excluded patterns in the title
+                        title = article['fields']['headline'].lower()
+                        if any(pattern in title for pattern in excluded_patterns):
+                            print(f"Skipping article with excluded pattern: {title}")
+                            continue
+                            
                         all_articles.append({
                             'title': article['fields']['headline'],
                             'url': article['fields']['shortUrl']
