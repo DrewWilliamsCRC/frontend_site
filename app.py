@@ -42,6 +42,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_caching import Cache
 from src.user_manager_blueprint import user_manager_bp
+from src.alpha_vantage_blueprint import alpha_vantage_bp
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -871,8 +872,9 @@ def refresh_cat():
     new_cat_url = fetch_random_cat()
     return jsonify({"url": new_cat_url})
 
-# Register the blueprint with a URL prefix (e.g., /admin)
+# Register the blueprints with URL prefixes
 app.register_blueprint(user_manager_bp, url_prefix="/admin")
+app.register_blueprint(alpha_vantage_bp, url_prefix="/alpha_vantage")
 
 # Updated route: Redirect to National Weather Service detailed forecast page
 @app.route('/weather/details/<int:dt>')
@@ -1677,151 +1679,153 @@ def fetch_sector_data():
 
 def process_response(response, endpoint):
     app.logger.debug(f"Processing {endpoint} response")
-    app.logger.debug(f"Response content type: {response.headers.get('Content-Type', 'unknown')}")
-    
     try:
-        if endpoint in ['IPO_CALENDAR', 'EARNINGS_CALENDAR']:
-            raw_text = response.text.strip()
-            app.logger.debug(f"Raw response text (first 100 chars): {raw_text[:100]}...")
+        json_data = response.json()
+        
+        if endpoint == 'TOP_GAINERS_LOSERS':
+            if response.request_option in json_data:
+                return {'data': json_data[response.request_option]}
+            return {
+                'error': 'No data available for the selected option',
+                'details': f'No data found for {response.request_option}'
+            }
             
-            if not raw_text:
-                return {
-                    'error': f'No {endpoint.lower().replace("_", " ")} data available',
-                    'details': 'The API returned an empty response'
-                }
+        elif endpoint == 'SECTOR':
+            # Try to get cached data first
+            cached_data = fetch_sector_data()
+            if cached_data:
+                json_data = cached_data
             
-            if raw_text.count('\n') <= 1:
-                return {
-                    'error': f'No {endpoint.lower().replace("_", " ")} data available at this time',
-                    'details': 'No records found in the current time period'
-                }
-            
-            lines = raw_text.split('\n')
-            headers = lines[0].split(',')
-            data = []
-            
-            for line in lines[1:]:
-                if line.strip():  # Skip empty lines
-                    values = line.split(',')
-                    item = dict(zip(headers, values))
-                    data.append(item)
-            
-            app.logger.debug(f"Processed {len(data)} records")
-            return {'data': data}
-            
-        else:  # JSON response
-            json_data = response.json()
-            app.logger.debug(f"JSON response keys: {list(json_data.keys())}")
+            # Debug log the entire response for SECTOR endpoint
+            app.logger.debug(f"Full SECTOR response: {json_data}")
             
             if not json_data:
                 return {
-                    'error': f'No {endpoint.lower().replace("_", " ")} data available',
-                    'details': 'The API returned an empty response'
+                    'error': 'No sector performance data available',
+                    'details': 'The sector performance API is currently unavailable'
                 }
             
-            if endpoint == 'TOP_GAINERS_LOSERS':
-                if response.request_option in json_data:
-                    return {'data': json_data[response.request_option]}
-                return {
-                    'error': 'No data available for the selected option',
-                    'details': f'No data found for {response.request_option}'
-                }
-                
-            elif endpoint == 'SECTOR':
-                # Try to get cached data first
-                cached_data = fetch_sector_data()
-                if cached_data:
-                    json_data = cached_data
-                
-                # Debug log the entire response for SECTOR endpoint
-                app.logger.debug(f"Full SECTOR response: {json_data}")
-                
-                if not json_data:
-                    return {
-                        'error': 'No sector performance data available',
-                        'details': 'The sector performance API is currently unavailable'
-                    }
-                
-                time_period_map = {
-                    'real_time': 'Rank A: Real-Time Performance',
-                    '1day': 'Rank B: 1 Day Performance',
-                    '5day': 'Rank C: 5 Day Performance',
-                    '1month': 'Rank D: 1 Month Performance',
-                    '3month': 'Rank E: 3 Month Performance',
-                    'ytd': 'Rank F: Year-to-Date (YTD) Performance',
-                    '1year': 'Rank G: 1 Year Performance',
-                    '3year': 'Rank H: 3 Year Performance',
-                    '5year': 'Rank I: 5 Year Performance',
-                    '10year': 'Rank J: 10 Year Performance'
-                }
-                
-                period_key = time_period_map.get(response.request_option)
-                app.logger.debug(f"Looking for sector data with key: {period_key}")
-                app.logger.debug(f"Available keys in response: {list(json_data.keys())}")
-                
-                if not period_key:
-                    return {
-                        'error': 'Invalid time period selected',
-                        'details': f'The time period "{response.request_option}" is not supported'
-                    }
-                
-                if period_key not in json_data:
-                    return {
-                        'error': 'No sector performance data available for the selected time period',
-                        'details': f'No data found for period: {response.request_option}'
-                    }
-                
-                sector_data = []
-                for sector, performance in json_data[period_key].items():
-                    try:
-                        # Remove any '%' symbol and convert to float
-                        perf_value = float(performance.rstrip('%') if isinstance(performance, str) else performance)
-                        sector_data.append({
-                            'sector': sector,
-                            'performance': perf_value
-                        })
-                    except (ValueError, AttributeError) as e:
-                        app.logger.error(f"Error processing sector {sector} data: {e}")
-                        continue
-                
-                if sector_data:
-                    app.logger.debug(f"Processed {len(sector_data)} sectors")
-                    return {'data': sector_data}
-                else:
-                    return {
-                        'error': 'No valid sector performance data available',
-                        'details': 'Could not process any sector performance values'
-                    }
-                
-            elif endpoint == 'MARKET_STATUS':
-                if 'markets' in json_data:
-                    return {'data': json_data['markets']}
-                return {
-                    'error': 'No market status data available',
-                    'details': 'The market status data is not available in the API response'
-                }
-                
-            elif endpoint == 'CRYPTO_INTRADAY':
-                if 'Time Series Crypto (5min)' in json_data:
-                    time_series = json_data['Time Series Crypto (5min)']
-                    formatted_data = [
-                        {
-                            'timestamp': timestamp,
-                            'price': float(values['1. open']),
-                            'volume': float(values['5. volume'])
-                        }
-                        for timestamp, values in list(time_series.items())[:12]  # Last hour of data
-                    ]
-                    return {'data': formatted_data}
-                return {
-                    'error': 'No cryptocurrency data available',
-                    'details': 'No recent trading data found for the selected cryptocurrency'
-                }
-            
-            return {
-                'error': 'Unsupported endpoint type',
-                'details': f'The endpoint "{endpoint}" is not properly configured'
+            time_period_map = {
+                'real_time': 'Rank A: Real-Time Performance',
+                '1day': 'Rank B: 1 Day Performance',
+                '5day': 'Rank C: 5 Day Performance',
+                '1month': 'Rank D: 1 Month Performance',
+                '3month': 'Rank E: 3 Month Performance',
+                'ytd': 'Rank F: Year-to-Date (YTD) Performance',
+                '1year': 'Rank G: 1 Year Performance',
+                '3year': 'Rank H: 3 Year Performance',
+                '5year': 'Rank I: 5 Year Performance',
+                '10year': 'Rank J: 10 Year Performance'
             }
+            
+            period_key = time_period_map.get(response.request_option)
+            app.logger.debug(f"Looking for sector data with key: {period_key}")
+            app.logger.debug(f"Available keys in response: {list(json_data.keys())}")
+            
+            if not period_key:
+                return {
+                    'error': 'Invalid time period selected',
+                    'details': f'The time period "{response.request_option}" is not supported'
+                }
+            
+            if period_key not in json_data:
+                return {
+                    'error': 'No sector performance data available for the selected time period',
+                    'details': f'No data found for period: {response.request_option}'
+                }
+            
+            sector_data = []
+            for sector, performance in json_data[period_key].items():
+                try:
+                    # Remove any '%' symbol and convert to float
+                    perf_value = float(performance.rstrip('%') if isinstance(performance, str) else performance)
+                    sector_data.append({
+                        'sector': sector,
+                        'performance': perf_value
+                    })
+                except (ValueError, AttributeError) as e:
+                    app.logger.error(f"Error processing sector {sector} data: {e}")
+                    continue
+            
+            if sector_data:
+                app.logger.debug(f"Processed {len(sector_data)} sectors")
+                return {'data': sector_data}
+            else:
+                return {
+                    'error': 'No valid sector performance data available',
+                    'details': 'Could not process any sector performance values'
+                }
+            
+        elif endpoint == 'MARKET_STATUS':
+            if 'markets' in json_data:
+                return {'data': json_data['markets']}
+            return {
+                'error': 'No market status data available',
+                'details': 'The market status data is not available in the API response'
+            }
+            
+        elif endpoint == 'IPO_CALENDAR':
+            if 'IPO_CALENDAR' in json_data:
+                return {'data': json_data['IPO_CALENDAR']}
+            return {
+                'error': 'No IPO data available',
+                'details': 'No IPO data found for the selected symbol'
+            }
+            
+        elif endpoint == 'EARNINGS_CALENDAR':
+            if 'EARNINGS_CALENDAR' in json_data:
+                return {'data': json_data['EARNINGS_CALENDAR']}
+            return {
+                'error': 'No earnings data available',
+                'details': 'No earnings data found for the selected symbol'
+            }
+            
+        elif endpoint == 'CRYPTO_INTRADAY':
+            if 'Time Series Crypto (5min)' in json_data:
+                time_series = json_data['Time Series Crypto (5min)']
+                formatted_data = [
+                    {
+                        'timestamp': timestamp,
+                        'price': float(values['1. open']),
+                        'volume': float(values['5. volume'])
+                    }
+                    for timestamp, values in list(time_series.items())[:12]  # Last hour of data
+                ]
+                return {'data': formatted_data}
+            return {
+                'error': 'No cryptocurrency data available',
+                'details': 'No recent trading data found for the selected cryptocurrency'
+            }
+            
+        elif endpoint == 'INSIDER_TRANSACTIONS':
+            if 'insiderTransactions' in json_data:
+                transactions = json_data['insiderTransactions']
+                formatted_data = []
+                
+                for transaction in transactions:
+                    formatted_transaction = {
+                        'filing_date': transaction.get('filingDate', ''),
+                        'transaction_date': transaction.get('transactionDate', ''),
+                        'insider_name': transaction.get('insiderName', ''),
+                        'insider_title': transaction.get('insiderTitle', ''),
+                        'transaction_type': transaction.get('transactionType', ''),
+                        'price': transaction.get('price', ''),
+                        'shares': transaction.get('shares', ''),
+                        'security_type': transaction.get('securityType', ''),
+                        'ticker': transaction.get('ticker', '')
+                    }
+                    formatted_data.append(formatted_transaction)
+                
+                return {'data': formatted_data}
+            return {
+                'error': 'No insider transactions data available',
+                'details': 'No transactions found for the selected symbol'
+            }
+            
+        return {
+            'error': 'Unsupported endpoint type',
+            'details': f'The endpoint "{endpoint}" is not properly configured'
+        }
             
     except Exception as e:
         app.logger.error(f"Error processing {endpoint} response: {str(e)}")
@@ -1830,6 +1834,90 @@ def process_response(response, endpoint):
             'error': 'An error occurred while processing the data',
             'details': 'Please contact support if the issue persists'
         }
+
+@app.route('/api/insider-transactions/<symbol>')
+def get_insider_transactions(symbol):
+    """API endpoint to get insider transactions for a given symbol."""
+    app.logger.debug(f"Received insider transactions request for symbol: {symbol}")
+
+    if not ALPHA_VANTAGE_API_KEY:
+        app.logger.debug("Alpha Vantage API key not configured")
+        return jsonify({
+            'error': 'API key not configured',
+            'data': []
+        })
+
+    try:
+        url = "https://www.alphavantage.co/query"
+        params = {
+            "function": "INSIDER_TRANSACTIONS",
+            "symbol": symbol,
+            "apikey": ALPHA_VANTAGE_API_KEY
+        }
+
+        app.logger.debug(f"Making API request to Alpha Vantage for insider transactions. URL: {url}, Symbol: {symbol}")
+
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        app.logger.debug(f"Received response from Alpha Vantage: {str(data)[:500]}...")  # Log first 500 chars
+
+        # Check for rate limit messages
+        if "Note" in data:
+            error_msg = data.get("Note", "Rate limit reached")
+            app.logger.debug(f"Rate limit hit: {error_msg}")
+            return jsonify({
+                'error': 'API rate limit reached - Please try again later',
+                'data': []
+            })
+
+        # Process the insider transactions data
+        if "insiderTransactions" in data:
+            transactions = data["insiderTransactions"]
+            app.logger.debug(f"Found {len(transactions)} insider transactions")
+            formatted_data = []
+            
+            for transaction in transactions:
+                formatted_transaction = {
+                    'filing_date': transaction.get('filingDate', ''),
+                    'transaction_date': transaction.get('transactionDate', ''),
+                    'insider_name': transaction.get('insiderName', ''),
+                    'insider_title': transaction.get('insiderTitle', ''),
+                    'transaction_type': transaction.get('transactionType', ''),
+                    'price': transaction.get('price', ''),
+                    'shares': transaction.get('shares', ''),
+                    'security_type': transaction.get('securityType', ''),
+                    'ticker': symbol
+                }
+                formatted_data.append(formatted_transaction)
+
+            app.logger.debug(f"Returning {len(formatted_data)} formatted transactions")
+            return jsonify({
+                'data': formatted_data,
+                'error': None
+            })
+
+        app.logger.debug("No insider transactions found in response")
+        return jsonify({
+            'error': 'No insider transactions data available',
+            'data': []
+        })
+
+    except requests.exceptions.RequestException as e:
+        error_msg = str(e)
+        app.logger.error(f"Request error: {error_msg}")
+        return jsonify({
+            'error': 'Failed to fetch insider transactions data',
+            'data': []
+        })
+    except Exception as e:
+        error_msg = str(e)
+        app.logger.error(f"Unexpected error: {error_msg}")
+        return jsonify({
+            'error': 'An unexpected error occurred',
+            'data': []
+        })
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.
