@@ -1303,6 +1303,9 @@ def get_news():
         })
 
     try:
+        # Check if in development mode
+        is_dev = os.environ.get('FLASK_ENV') == 'development'
+        
         # Check daily API limit first
         day_stats = get_api_usage('gnews', 'day')
         if day_stats['remaining'] <= 0:
@@ -1332,6 +1335,11 @@ def get_news():
             
             if cached_news and cached_news.get('articles'):
                 all_articles.extend(cached_news['articles'])
+                continue
+
+            # In development mode, if we're running low on API calls, return cached data or empty
+            if is_dev and day_stats['remaining'] < 20:  # Keep buffer for production
+                app.logger.warning(f"Development mode: Skipping API call for {category} to preserve quota")
                 continue
 
             # Track API call before making the request
@@ -1366,9 +1374,10 @@ def get_news():
             response.raise_for_status()
             news_data = response.json()
 
-            # Cache the results for 5 minutes
+            # Cache the results - longer cache in development mode
             if news_data.get('articles'):
-                cache.set(cache_key, news_data, timeout=300)
+                cache_timeout = 1800 if is_dev else 300  # 30 mins in dev, 5 mins in prod
+                cache.set(cache_key, news_data, timeout=cache_timeout)
                 all_articles.extend(news_data['articles'])
 
         # Shuffle articles to mix categories
