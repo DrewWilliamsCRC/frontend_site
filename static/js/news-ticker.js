@@ -172,63 +172,55 @@ class NewsTicker {
 
     async updateNews() {
         try {
-            const response = await this.fetchNews();
+            console.log('Fetching news...');
+            const result = await this.fetchNews();
             
-            console.log('News Ticker Response:', response);
+            if (result.error) {
+                console.error('Error from news API:', result.error);
+                this.showError(result.error);
+                return;
+            }
+            
+            if (!result.articles || !Array.isArray(result.articles) || result.articles.length === 0) {
+                console.warn('No articles returned from API');
+                this.showError('No news articles available');
+                return;
+            }
+
+            console.log(`Received ${result.articles.length} articles`);
             
             // Clear existing content
             this.tickerContent.innerHTML = '';
             
-            if (response.error) {
-                console.log('Error type:', response.error);
-                let errorMessage;
-                if (response.error === 'Daily API limit reached') {
-                    errorMessage = this.isDev ? 
-                        'Development mode: News updates paused to preserve API quota' :
-                        'News updates paused - Daily API limit reached. Updates will resume tomorrow.';
-                } else if (response.error === 'API key invalid or expired' || response.error === 'API key not configured') {
-                    errorMessage = 'News updates unavailable - Please check API configuration.';
-                } else {
-                    errorMessage = 'Unable to fetch news at this time. Please try again later.';
-                }
+            // Add each article to the ticker
+            result.articles.forEach(article => {
+                const newsItem = document.createElement('div');
+                newsItem.className = 'news-item';
                 
-                console.log('Displaying error message:', errorMessage);
+                const link = document.createElement('a');
+                link.href = article.url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.textContent = article.title;
                 
-                this.container.innerHTML = `
-                    <div class="news-error">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <span>${errorMessage}</span>
-                    </div>`;
-                return;
-            }
-
-            if (!response.articles || response.articles.length === 0) {
-                this.container.innerHTML = `
-                    <div class="news-error">
-                        <span>No news available at this time</span>
-                    </div>`;
-                return;
-            }
-
-            // Create news items
-            const newsItems = response.articles.map(article => `
-                <div class="news-item">
-                    <a href="${article.url}" target="_blank" rel="noopener noreferrer">
-                        ${article.title}
-                    </a>
-                </div>
-            `).join('');
-
-            this.tickerContent.innerHTML = newsItems;
-
+                newsItem.appendChild(link);
+                this.tickerContent.appendChild(newsItem);
+            });
+            
+            console.log('News ticker updated successfully');
         } catch (error) {
             console.error('Error updating news:', error);
-            this.container.innerHTML = `
-                <div class="news-error">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span>Error loading news</span>
-                </div>`;
+            this.showError('Failed to update news');
         }
+    }
+
+    showError(message) {
+        this.tickerContent.innerHTML = `
+            <div class="news-error">
+                <i class="fas fa-exclamation-circle"></i>
+                ${message}
+            </div>
+        `;
     }
 
     async init() {
