@@ -4,7 +4,7 @@ requests==2.32.2  # security fix for CVE
 flask-caching
 Flask-WTF
 Flask-Limiter
-python-dotenv~=0.19.0  # pinned for gnews compatibility
+python-dotenv~=0.19.0
 psycopg2-binary
 gunicorn
 click
@@ -13,5 +13,5 @@ urllib3==2.2.2 # security fix for CVE
 certifi>=2023.7.22 # security requirement
 charset-normalizer~=2.0.0 # requests dependency
 idna>=2.5 # requests dependency
-gnews==0.4.0 # for news ticker feature
-dnspython==2.6.1 # pinned for gnews compatibility   
+dnspython==2.6.1
+The Guardian API package   

@@ -9,7 +9,7 @@ load_dotenv()
 
 # Debug log for API keys
 alpha_vantage_key = os.environ.get("ALPHA_VANTAGE_API_KEY")
-gnews_api_key = os.environ.get("GNEWS_API_KEY")
+guardian_api_key = os.environ.get("GUARDIAN_API_KEY")
 
 if alpha_vantage_key:
     print("Alpha Vantage API key loaded successfully")
@@ -17,11 +17,11 @@ if alpha_vantage_key:
 else:
     print("Warning: ALPHA_VANTAGE_API_KEY not found in environment variables")
 
-if gnews_api_key:
-    print("Gnews API key loaded successfully")
-    print(f"API key starts with: {gnews_api_key[:4]}...")
+if guardian_api_key:
+    print("Guardian API key loaded successfully")
+    print(f"API key starts with: {guardian_api_key[:4]}...")
 else:
-    print("Warning: GNEWS_API_KEY not found in environment variables")
+    print("Warning: GUARDIAN_API_KEY not found in environment variables")
 
 # Standard library imports
 import requests
@@ -602,7 +602,7 @@ def get_api_usage(api_name, period='day'):
             # Define limits for each API
             limits = {
                 'alpha_vantage': {'hour': 4500, 'day': 108000},
-                'gnews': {'hour': 4, 'day': 100},
+                'guardian': {'hour': 100, 'day': 5000},  # Guardian API has more generous limits
                 'openweathermap': {'hour': 42, 'day': 1000}
             }
             
@@ -1272,9 +1272,9 @@ def api_usage():
         'day': get_api_usage('alpha_vantage', 'day')
     }
 
-    gnews_stats = {
-        'hour': get_api_usage('gnews', 'hour'),
-        'day': get_api_usage('gnews', 'day')
+    guardian_stats = {
+        'hour': get_api_usage('guardian', 'hour'),
+        'day': get_api_usage('guardian', 'day')
     }
 
     owm_stats = {
@@ -1287,16 +1287,25 @@ def api_usage():
     
     return render_template('api_usage.html', 
                          stats=alpha_vantage_stats,
-                         gnews_stats=gnews_stats,
+                         guardian_stats=guardian_stats,
                          owm_stats=owm_stats)
 
 @app.route('/api/news')
 def get_news():
-    """API endpoint to get latest news headlines."""
+    """API endpoint to get latest news headlines from The Guardian."""
+    print("\n=== Starting /api/news endpoint ===")
+    print(f"Session data: {session}")
+    
     if 'user' not in session:
+        print("Error: No user in session")
         return jsonify({'error': 'Unauthorized'}), 401
 
-    if not gnews_api_key:
+    print(f"Debug: Current user: {session['user']}")
+    print(f"Debug: Guardian API key:", guardian_api_key[:4] if guardian_api_key else None)
+    print(f"Debug: Environment GUARDIAN_API_KEY:", os.environ.get('GUARDIAN_API_KEY', 'Not found')[:4])
+
+    if not guardian_api_key:
+        print("Error: Guardian API key not configured")
         return jsonify({
             'error': 'API key not configured',
             'articles': []
@@ -1305,16 +1314,9 @@ def get_news():
     try:
         # Check if in development mode
         is_dev = os.environ.get('FLASK_ENV') == 'development'
+        print("Debug: Development mode:", is_dev)
         
-        # Check daily API limit first
-        day_stats = get_api_usage('gnews', 'day')
-        if day_stats['remaining'] <= 0:
-            return jsonify({
-                'error': 'Daily API limit reached',
-                'articles': []
-            })
-
-        # Get user's preferred categories
+        # Get user's preferred sections
         conn = get_db_connection()
         try:
             with conn.cursor() as cur:
@@ -1323,87 +1325,92 @@ def get_news():
                     (session['user'],)
                 )
                 result = cur.fetchone()
-                categories = result['news_categories'].split(',') if result and result['news_categories'] else ['general']
+                sections = result['news_categories'].split(',') if result and result['news_categories'] else ['news']
+                print("Debug: User sections:", sections)
         finally:
             conn.close()
 
         all_articles = []
-        for category in categories:
-            # Try to get cached news for this category
-            cache_key = f'latest_news_us_{category}'
+        for section in sections:
+            # Try to get cached news for this section
+            cache_key = f'guardian_news_{section}'  # Fixed: Complete the cache key string
+            print(f"Debug: Checking cache for key: {cache_key}")
             cached_news = cache.get(cache_key)
             
             if cached_news and cached_news.get('articles'):
+                print(f"Debug: Using cached news for section {section}")
+                print(f"Debug: Found {len(cached_news['articles'])} cached articles")
                 all_articles.extend(cached_news['articles'])
                 continue
 
-            # In development mode, if we're running low on API calls, return cached data or empty
-            if is_dev and day_stats['remaining'] < 20:  # Keep buffer for production
-                app.logger.warning(f"Development mode: Skipping API call for {category} to preserve quota")
-                continue
-
+            print(f"Debug: Fetching fresh news for section {section}")
             # Track API call before making the request
-            track_api_call('gnews', 'top-headlines', {'category': category})
+            track_api_call('guardian', 'content', {'section': section})
 
             # If no cached news, make API call
-            url = "https://gnews.io/api/v4/top-headlines"
+            url = "https://content.guardianapis.com/search"
             params = {
-                "token": gnews_api_key,
-                "lang": "en",
-                "country": "us",
-                "category": category,
-                "max": 10
+                "api-key": guardian_api_key,
+                "section": section,
+                "show-fields": "headline,trailText,thumbnail",
+                "page-size": 10,
+                "order-by": "newest"
             }
 
+            print("Debug: Making API request to:", url)
+            print("Debug: Request parameters:", {k: v[:4] if k == 'api-key' else v for k, v in params.items()})
             response = requests.get(url, params=params, timeout=5)
-            
-            # Handle rate limit and auth responses
-            if response.status_code == 429:
-                app.logger.warning("Gnews API rate limit reached")
-                return jsonify({
-                    'error': 'Daily API limit reached',
-                    'articles': []
-                })
-            elif response.status_code == 403:
-                app.logger.error("Gnews API key invalid or expired")
-                return jsonify({
-                    'error': 'API key invalid or expired',
-                    'articles': []
-                })
-            
+            print("Debug: API response status:", response.status_code)
             response.raise_for_status()
             news_data = response.json()
+            print("Debug: API response status from data:", news_data.get('response', {}).get('status'))
 
-            # Cache the results - longer cache in development mode
-            if news_data.get('articles'):
+            # Check if we have results
+            results = news_data.get('response', {}).get('results', [])
+            print(f"Debug: Found {len(results)} articles for section {section}")
+            
+            if results:
+                articles = []
+                for article in results:
+                    articles.append({
+                        'title': article.get('webTitle', ''),
+                        'url': article.get('webUrl', ''),
+                        'description': article.get('fields', {}).get('trailText', ''),
+                        'image': article.get('fields', {}).get('thumbnail', ''),
+                        'section': article.get('sectionName', ''),
+                        'published_at': article.get('webPublicationDate', '')
+                    })
+
+                # Cache the results - longer cache in development mode
                 cache_timeout = 1800 if is_dev else 300  # 30 mins in dev, 5 mins in prod
-                cache.set(cache_key, news_data, timeout=cache_timeout)
-                all_articles.extend(news_data['articles'])
+                print(f"Debug: Caching {len(articles)} articles with timeout {cache_timeout}s")
+                cache.set(cache_key, {'articles': articles}, timeout=cache_timeout)
+                all_articles.extend(articles)
 
-        # Shuffle articles to mix categories
+        # Shuffle articles to mix sections
         random.shuffle(all_articles)
+        print(f"Debug: Total articles collected: {len(all_articles)}")
+        final_articles = all_articles[:20]  # Limit to 20 articles total
+        print(f"Debug: Returning {len(final_articles)} articles")
         
         return jsonify({
-            'articles': all_articles[:20]  # Limit to 20 articles total
+            'articles': final_articles
         })
 
     except requests.exceptions.RequestException as e:
+        print(f"Error fetching news: {str(e)}")
         app.logger.error(f"Error fetching news: {str(e)}")
-        if "429" in str(e):
-            return jsonify({
-                'error': 'Daily API limit reached',
-                'articles': []
-            })
-        elif "403" in str(e):
-            return jsonify({
-                'error': 'API key invalid or expired',
-                'articles': []
-            })
-        else:
-            return jsonify({
-                'error': 'Unable to fetch news at this time',
-                'articles': []
-            })
+        return jsonify({
+            'error': 'Unable to fetch news at this time',
+            'articles': []
+        })
+    except Exception as e:
+        print(f"Unexpected error in get_news: {str(e)}")
+        app.logger.error(f"Unexpected error in get_news: {str(e)}")
+        return jsonify({
+            'error': f'An unexpected error occurred: {str(e)}',
+            'articles': []
+        })
 
 @app.route('/api/news/usage')
 def news_api_usage():

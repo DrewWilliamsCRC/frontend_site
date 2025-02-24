@@ -19,6 +19,9 @@ class NewsTicker {
 
         // Adjust position if dev banner exists
         this.adjustForDevBanner();
+
+        // Listen for sidebar toggle
+        document.addEventListener('sidebarToggle', this.handleSidebarToggle.bind(this));
     }
 
     adjustForDevBanner() {
@@ -34,16 +37,17 @@ class NewsTicker {
         const style = document.createElement('style');
         style.textContent = `
             .news-ticker {
-                width: 100%;
+                width: calc(100% - var(--sidebar-width));
                 height: 40px;
-                background-color: var(--bg-color);
+                background-color: var(--bg-primary);
                 border-bottom: 1px solid var(--border-color);
                 overflow: hidden;
                 position: fixed;
                 top: 0;
-                left: 0;
-                z-index: 999;
-                transition: top 0.3s ease;
+                left: var(--sidebar-width);
+                z-index: 1060;
+                transition: all 0.3s ease;
+                box-shadow: var(--shadow-sm);
             }
 
             .news-ticker-content {
@@ -60,6 +64,7 @@ class NewsTicker {
                 display: inline-block;
                 padding: 0 30px;
                 color: var(--text-color);
+                font-size: 14px;
             }
 
             .news-item:first-child {
@@ -69,10 +74,12 @@ class NewsTicker {
             .news-item a {
                 color: var(--text-color);
                 text-decoration: none;
+                transition: color 0.2s ease;
             }
 
             .news-item a:hover {
                 text-decoration: underline;
+                color: var(--primary);
             }
 
             .news-error {
@@ -85,6 +92,7 @@ class NewsTicker {
                 justify-content: center;
                 gap: 8px;
                 font-size: 14px;
+                background-color: var(--bg-primary);
             }
 
             .news-error i {
@@ -103,6 +111,35 @@ class NewsTicker {
             /* Pause animation on hover */
             .news-ticker:hover .news-ticker-content {
                 animation-play-state: paused;
+            }
+
+            /* Dark mode styles */
+            .dark-mode .news-ticker {
+                background-color: var(--bg-dark);
+                border-color: var(--border-medium);
+            }
+
+            .dark-mode .news-item a {
+                color: var(--text-dark);
+            }
+
+            .dark-mode .news-item a:hover {
+                color: var(--primary);
+            }
+
+            /* Mobile styles */
+            @media (max-width: 768px) {
+                .news-ticker {
+                    width: 100%;
+                    left: 0;
+                    top: 60px; /* Account for mobile menu button */
+                }
+
+                /* Hide ticker when sidebar is open on mobile */
+                body.sidebar-active .news-ticker {
+                    opacity: 0;
+                    visibility: hidden;
+                }
             }
         `;
         document.head.appendChild(style);
@@ -197,5 +234,11 @@ class NewsTicker {
     async init() {
         await this.updateNews();
         setInterval(() => this.updateNews(), this.updateInterval);
+    }
+
+    handleSidebarToggle(event) {
+        if (window.innerWidth <= 768) {
+            document.body.classList.toggle('sidebar-active', event.detail.isOpen);
+        }
     }
 } 
