@@ -11,6 +11,6 @@ click
 zipp==3.21.0 # not directly required, pinned by Snyk to avoid a vulnerability
 urllib3==2.2.2 # security fix for CVE
 certifi>=2023.7.22 # security requirement
-charset-normalizer~=2.0.0 # requests dependency
+charset-normalizer~=3.4.1 # requests dependency
 idna>=2.5 # requests dependency
 dnspython==2.6.1
