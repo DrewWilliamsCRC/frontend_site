@@ -1408,7 +1408,7 @@ def get_news():
         print(f"Unexpected error in get_news: {str(e)}")
         app.logger.error(f"Unexpected error in get_news: {str(e)}")
         return jsonify({
-            'error': f'An unexpected error occurred: {str(e)}',
+            'error': 'An unexpected error occurred. Please try again later.',
             'articles': []
         })
 
