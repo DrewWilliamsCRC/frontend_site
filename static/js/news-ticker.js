@@ -60,6 +60,16 @@ class NewsTicker {
                 will-change: transform;
             }
 
+            .news-content-wrapper {
+                display: flex;
+                align-items: center;
+            }
+
+            .news-content-base {
+                display: flex;
+                align-items: center;
+            }
+
             .news-item {
                 display: inline-block;
                 padding: 0 30px;
@@ -204,7 +214,15 @@ class NewsTicker {
             // Clear existing content
             this.tickerContent.innerHTML = '';
             
-            // Add each article to the ticker
+            // Create a container for repeated content
+            const contentWrapper = document.createElement('div');
+            contentWrapper.className = 'news-content-wrapper';
+            
+            // Create the base content first
+            const baseContent = document.createElement('div');
+            baseContent.className = 'news-content-base';
+            
+            // Add each article to the base content
             shuffledArticles.forEach(article => {
                 const newsItem = document.createElement('div');
                 newsItem.className = 'news-item';
@@ -216,14 +234,21 @@ class NewsTicker {
                 link.textContent = article.title;
                 
                 newsItem.appendChild(link);
-                this.tickerContent.appendChild(newsItem);
+                baseContent.appendChild(newsItem);
             });
 
-            // Calculate animation duration based on content width
-            // We want to maintain a consistent speed of movement
-            const contentWidth = this.tickerContent.scrollWidth;
+            // Add the base content to wrapper 10 times
+            for (let i = 0; i < 10; i++) {
+                contentWrapper.appendChild(baseContent.cloneNode(true));
+            }
+            
+            // Add the wrapper to the ticker
+            this.tickerContent.appendChild(contentWrapper);
+
+            // Calculate animation duration based on total content width
+            const contentWidth = baseContent.scrollWidth * 10; // Multiply by 10 for repeated content
             const viewportWidth = this.container.offsetWidth;
-            const pixelsPerSecond = 800; // Increased from 400 to 800 for 2x speed
+            const pixelsPerSecond = 800;
             const totalDistance = contentWidth + viewportWidth;
             const duration = totalDistance / pixelsPerSecond;
 
