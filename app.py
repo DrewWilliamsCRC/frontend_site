@@ -9,7 +9,7 @@ load_dotenv()
 
 # Debug log for API keys
 alpha_vantage_key = os.environ.get("ALPHA_VANTAGE_API_KEY")
-gnews_api_key = os.environ.get("GNEWS_API_KEY")
+guardian_api_key = os.environ.get("GUARDIAN_API_KEY")
 
 if alpha_vantage_key:
     print("Alpha Vantage API key loaded successfully")
@@ -17,11 +17,11 @@ if alpha_vantage_key:
 else:
     print("Warning: ALPHA_VANTAGE_API_KEY not found in environment variables")
 
-if gnews_api_key:
-    print("Gnews API key loaded successfully")
-    print(f"API key starts with: {gnews_api_key[:4]}...")
+if guardian_api_key:
+    print("Guardian API key loaded successfully")
+    print(f"API key starts with: {guardian_api_key[:4]}...")
 else:
-    print("Warning: GNEWS_API_KEY not found in environment variables")
+    print("Warning: GUARDIAN_API_KEY not found in environment variables")
 
 # Standard library imports
 import requests
@@ -602,7 +602,7 @@ def get_api_usage(api_name, period='day'):
             # Define limits for each API
             limits = {
                 'alpha_vantage': {'hour': 4500, 'day': 108000},
-                'gnews': {'hour': 4, 'day': 100},
+                'guardian': {'hour': 100, 'day': 5000},  # Guardian API has more generous limits
                 'openweathermap': {'hour': 42, 'day': 1000}
             }
             
@@ -1272,9 +1272,9 @@ def api_usage():
         'day': get_api_usage('alpha_vantage', 'day')
     }
 
-    gnews_stats = {
-        'hour': get_api_usage('gnews', 'hour'),
-        'day': get_api_usage('gnews', 'day')
+    guardian_stats = {
+        'hour': get_api_usage('guardian', 'hour'),
+        'day': get_api_usage('guardian', 'day')
     }
 
     owm_stats = {
@@ -1287,16 +1287,25 @@ def api_usage():
     
     return render_template('api_usage.html', 
                          stats=alpha_vantage_stats,
-                         gnews_stats=gnews_stats,
+                         guardian_stats=guardian_stats,
                          owm_stats=owm_stats)
 
 @app.route('/api/news')
 def get_news():
-    """API endpoint to get latest news headlines."""
+    """API endpoint to get latest news headlines from The Guardian."""
+    print("\n=== Starting /api/news endpoint ===")
+    print(f"Session data: {session}")
+    
     if 'user' not in session:
+        print("Error: No user in session")
         return jsonify({'error': 'Unauthorized'}), 401
 
-    if not gnews_api_key:
+    print(f"Debug: Current user: {session['user']}")
+    print(f"Debug: Guardian API key:", guardian_api_key[:4] if guardian_api_key else None)
+    print(f"Debug: Environment GUARDIAN_API_KEY:", os.environ.get('GUARDIAN_API_KEY', 'Not found')[:4])
+
+    if not guardian_api_key:
+        print("Error: Guardian API key not configured")
         return jsonify({
             'error': 'API key not configured',
             'articles': []
@@ -1305,16 +1314,9 @@ def get_news():
     try:
         # Check if in development mode
         is_dev = os.environ.get('FLASK_ENV') == 'development'
+        print("Debug: Development mode:", is_dev)
         
-        # Check daily API limit first
-        day_stats = get_api_usage('gnews', 'day')
-        if day_stats['remaining'] <= 0:
-            return jsonify({
-                'error': 'Daily API limit reached',
-                'articles': []
-            })
-
-        # Get user's preferred categories
+        # Get user's preferred sections
         conn = get_db_connection()
         try:
             with conn.cursor() as cur:
@@ -1323,87 +1325,92 @@ def get_news():
                     (session['user'],)
                 )
                 result = cur.fetchone()
-                categories = result['news_categories'].split(',') if result and result['news_categories'] else ['general']
+                sections = result['news_categories'].split(',') if result and result['news_categories'] else ['news']
+                print("Debug: User sections:", sections)
         finally:
             conn.close()
 
         all_articles = []
-        for category in categories:
-            # Try to get cached news for this category
-            cache_key = f'latest_news_us_{category}'
+        for section in sections:
+            # Try to get cached news for this section
+            cache_key = f'guardian_news_{section}'  # Fixed: Complete the cache key string
+            print(f"Debug: Checking cache for key: {cache_key}")
             cached_news = cache.get(cache_key)
             
             if cached_news and cached_news.get('articles'):
+                print(f"Debug: Using cached news for section {section}")
+                print(f"Debug: Found {len(cached_news['articles'])} cached articles")
                 all_articles.extend(cached_news['articles'])
                 continue
 
-            # In development mode, if we're running low on API calls, return cached data or empty
-            if is_dev and day_stats['remaining'] < 20:  # Keep buffer for production
-                app.logger.warning(f"Development mode: Skipping API call for {category} to preserve quota")
-                continue
-
+            print(f"Debug: Fetching fresh news for section {section}")
             # Track API call before making the request
-            track_api_call('gnews', 'top-headlines', {'category': category})
+            track_api_call('guardian', 'content', {'section': section})
 
             # If no cached news, make API call
-            url = "https://gnews.io/api/v4/top-headlines"
+            url = "https://content.guardianapis.com/search"
             params = {
-                "token": gnews_api_key,
-                "lang": "en",
-                "country": "us",
-                "category": category,
-                "max": 10
+                "api-key": guardian_api_key,
+                "section": section,
+                "show-fields": "headline,trailText,thumbnail",
+                "page-size": 10,
+                "order-by": "newest"
             }
 
+            print("Debug: Making API request to:", url)
+            print("Debug: Request parameters:", {k: v[:4] if k == 'api-key' else v for k, v in params.items()})
             response = requests.get(url, params=params, timeout=5)
-            
-            # Handle rate limit and auth responses
-            if response.status_code == 429:
-                app.logger.warning("Gnews API rate limit reached")
-                return jsonify({
-                    'error': 'Daily API limit reached',
-                    'articles': []
-                })
-            elif response.status_code == 403:
-                app.logger.error("Gnews API key invalid or expired")
-                return jsonify({
-                    'error': 'API key invalid or expired',
-                    'articles': []
-                })
-            
+            print("Debug: API response status:", response.status_code)
             response.raise_for_status()
             news_data = response.json()
+            print("Debug: API response status from data:", news_data.get('response', {}).get('status'))
 
-            # Cache the results - longer cache in development mode
-            if news_data.get('articles'):
+            # Check if we have results
+            results = news_data.get('response', {}).get('results', [])
+            print(f"Debug: Found {len(results)} articles for section {section}")
+            
+            if results:
+                articles = []
+                for article in results:
+                    articles.append({
+                        'title': article.get('webTitle', ''),
+                        'url': article.get('webUrl', ''),
+                        'description': article.get('fields', {}).get('trailText', ''),
+                        'image': article.get('fields', {}).get('thumbnail', ''),
+                        'section': article.get('sectionName', ''),
+                        'published_at': article.get('webPublicationDate', '')
+                    })
+
+                # Cache the results - longer cache in development mode
                 cache_timeout = 1800 if is_dev else 300  # 30 mins in dev, 5 mins in prod
-                cache.set(cache_key, news_data, timeout=cache_timeout)
-                all_articles.extend(news_data['articles'])
+                print(f"Debug: Caching {len(articles)} articles with timeout {cache_timeout}s")
+                cache.set(cache_key, {'articles': articles}, timeout=cache_timeout)
+                all_articles.extend(articles)
 
-        # Shuffle articles to mix categories
+        # Shuffle articles to mix sections
         random.shuffle(all_articles)
+        print(f"Debug: Total articles collected: {len(all_articles)}")
+        final_articles = all_articles[:20]  # Limit to 20 articles total
+        print(f"Debug: Returning {len(final_articles)} articles")
         
         return jsonify({
-            'articles': all_articles[:20]  # Limit to 20 articles total
+            'articles': final_articles
         })
 
     except requests.exceptions.RequestException as e:
+        print(f"Error fetching news: {str(e)}")
         app.logger.error(f"Error fetching news: {str(e)}")
-        if "429" in str(e):
-            return jsonify({
-                'error': 'Daily API limit reached',
-                'articles': []
-            })
-        elif "403" in str(e):
-            return jsonify({
-                'error': 'API key invalid or expired',
-                'articles': []
-            })
-        else:
-            return jsonify({
-                'error': 'Unable to fetch news at this time',
-                'articles': []
-            })
+        return jsonify({
+            'error': 'Unable to fetch news at this time',
+            'articles': []
+        })
+    except Exception as e:
+        print(f"Unexpected error in get_news: {str(e)}")
+        app.logger.error(f"Unexpected error in get_news: {str(e)}")
+        return jsonify({
+            'error': 'An unexpected error occurred. Please try again later.',
+            'articles': []
+        })
 
 @app.route('/api/news/usage')
 def news_api_usage():
@@ -1462,6 +1469,364 @@ def health_check():
             'error': 'An internal error has occurred. Please try again later.',
             'timestamp': datetime.now().isoformat()
         }), 500
+
+@app.route('/stock-tracker')
+def stock_tracker():
+    """Stock Tracker page showing various market lists and stock data."""
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        # Get top gainers/losers data
+        url = "https://www.alphavantage.co/query"
+        params = {
+            "function": "TOP_GAINERS_LOSERS",
+            "apikey": ALPHA_VANTAGE_API_KEY
+        }
+
+        # Track API call
+        track_api_call('alpha_vantage', 'top_gainers_losers')
+
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        # Check for API limit messages
+        if "Note" in data:
+            flash("API rate limit reached. Please try again later.", "warning")
+            return render_template('stock_tracker.html', lists={}, selected_list='top_gainers')
+
+        # Process and format the data
+        processed_data = {}
+        for list_type in ['top_gainers', 'top_losers', 'most_actively_traded']:
+            if list_type in data:
+                processed_data[list_type] = []
+                for stock in data[list_type]:
+                    try:
+                        processed_stock = {
+                            'ticker': stock.get('ticker', ''),
+                            'name': stock.get('name', ''),
+                            'price': float(stock.get('price', '0.0')),
+                            'change_amount': float(stock.get('change_amount', '0.0')),
+                            'change_percentage': float(stock.get('change_percentage', '0.0').rstrip('%')),
+                            'volume': int(stock.get('volume', '0'))
+                        }
+                        processed_data[list_type].append(processed_stock)
+                    except (ValueError, TypeError) as e:
+                        app.logger.error(f"Error processing stock data: {e}")
+                        continue
+
+        selected_list = request.args.get('list', 'top_gainers')
+        
+        return render_template('stock_tracker.html', 
+                             lists=processed_data,
+                             selected_list=selected_list)
+
+    except Exception as e:
+        app.logger.error(f"Error fetching stock data: {str(e)}")
+        flash("Error fetching stock data. Please try again later.", "danger")
+        return render_template('stock_tracker.html', lists={}, selected_list='top_gainers')
+
+@app.route('/api/market-data/<endpoint>/<option>')
+def get_market_data(endpoint, option):
+    """API endpoint to get various market data based on the endpoint and option selected."""
+    if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    if not ALPHA_VANTAGE_API_KEY:
+        return jsonify({
+            'error': 'API key not configured',
+            'data': []
+        })
+
+    try:
+        url = "https://www.alphavantage.co/query"
+        app.logger.debug(f"Processing request for endpoint: {endpoint}, option: {option}")
+        
+        # Track API call with detailed information
+        track_details = {
+            'endpoint': endpoint,
+            'option': option,
+            'user': session['user']
+        }
+
+        # Configure request based on endpoint
+        params = {
+            "apikey": ALPHA_VANTAGE_API_KEY
+        }
+
+        if endpoint == 'TOP_GAINERS_LOSERS':
+            params["function"] = "TOP_GAINERS_LOSERS"
+            track_api_call('alpha_vantage', 'top_gainers_losers', track_details)
+            
+        elif endpoint == 'SECTOR':
+            params["function"] = "SECTOR"
+            app.logger.debug("Making SECTOR request with params: %s", params)
+            track_api_call('alpha_vantage', 'sector_performance', track_details)
+            
+        elif endpoint == 'MARKET_STATUS':
+            params["function"] = "MARKET_STATUS"
+            track_api_call('alpha_vantage', 'market_status', track_details)
+            
+        elif endpoint == 'IPO_CALENDAR':
+            params["function"] = "IPO_CALENDAR"
+            track_api_call('alpha_vantage', 'ipo_calendar', track_details)
+            
+        elif endpoint == 'EARNINGS_CALENDAR':
+            params["function"] = "EARNINGS_CALENDAR"
+            track_api_call('alpha_vantage', 'earnings_calendar', track_details)
+            
+        elif endpoint == 'CRYPTO_INTRADAY':
+            params.update({
+                "function": "CRYPTO_INTRADAY",
+                "symbol": option,
+                "market": "USD",
+                "interval": "5min"
+            })
+            track_details['crypto_symbol'] = option
+            track_api_call('alpha_vantage', 'crypto_intraday', track_details)
+            
+        else:
+            return jsonify({
+                'error': 'Invalid endpoint specified',
+                'data': []
+            })
+
+        app.logger.debug(f"Making API request to: {url}")
+        app.logger.debug(f"With parameters: {params}")
+        
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        
+        app.logger.debug(f"Response status code: {response.status_code}")
+        app.logger.debug(f"Response content type: {response.headers.get('content-type', 'unknown')}")
+        
+        # For SECTOR endpoint, log the raw response
+        if endpoint == 'SECTOR':
+            app.logger.debug(f"SECTOR raw response: {response.text[:1000]}...")  # First 1000 chars
+
+        # Add the request option to the response object for use in process_response
+        response.request_option = option
+        
+        # Process response based on endpoint type
+        if endpoint in ['IPO_CALENDAR', 'EARNINGS_CALENDAR']:
+            result = process_response(response, endpoint)
+        else:
+            # Check for rate limit messages in JSON response
+            try:
+                data = response.json()
+                if "Note" in data:
+                    error_msg = data.get("Note", "Rate limit reached")
+                    app.logger.debug(f"Rate limit hit: {error_msg}")
+                    track_details['error'] = error_msg
+                    track_api_call('alpha_vantage', f'{endpoint.lower()}_rate_limit', track_details)
+                    return jsonify({
+                        'error': 'API rate limit reached - Please try again later',
+                        'data': []
+                    })
+            except ValueError as e:
+                app.logger.error(f"JSON parsing error: {str(e)}")
+                app.logger.error(f"Response content: {response.text[:500]}...")
+                return jsonify({
+                    'error': 'Invalid response format from API',
+                    'data': []
+                })
+                
+            result = process_response(response, endpoint)
+            
+        return jsonify(result)
+
+    except requests.exceptions.RequestException as e:
+        error_msg = str(e)
+        app.logger.error(f"Request error: {error_msg}")
+        track_details['error'] = error_msg
+        track_api_call('alpha_vantage', f'{endpoint.lower()}_request_error', track_details)
+        return jsonify({
+            'error': 'Failed to fetch market data',
+            'data': []
+        })
+    except Exception as e:
+        error_msg = str(e)
+        app.logger.error(f"Unexpected error: {error_msg}")
+        track_details['error'] = error_msg
+        track_api_call('alpha_vantage', f'{endpoint.lower()}_error', track_details)
+        return jsonify({
+            'error': 'An unexpected error occurred',
+            'data': []
+        })
+
+@cache.memoize(timeout=300)  # Cache for 5 minutes
+def fetch_sector_data():
+    """Fetch and cache sector performance data."""
+    url = "https://www.alphavantage.co/query"
+    params = {
+        "function": "SECTOR",
+        "apikey": ALPHA_VANTAGE_API_KEY
+    }
+    
+    try:
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        app.logger.error(f"Error fetching sector data: {str(e)}")
+        return None
+
+def process_response(response, endpoint):
+    app.logger.debug(f"Processing {endpoint} response")
+    app.logger.debug(f"Response content type: {response.headers.get('Content-Type', 'unknown')}")
+    
+    try:
+        if endpoint in ['IPO_CALENDAR', 'EARNINGS_CALENDAR']:
+            raw_text = response.text.strip()
+            app.logger.debug(f"Raw response text (first 100 chars): {raw_text[:100]}...")
+            
+            if not raw_text:
+                return {
+                    'error': f'No {endpoint.lower().replace("_", " ")} data available',
+                    'details': 'The API returned an empty response'
+                }
+            
+            if raw_text.count('\n') <= 1:
+                return {
+                    'error': f'No {endpoint.lower().replace("_", " ")} data available at this time',
+                    'details': 'No records found in the current time period'
+                }
+            
+            lines = raw_text.split('\n')
+            headers = lines[0].split(',')
+            data = []
+            
+            for line in lines[1:]:
+                if line.strip():  # Skip empty lines
+                    values = line.split(',')
+                    item = dict(zip(headers, values))
+                    data.append(item)
+            
+            app.logger.debug(f"Processed {len(data)} records")
+            return {'data': data}
+            
+        else:  # JSON response
+            json_data = response.json()
+            app.logger.debug(f"JSON response keys: {list(json_data.keys())}")
+            
+            if not json_data:
+                return {
+                    'error': f'No {endpoint.lower().replace("_", " ")} data available',
+                    'details': 'The API returned an empty response'
+                }
+            
+            if endpoint == 'TOP_GAINERS_LOSERS':
+                if response.request_option in json_data:
+                    return {'data': json_data[response.request_option]}
+                return {
+                    'error': 'No data available for the selected option',
+                    'details': f'No data found for {response.request_option}'
+                }
+                
+            elif endpoint == 'SECTOR':
+                # Try to get cached data first
+                cached_data = fetch_sector_data()
+                if cached_data:
+                    json_data = cached_data
+                
+                # Debug log the entire response for SECTOR endpoint
+                app.logger.debug(f"Full SECTOR response: {json_data}")
+                
+                if not json_data:
+                    return {
+                        'error': 'No sector performance data available',
+                        'details': 'The sector performance API is currently unavailable'
+                    }
+                
+                time_period_map = {
+                    'real_time': 'Rank A: Real-Time Performance',
+                    '1day': 'Rank B: 1 Day Performance',
+                    '5day': 'Rank C: 5 Day Performance',
+                    '1month': 'Rank D: 1 Month Performance',
+                    '3month': 'Rank E: 3 Month Performance',
+                    'ytd': 'Rank F: Year-to-Date (YTD) Performance',
+                    '1year': 'Rank G: 1 Year Performance',
+                    '3year': 'Rank H: 3 Year Performance',
+                    '5year': 'Rank I: 5 Year Performance',
+                    '10year': 'Rank J: 10 Year Performance'
+                }
+                
+                period_key = time_period_map.get(response.request_option)
+                app.logger.debug(f"Looking for sector data with key: {period_key}")
+                app.logger.debug(f"Available keys in response: {list(json_data.keys())}")
+                
+                if not period_key:
+                    return {
+                        'error': 'Invalid time period selected',
+                        'details': f'The time period "{response.request_option}" is not supported'
+                    }
+                
+                if period_key not in json_data:
+                    return {
+                        'error': 'No sector performance data available for the selected time period',
+                        'details': f'No data found for period: {response.request_option}'
+                    }
+                
+                sector_data = []
+                for sector, performance in json_data[period_key].items():
+                    try:
+                        # Remove any '%' symbol and convert to float
+                        perf_value = float(performance.rstrip('%') if isinstance(performance, str) else performance)
+                        sector_data.append({
+                            'sector': sector,
+                            'performance': perf_value
+                        })
+                    except (ValueError, AttributeError) as e:
+                        app.logger.error(f"Error processing sector {sector} data: {e}")
+                        continue
+                
+                if sector_data:
+                    app.logger.debug(f"Processed {len(sector_data)} sectors")
+                    return {'data': sector_data}
+                else:
+                    return {
+                        'error': 'No valid sector performance data available',
+                        'details': 'Could not process any sector performance values'
+                    }
+                
+            elif endpoint == 'MARKET_STATUS':
+                if 'markets' in json_data:
+                    return {'data': json_data['markets']}
+                return {
+                    'error': 'No market status data available',
+                    'details': 'The market status data is not available in the API response'
+                }
+                
+            elif endpoint == 'CRYPTO_INTRADAY':
+                if 'Time Series Crypto (5min)' in json_data:
+                    time_series = json_data['Time Series Crypto (5min)']
+                    formatted_data = [
+                        {
+                            'timestamp': timestamp,
+                            'price': float(values['1. open']),
+                            'volume': float(values['5. volume'])
+                        }
+                        for timestamp, values in list(time_series.items())[:12]  # Last hour of data
+                    ]
+                    return {'data': formatted_data}
+                return {
+                    'error': 'No cryptocurrency data available',
+                    'details': 'No recent trading data found for the selected cryptocurrency'
+                }
+            
+            return {
+                'error': 'Unsupported endpoint type',
+                'details': f'The endpoint "{endpoint}" is not properly configured'
+            }
+            
+    except Exception as e:
+        app.logger.error(f"Error processing {endpoint} response: {str(e)}")
+        app.logger.error(f"Response content: {response.text[:500]}...")  # Log first 500 chars of response
+        return {
+            'error': 'An error occurred while processing the data',
+            'details': 'Please contact support if the issue persists'
+        }
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.

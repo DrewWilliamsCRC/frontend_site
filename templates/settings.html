@@ -28,12 +28,20 @@
       <div class="form-group">
         <label>
           <i class="fas fa-newspaper"></i>
-          News Categories
+          News Sections
         </label>
         <div class="checkbox-group">
           <div class="checkbox-item">
-            <input type="checkbox" id="general" name="news_categories" value="general" {% if 'general' in news_categories %}checked{% endif %}>
-            <label for="general">General News</label>
+            <input type="checkbox" id="news" name="news_categories" value="news" {% if 'news' in news_categories %}checked{% endif %}>
+            <label for="news">Top News</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="world" name="news_categories" value="world" {% if 'world' in news_categories %}checked{% endif %}>
+            <label for="world">World News</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="uk-news" name="news_categories" value="uk-news" {% if 'uk-news' in news_categories %}checked{% endif %}>
+            <label for="uk-news">UK News</label>
           </div>
           <div class="checkbox-item">
             <input type="checkbox" id="business" name="news_categories" value="business" {% if 'business' in news_categories %}checked{% endif %}>
@@ -44,23 +52,23 @@
             <label for="technology">Technology</label>
           </div>
           <div class="checkbox-item">
-            <input type="checkbox" id="entertainment" name="news_categories" value="entertainment" {% if 'entertainment' in news_categories %}checked{% endif %}>
-            <label for="entertainment">Entertainment</label>
+            <input type="checkbox" id="sport" name="news_categories" value="sport" {% if 'sport' in news_categories %}checked{% endif %}>
+            <label for="sport">Sport</label>
           </div>
           <div class="checkbox-item">
-            <input type="checkbox" id="sports" name="news_categories" value="sports" {% if 'sports' in news_categories %}checked{% endif %}>
-            <label for="sports">Sports</label>
+            <input type="checkbox" id="culture" name="news_categories" value="culture" {% if 'culture' in news_categories %}checked{% endif %}>
+            <label for="culture">Culture</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="environment" name="news_categories" value="environment" {% if 'environment' in news_categories %}checked{% endif %}>
+            <label for="environment">Environment</label>
           </div>
           <div class="checkbox-item">
             <input type="checkbox" id="science" name="news_categories" value="science" {% if 'science' in news_categories %}checked{% endif %}>
             <label for="science">Science</label>
           </div>
-          <div class="checkbox-item">
-            <input type="checkbox" id="health" name="news_categories" value="health" {% if 'health' in news_categories %}checked{% endif %}>
-            <label for="health">Health</label>
-          </div>
         </div>
-        <p class="help-text">Select categories to show in the news ticker</p>
+        <p class="help-text">Select sections to show in the news ticker (powered by The Guardian)</p>
       </div>
       
       <div class="form-group">

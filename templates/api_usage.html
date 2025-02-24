@@ -59,23 +59,23 @@
       </div>
     </div>
 
-    <!-- Gnews Section -->
+    <!-- Guardian Section -->
     <div class="api-section">
       <div class="section-title">
         <i class="fas fa-newspaper"></i>
-        Gnews API
+        The Guardian API
       </div>
       
       <div class="api-tile limit-tile">
         <div class="tile-content">
           <div class="tile-label">Hourly Limit</div>
-          <div class="tile-value">4</div>
+          <div class="tile-value">100</div>
           <div class="tile-stat">
-            <span class="stat-number">{{ "{:,}".format(gnews_stats.day.used % 4) }}</span>
+            <span class="stat-number">{{ "{:,}".format(guardian_stats.hour.used) }}</span>
             <span class="stat-label">used</span>
           </div>
           <div class="tile-stat">
-            <span class="stat-number">{{ "{:,}".format(4 - (gnews_stats.day.used % 4)) }}</span>
+            <span class="stat-number">{{ "{:,}".format(guardian_stats.hour.remaining) }}</span>
             <span class="stat-label">remaining</span>
           </div>
         </div>
@@ -84,13 +84,13 @@
       <div class="api-tile limit-tile">
         <div class="tile-content">
           <div class="tile-label">Daily Limit</div>
-          <div class="tile-value">100</div>
+          <div class="tile-value">5K</div>
           <div class="tile-stat">
-            <span class="stat-number">{{ "{:,}".format(gnews_stats.day.used) }}</span>
+            <span class="stat-number">{{ "{:,}".format(guardian_stats.day.used) }}</span>
             <span class="stat-label">used</span>
           </div>
           <div class="tile-stat">
-            <span class="stat-number">{{ "{:,}".format(gnews_stats.day.remaining) }}</span>
+            <span class="stat-number">{{ "{:,}".format(guardian_stats.day.remaining) }}</span>
             <span class="stat-label">remaining</span>
           </div>
         </div>
@@ -100,7 +100,7 @@
         <div class="tile-content">
           <div class="tile-description">
             <i class="fas fa-info-circle"></i>
-            Free tier service
+            Developer tier service
           </div>
           <div class="tile-description">
             <i class="fas fa-clock"></i>
@@ -108,7 +108,7 @@
           </div>
           <div class="tile-description">
             <i class="fas fa-layer-group"></i>
-            5-minute cache per category
+            5-minute cache per section
           </div>
         </div>
       </div>
@@ -117,7 +117,7 @@
     <!-- OpenWeatherMap Section -->
     <div class="api-section">
       <div class="section-title">
-        <i class="fas fa-cloud"></i>
+        <i class="fas fa-cloud-sun"></i>
         OpenWeatherMap API
       </div>
       
@@ -126,11 +126,11 @@
           <div class="tile-label">Hourly Limit</div>
           <div class="tile-value">42</div>
           <div class="tile-stat">
-            <span class="stat-number">{{ "{:,}".format(owm_stats.day.used % 42) }}</span>
+            <span class="stat-number">{{ "{:,}".format(owm_stats.hour.used) }}</span>
             <span class="stat-label">used</span>
           </div>
           <div class="tile-stat">
-            <span class="stat-number">{{ "{:,}".format(42 - (owm_stats.day.used % 42)) }}</span>
+            <span class="stat-number">{{ "{:,}".format(owm_stats.hour.remaining) }}</span>
             <span class="stat-label">remaining</span>
           </div>
         </div>
@@ -158,12 +158,8 @@
             Free tier service
           </div>
           <div class="tile-description">
-            <i class="fas fa-clock"></i>
-            Updates every 5 minutes
-          </div>
-          <div class="tile-description">
-            <i class="fas fa-cloud-sun"></i>
-            Current & 5-day forecast
+            <i class="fas fa-sync"></i>
+            Updates every minute
           </div>
         </div>
       </div>
