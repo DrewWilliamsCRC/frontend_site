@@ -1,4 +1,4 @@
 sqlfluff==3.0.3  # SQL linter with built-in templating support
-black==24.3.0  # Python formatter
+black==25.1.0  # Python formatter
 pylint==3.1.0  # Python linter
 pytest==8.0.2  # Testing framework 
