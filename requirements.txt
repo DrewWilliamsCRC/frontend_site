@@ -14,4 +14,3 @@ certifi>=2023.7.22 # security requirement
 charset-normalizer~=2.0.0 # requests dependency
 idna>=2.5 # requests dependency
 dnspython==2.6.1
-The Guardian API package   
