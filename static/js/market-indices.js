@@ -55,14 +55,13 @@ class MarketIndices {
             if (!card) continue;
 
             const indexData = card.querySelector('.index-data');
+            const lastUpdate = card.querySelector('.last-update');
             
             // Show loading state
             indexData.innerHTML = `
                 <div class="loading-spinner">
                     <i class="fas fa-spinner fa-spin"></i>
-                    <div>Fetching ${index.name} data${index.etf ? ` (${index.etf})` : ''}...</div>
-                    <div class="update-info">Last update: ${new Date().toLocaleTimeString()}</div>
-                    <div class="update-info">(Updates every 5 minutes)</div>
+                    <div>Loading...</div>
                 </div>`;
 
             const data = await this.fetchIndexData(index.symbol);
@@ -72,29 +71,58 @@ class MarketIndices {
                     <div class="error-message">
                         <i class="fas fa-exclamation-circle"></i>
                         <span>${data.error}</span>
-                        <div class="retry-button" onclick="marketIndices.updateIndices()">
-                            <i class="fas fa-sync"></i> Retry
-                        </div>
                     </div>`;
                 continue;
             }
 
             const changeValue = parseFloat(data.change);
             const changeClass = changeValue >= 0 ? 'positive' : 'negative';
-            const arrowIcon = changeValue >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+            const triangleSymbol = changeValue >= 0 ? '▲' : '▼';
+            
+            // Format price with commas and exactly 2 decimal places
+            const priceValue = parseFloat(data.price).toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
 
-            indexData.innerHTML = `
-                <div class="price">
-                    ${index.showDollar ? '$' : ''}${data.price}
-                </div>
-                <div class="change ${changeClass}">
-                    <i class="fas ${arrowIcon}"></i>
-                    ${Math.abs(changeValue).toFixed(2)}%
-                </div>
-                <div class="description">${index.description}</div>
-                <div class="update-info">
-                    Last update: ${new Date().toLocaleTimeString()}
-                </div>`;
+            // Format change value with exactly 2 decimal places
+            const changeAmount = Math.abs(parseFloat(data.change)).toFixed(2);
+            // Calculate percentage change
+            const changePercent = ((changeValue / parseFloat(data.price)) * 100).toFixed(2);
+            const changePrefix = changeValue >= 0 ? '+' : '-';
+
+            // Update card class for background color
+            card.classList.remove('positive', 'negative');
+            card.classList.add(changeClass);
+
+            // Update trend icon
+            const trendIcon = card.querySelector('.trend-icon');
+            trendIcon.textContent = triangleSymbol;
+
+            // Clear any existing loading spinner
+            indexData.innerHTML = '';
+
+            // Create and append price element
+            const priceDiv = document.createElement('div');
+            priceDiv.className = 'price';
+            priceDiv.textContent = `${index.showDollar ? '$' : ''}${priceValue}`;
+            indexData.appendChild(priceDiv);
+
+            // Create and append change element
+            const changeDiv = document.createElement('div');
+            changeDiv.className = 'change';
+            changeDiv.textContent = `${changePrefix}$${changeAmount} (${changePrefix}${Math.abs(changePercent)}%)`;
+            indexData.appendChild(changeDiv);
+
+            // Update timestamp with exact format from photo
+            const now = new Date();
+            lastUpdate.textContent = `LAST | ${now.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+                timeZone: 'America/New_York'
+            })} EST`;
         }
     }
 }
