@@ -8,9 +8,6 @@ class NewsTicker {
         // Check if in development mode
         this.isDev = document.body.classList.contains('dev-mode');
         
-        // Update interval (30 minutes in dev, 5 minutes in prod)
-        this.updateInterval = this.isDev ? 1800000 : 300000;
-        
         // Initialize the ticker
         this.init();
         
@@ -57,17 +54,7 @@ class NewsTicker {
                 white-space: nowrap;
                 color: var(--text-color);
                 padding: 0 20px;
-                will-change: transform;
-            }
-
-            .news-content-wrapper {
-                display: flex;
-                align-items: center;
-            }
-
-            .news-content-base {
-                display: flex;
-                align-items: center;
+                animation: scroll-left 600s linear infinite;
             }
 
             .news-item {
@@ -109,16 +96,11 @@ class NewsTicker {
                 color: #dc2626;
             }
 
-            @keyframes ticker {
-                0% {
-                    transform: translate3d(100%, 0, 0);
-                }
-                100% {
-                    transform: translate3d(-100%, 0, 0);
-                }
+            @keyframes scroll-left {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(-45000px); }
             }
 
-            /* Pause animation on hover */
             .news-ticker:hover .news-ticker-content {
                 animation-play-state: paused;
             }
@@ -137,12 +119,16 @@ class NewsTicker {
                 color: var(--primary);
             }
 
+            .dark-mode .news-error {
+                background-color: var(--bg-dark);
+            }
+
             /* Mobile styles */
             @media (max-width: 768px) {
                 .news-ticker {
                     width: 100%;
                     left: 0;
-                    top: 60px; /* Account for mobile menu button */
+                    top: 60px;
                 }
 
                 /* Hide ticker when sidebar is open on mobile */
@@ -160,12 +146,6 @@ class NewsTicker {
             const response = await fetch('/api/news');
             const data = await response.json();
             
-            console.log('News API Response:', {
-                status: response.status,
-                ok: response.ok,
-                data: data
-            });
-            
             if (!response.ok || data.error) {
                 if (this.isDev) {
                     console.warn('Development mode: News API call skipped or failed');
@@ -180,80 +160,28 @@ class NewsTicker {
         }
     }
 
-    // Fisher-Yates shuffle algorithm
-    shuffleArray(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
-    }
-
     async updateNews() {
         try {
             console.log('Fetching news...');
             const result = await this.fetchNews();
             
-            if (result.error) {
-                console.error('Error from news API:', result.error);
-                this.showError(result.error);
-                return;
-            }
-            
-            if (!result.articles || !Array.isArray(result.articles) || result.articles.length === 0) {
-                console.warn('No articles returned from API');
-                this.showError('No news articles available');
+            if (result.error || !result.articles?.length) {
+                this.showError(result.error || 'No news available');
                 return;
             }
 
-            console.log(`Received ${result.articles.length} articles`);
-            
-            // Shuffle the articles array
-            const shuffledArticles = this.shuffleArray([...result.articles]);
-            
-            // Clear existing content
-            this.tickerContent.innerHTML = '';
-            
-            // Create a container for repeated content
-            const contentWrapper = document.createElement('div');
-            contentWrapper.className = 'news-content-wrapper';
-            
-            // Create the base content first
-            const baseContent = document.createElement('div');
-            baseContent.className = 'news-content-base';
-            
-            // Add each article to the base content
-            shuffledArticles.forEach(article => {
-                const newsItem = document.createElement('div');
-                newsItem.className = 'news-item';
-                
-                const link = document.createElement('a');
-                link.href = article.url;
-                link.target = '_blank';
-                link.rel = 'noopener noreferrer';
-                link.textContent = article.title;
-                
-                newsItem.appendChild(link);
-                baseContent.appendChild(newsItem);
-            });
+            // Create the base content
+            const baseContent = result.articles
+                .map(article => `
+                    <div class="news-item">
+                        <a href="${article.url}" target="_blank" rel="noopener noreferrer">
+                            ${article.title}
+                        </a>
+                    </div>
+                `).join('');
 
-            // Add the base content to wrapper 10 times
-            for (let i = 0; i < 10; i++) {
-                contentWrapper.appendChild(baseContent.cloneNode(true));
-            }
-            
-            // Add the wrapper to the ticker
-            this.tickerContent.appendChild(contentWrapper);
-
-            // Calculate animation duration based on total content width
-            const contentWidth = baseContent.scrollWidth * 10; // Multiply by 10 for repeated content
-            const viewportWidth = this.container.offsetWidth;
-            const pixelsPerSecond = 800;
-            const totalDistance = contentWidth + viewportWidth;
-            const duration = totalDistance / pixelsPerSecond;
-
-            // Apply the animation
-            this.tickerContent.style.animation = `ticker ${duration}s linear infinite`;
+            // Repeat the content multiple times to fill 10 minutes
+            this.tickerContent.innerHTML = baseContent.repeat(50);
             
             console.log('News ticker updated successfully');
         } catch (error) {
@@ -273,7 +201,7 @@ class NewsTicker {
 
     async init() {
         await this.updateNews();
-        setInterval(() => this.updateNews(), this.updateInterval);
+        setInterval(() => this.updateNews(), 300000); // Update every 5 minutes
     }
 
     handleSidebarToggle(event) {
