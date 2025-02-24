@@ -1292,31 +1292,25 @@ def api_usage():
 
 @app.route('/api/news')
 def get_news():
-    """API endpoint to get latest news headlines from The Guardian."""
     print("\n=== Starting /api/news endpoint ===")
     print(f"Session data: {session}")
     
     if 'user' not in session:
-        print("Error: No user in session")
+        print("No user in session, returning unauthorized")
         return jsonify({'error': 'Unauthorized'}), 401
 
-    print(f"Debug: Current user: {session['user']}")
-    print(f"Debug: Guardian API key:", guardian_api_key[:4] if guardian_api_key else None)
-    print(f"Debug: Environment GUARDIAN_API_KEY:", os.environ.get('GUARDIAN_API_KEY', 'Not found')[:4])
-
+    print(f"User authenticated: {session['user']}")
+    
+    # Check if Guardian API key is configured
+    guardian_api_key = os.environ.get('GUARDIAN_API_KEY')
+    print(f"Guardian API key loaded: {'Yes' if guardian_api_key else 'No'}")
+    
     if not guardian_api_key:
-        print("Error: Guardian API key not configured")
-        return jsonify({
-            'error': 'API key not configured',
-            'articles': []
-        })
+        print("Guardian API key not found in environment")
+        return jsonify({'error': 'Guardian API not configured'}), 500
 
     try:
-        # Check if in development mode
-        is_dev = os.environ.get('FLASK_ENV') == 'development'
-        print("Debug: Development mode:", is_dev)
-        
-        # Get user's preferred sections
+        # Get user's preferred news sections
         conn = get_db_connection()
         try:
             with conn.cursor() as cur:
@@ -1325,92 +1319,80 @@ def get_news():
                     (session['user'],)
                 )
                 result = cur.fetchone()
-                sections = result['news_categories'].split(',') if result and result['news_categories'] else ['news']
-                print("Debug: User sections:", sections)
+                user_sections = result['news_categories'].split(',') if result and result['news_categories'] else ['news']
+                print(f"User sections retrieved: {user_sections}")
         finally:
             conn.close()
 
+        # Initialize articles list
         all_articles = []
-        for section in sections:
-            # Try to get cached news for this section
-            cache_key = f'guardian_news_{section}'  # Fixed: Complete the cache key string
-            print(f"Debug: Checking cache for key: {cache_key}")
-            cached_news = cache.get(cache_key)
-            
-            if cached_news and cached_news.get('articles'):
-                print(f"Debug: Using cached news for section {section}")
-                print(f"Debug: Found {len(cached_news['articles'])} cached articles")
-                all_articles.extend(cached_news['articles'])
-                continue
-
-            print(f"Debug: Fetching fresh news for section {section}")
-            # Track API call before making the request
-            track_api_call('guardian', 'content', {'section': section})
-
-            # If no cached news, make API call
-            url = "https://content.guardianapis.com/search"
-            params = {
-                "api-key": guardian_api_key,
-                "section": section,
-                "show-fields": "headline,trailText,thumbnail",
-                "page-size": 10,
-                "order-by": "newest"
-            }
-
-            print("Debug: Making API request to:", url)
-            print("Debug: Request parameters:", {k: v[:4] if k == 'api-key' else v for k, v in params.items()})
-            response = requests.get(url, params=params, timeout=5)
-            print("Debug: API response status:", response.status_code)
-            response.raise_for_status()
-            news_data = response.json()
-            print("Debug: API response status from data:", news_data.get('response', {}).get('status'))
-
-            # Check if we have results
-            results = news_data.get('response', {}).get('results', [])
-            print(f"Debug: Found {len(results)} articles for section {section}")
-            
-            if results:
-                articles = []
-                for article in results:
-                    articles.append({
-                        'title': article.get('webTitle', ''),
-                        'url': article.get('webUrl', ''),
-                        'description': article.get('fields', {}).get('trailText', ''),
-                        'image': article.get('fields', {}).get('thumbnail', ''),
-                        'section': article.get('sectionName', ''),
-                        'published_at': article.get('webPublicationDate', '')
-                    })
-
-                # Cache the results - longer cache in development mode
-                cache_timeout = 1800 if is_dev else 300  # 30 mins in dev, 5 mins in prod
-                print(f"Debug: Caching {len(articles)} articles with timeout {cache_timeout}s")
-                cache.set(cache_key, {'articles': articles}, timeout=cache_timeout)
-                all_articles.extend(articles)
-
-        # Shuffle articles to mix sections
-        random.shuffle(all_articles)
-        print(f"Debug: Total articles collected: {len(all_articles)}")
-        final_articles = all_articles[:20]  # Limit to 20 articles total
-        print(f"Debug: Returning {len(final_articles)} articles")
         
-        return jsonify({
-            'articles': final_articles
-        })
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching news: {str(e)}")
-        app.logger.error(f"Error fetching news: {str(e)}")
-        return jsonify({
-            'error': 'Unable to fetch news at this time',
-            'articles': []
-        })
+        # Cache key for all sections
+        cache_key = f"news_articles_{','.join(sorted(user_sections))}"
+        print(f"Checking cache with key: {cache_key}")
+        
+        # Try to get cached articles
+        cached_articles = cache.get(cache_key)
+        if cached_articles:
+            print(f"Found {len(cached_articles)} cached articles")
+            return jsonify({'articles': cached_articles})
+        
+        print("No cached articles found, fetching from Guardian API")
+        
+        # Fetch articles for each section
+        for section in user_sections:
+            print(f"\nFetching articles for section: {section}")
+            
+            params = {
+                'api-key': guardian_api_key,
+                'section': section,
+                'show-fields': 'headline,shortUrl',
+                'page-size': 5,
+                'order-by': 'newest'
+            }
+            
+            url = 'https://content.guardianapis.com/search'
+            print(f"Making API request to: {url}")
+            print(f"With parameters: {params}")
+            
+            response = requests.get(url, params=params)
+            print(f"API response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"Response data: {data}")
+                
+                if 'response' in data and 'results' in data['response']:
+                    section_articles = data['response']['results']
+                    print(f"Found {len(section_articles)} articles in section {section}")
+                    
+                    for article in section_articles:
+                        all_articles.append({
+                            'title': article['fields']['headline'],
+                            'url': article['fields']['shortUrl']
+                        })
+                else:
+                    print(f"Unexpected response format for section {section}")
+            else:
+                print(f"Error response for section {section}: {response.text}")
+        
+        print(f"\nTotal articles collected: {len(all_articles)}")
+        
+        # Cache the articles
+        cache_timeout = 300 if app.debug else 600  # 5 minutes in dev, 10 in prod
+        cache.set(cache_key, all_articles, timeout=cache_timeout)
+        print(f"Articles cached with timeout: {cache_timeout} seconds")
+        
+        # Track API usage
+        track_api_call('guardian', 'news')
+        
+        return jsonify({'articles': all_articles})
+        
     except Exception as e:
-        print(f"Unexpected error in get_news: {str(e)}")
-        app.logger.error(f"Unexpected error in get_news: {str(e)}")
-        return jsonify({
-            'error': 'An unexpected error occurred. Please try again later.',
-            'articles': []
-        })
+        print(f"Error in get_news: {str(e)}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'Failed to fetch news'}), 500
 
 @app.route('/api/news/usage')
 def news_api_usage():
