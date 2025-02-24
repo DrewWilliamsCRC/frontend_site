@@ -9,9 +9,12 @@
     <div class="col-md-3">
       <a href="https://www.google.com/finance/quote/.DJI:INDEXDJX" class="index-link" target="_blank" rel="noopener noreferrer">
         <div class="index-card" data-index="DJI">
-          <div class="index-title">
-            <i class="fas fa-chart-line"></i>
-            <span>Dow Jones</span>
+          <div class="index-header">
+            <div class="index-title">
+              <i class="fas fa-chart-line"></i>
+              <span>DOW JONES</span>
+            </div>
+            <div class="trend-icon">▲</div>
           </div>
           <div class="index-data">
             <div class="loading-spinner">
@@ -19,15 +22,19 @@
               <span>Loading...</span>
             </div>
           </div>
+          <div class="last-update">LAST | 6:33:02 PM EST</div>
         </div>
       </a>
     </div>
     <div class="col-md-3">
       <a href="https://www.google.com/finance/quote/.INX:INDEXSP" class="index-link" target="_blank" rel="noopener noreferrer">
         <div class="index-card" data-index="SPX">
-          <div class="index-title">
-            <i class="fas fa-chart-line"></i>
-            <span>S&P 500</span>
+          <div class="index-header">
+            <div class="index-title">
+              <i class="fas fa-chart-line"></i>
+              <span>S&P 500</span>
+            </div>
+            <div class="trend-icon">▲</div>
           </div>
           <div class="index-data">
             <div class="loading-spinner">
@@ -35,15 +42,19 @@
               <span>Loading...</span>
             </div>
           </div>
+          <div class="last-update">LAST | 6:33:02 PM EST</div>
         </div>
       </a>
     </div>
     <div class="col-md-3">
       <a href="https://www.google.com/finance/quote/.IXIC:INDEXNASDAQ" class="index-link" target="_blank" rel="noopener noreferrer">
         <div class="index-card" data-index="IXIC">
-          <div class="index-title">
-            <i class="fas fa-chart-line"></i>
-            <span>NASDAQ</span>
+          <div class="index-header">
+            <div class="index-title">
+              <i class="fas fa-chart-line"></i>
+              <span>NASDAQ</span>
+            </div>
+            <div class="trend-icon">▲</div>
           </div>
           <div class="index-data">
             <div class="loading-spinner">
@@ -51,15 +62,19 @@
               <span>Loading...</span>
             </div>
           </div>
+          <div class="last-update">LAST | 6:33:02 PM EST</div>
         </div>
       </a>
     </div>
     <div class="col-md-3">
       <a href="https://www.google.com/finance/quote/VIXY:NYSEARCA" class="index-link" target="_blank" rel="noopener noreferrer">
         <div class="index-card" data-index="VIXY">
-          <div class="index-title">
-            <i class="fas fa-chart-bar"></i>
-            <span>VIX</span>
+          <div class="index-header">
+            <div class="index-title">
+              <i class="fas fa-chart-bar"></i>
+              <span>VIX</span>
+            </div>
+            <div class="trend-icon">▲</div>
           </div>
           <div class="index-data">
             <div class="loading-spinner">
@@ -67,6 +82,7 @@
               <span>Loading...</span>
             </div>
           </div>
+          <div class="last-update">LAST | 6:33:02 PM EST</div>
         </div>
       </a>
     </div>
@@ -222,129 +238,148 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <style>
 /* Market Indices Styles */
-.market-indices .index-card {
-    background: var(--bg-color);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    transition: all 0.3s ease;
+.market-indices {
+    margin-bottom: 0.75rem;
 }
 
-.market-indices .index-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+.market-indices .row {
+    margin: 0 -0.2rem;
+}
+
+.market-indices .col-md-3 {
+    padding: 0 0.2rem;
+}
+
+.market-indices .index-card {
+    border: none;
+    border-radius: 3px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.4rem;
+    transition: all 0.3s ease;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 90px;
+    position: relative;
+}
+
+.market-indices .index-card.positive {
+    background: #00843D;  /* Green background for positive */
+}
+
+.market-indices .index-card.negative {
+    background: #DC2626;  /* Red background for negative */
+}
+
+.market-indices .index-card.positive:hover {
+    box-shadow: 0 4px 12px rgba(0, 132, 61, 0.2);  /* Green shadow */
+}
+
+.market-indices .index-card.negative:hover {
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);  /* Red shadow */
+}
+
+.market-indices .index-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+}
+
+.market-indices .trend-icon {
+    color: white;
+    font-size: 0.65rem;
+    line-height: 1;
+    margin-left: 0.15rem;
 }
 
 .market-indices .index-title {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    color: var(--text-color);
+    gap: 0.25rem;
+    color: white;
     font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.75px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    text-decoration: none;
+}
+
+.market-indices .index-title i {
+    font-size: 0.75rem;
+    color: white;
 }
 
 .market-indices .index-data {
-    text-align: center;
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
 }
 
 .market-indices .price {
-    font-size: 1.125rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    color: var(--text-color);
-    margin-bottom: 0.5rem;
+    color: white;
+    line-height: 1;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .market-indices .change {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 0.25rem;
+    justify-content: flex-end;
+    gap: 0.2rem;
     font-weight: 500;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.9rem;
+    color: white;
+    font-size: 0.75rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-.market-indices .change.positive {
-    color: #22c55e;
-}
-
-.market-indices .change.negative {
-    color: #ef4444;
+.market-indices .change i {
+    display: none;  /* Hide the icon in the change value since we show it next to title */
 }
 
 .market-indices .loading-spinner {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
-    color: var(--text-color);
-    opacity: 0.7;
+    justify-content: center;
+    gap: 0.25rem;
+    color: white;
+    opacity: 0.9;
+    font-size: 0.75rem;
+    height: 100%;
+    width: 100%;
 }
 
-.market-indices .error-message {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    color: #ef4444;
-    font-size: 0.9rem;
+/* Last updated text style */
+.market-indices .last-update {
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 0.5px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin-top: auto;
+    padding-top: 0;
+    line-height: 1;
 }
 
-.market-indices .retry-button {
-    margin-top: 0.5rem;
-    padding: 0.25rem 0.75rem;
-    background-color: rgba(239, 68, 68, 0.1);
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
+/* Remove hover effect color changes since we want to keep the colored backgrounds */
+.dark-mode .market-indices .index-card.positive {
+    background: #00843D;
 }
 
-.market-indices .retry-button:hover {
-    background-color: rgba(239, 68, 68, 0.2);
-}
-
-.market-indices .update-info {
-    font-size: 0.8rem;
-    opacity: 0.8;
-    color: var(--text-color);
-}
-
-.dark-mode .market-indices .index-card {
-    background: var(--bg-color);
-}
-
-.dark-mode .market-indices .index-title,
-.dark-mode .market-indices .price {
-    color: #fff;
-}
-
-.dark-mode .market-indices .retry-button {
-    background-color: rgba(239, 68, 68, 0.2);
-}
-
-.dark-mode .market-indices .retry-button:hover {
-    background-color: rgba(239, 68, 68, 0.3);
-}
-
-.index-link {
-    text-decoration: none;
-    color: inherit;
-    display: block;
+.dark-mode .market-indices .index-card.negative {
+    background: #DC2626;
 }
 
 .index-link:hover .index-card {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.index-card {
-    transition: all 0.3s ease;
-}
-
-.dark-mode .index-link:hover .index-card {
-    box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
 }
 
 .market-indices .description {
@@ -357,6 +392,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .dark-mode .market-indices .description {
     color: rgba(255, 255, 255, 0.5);
+}
+
+/* Add styles to remove underline from the link */
+.market-indices .index-link {
+    text-decoration: none;
+}
+
+.market-indices .index-link:hover {
+    text-decoration: none;
 }
 </style>
 {% endblock %}
