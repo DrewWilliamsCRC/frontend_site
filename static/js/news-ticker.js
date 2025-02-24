@@ -5,8 +5,11 @@ class NewsTicker {
         this.tickerContent.className = 'news-ticker-content';
         this.container.appendChild(this.tickerContent);
         
-        // Update interval (5 minutes = 300000 ms)
-        this.updateInterval = 300000;
+        // Check if in development mode
+        this.isDev = document.body.classList.contains('dev-mode');
+        
+        // Update interval (30 minutes in dev, 5 minutes in prod)
+        this.updateInterval = this.isDev ? 1800000 : 300000;
         
         // Initialize the ticker
         this.init();
@@ -117,6 +120,9 @@ class NewsTicker {
             });
             
             if (!response.ok || data.error) {
+                if (this.isDev) {
+                    console.warn('Development mode: News API call skipped or failed');
+                }
                 return { error: data.error || 'Failed to fetch news' };
             }
             
@@ -140,7 +146,9 @@ class NewsTicker {
                 console.log('Error type:', response.error);
                 let errorMessage;
                 if (response.error === 'Daily API limit reached') {
-                    errorMessage = 'News updates paused - Daily API limit reached. Updates will resume tomorrow.';
+                    errorMessage = this.isDev ? 
+                        'Development mode: News updates paused to preserve API quota' :
+                        'News updates paused - Daily API limit reached. Updates will resume tomorrow.';
                 } else if (response.error === 'API key invalid or expired' || response.error === 'API key not configured') {
                     errorMessage = 'News updates unavailable - Please check API configuration.';
                 } else {
