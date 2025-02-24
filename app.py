@@ -1463,6 +1463,364 @@ def health_check():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+@app.route('/stock-tracker')
+def stock_tracker():
+    """Stock Tracker page showing various market lists and stock data."""
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    try:
+        # Get top gainers/losers data
+        url = "https://www.alphavantage.co/query"
+        params = {
+            "function": "TOP_GAINERS_LOSERS",
+            "apikey": ALPHA_VANTAGE_API_KEY
+        }
+
+        # Track API call
+        track_api_call('alpha_vantage', 'top_gainers_losers')
+
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        # Check for API limit messages
+        if "Note" in data:
+            flash("API rate limit reached. Please try again later.", "warning")
+            return render_template('stock_tracker.html', lists={}, selected_list='top_gainers')
+
+        # Process and format the data
+        processed_data = {}
+        for list_type in ['top_gainers', 'top_losers', 'most_actively_traded']:
+            if list_type in data:
+                processed_data[list_type] = []
+                for stock in data[list_type]:
+                    try:
+                        processed_stock = {
+                            'ticker': stock.get('ticker', ''),
+                            'name': stock.get('name', ''),
+                            'price': float(stock.get('price', '0.0')),
+                            'change_amount': float(stock.get('change_amount', '0.0')),
+                            'change_percentage': float(stock.get('change_percentage', '0.0').rstrip('%')),
+                            'volume': int(stock.get('volume', '0'))
+                        }
+                        processed_data[list_type].append(processed_stock)
+                    except (ValueError, TypeError) as e:
+                        app.logger.error(f"Error processing stock data: {e}")
+                        continue
+
+        selected_list = request.args.get('list', 'top_gainers')
+        
+        return render_template('stock_tracker.html', 
+                             lists=processed_data,
+                             selected_list=selected_list)
+
+    except Exception as e:
+        app.logger.error(f"Error fetching stock data: {str(e)}")
+        flash("Error fetching stock data. Please try again later.", "danger")
+        return render_template('stock_tracker.html', lists={}, selected_list='top_gainers')
+
+@app.route('/api/market-data/<endpoint>/<option>')
+def get_market_data(endpoint, option):
+    """API endpoint to get various market data based on the endpoint and option selected."""
+    if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    if not ALPHA_VANTAGE_API_KEY:
+        return jsonify({
+            'error': 'API key not configured',
+            'data': []
+        })
+
+    try:
+        url = "https://www.alphavantage.co/query"
+        app.logger.debug(f"Processing request for endpoint: {endpoint}, option: {option}")
+        
+        # Track API call with detailed information
+        track_details = {
+            'endpoint': endpoint,
+            'option': option,
+            'user': session['user']
+        }
+
+        # Configure request based on endpoint
+        params = {
+            "apikey": ALPHA_VANTAGE_API_KEY
+        }
+
+        if endpoint == 'TOP_GAINERS_LOSERS':
+            params["function"] = "TOP_GAINERS_LOSERS"
+            track_api_call('alpha_vantage', 'top_gainers_losers', track_details)
+            
+        elif endpoint == 'SECTOR':
+            params["function"] = "SECTOR"
+            app.logger.debug("Making SECTOR request with params: %s", params)
+            track_api_call('alpha_vantage', 'sector_performance', track_details)
+            
+        elif endpoint == 'MARKET_STATUS':
+            params["function"] = "MARKET_STATUS"
+            track_api_call('alpha_vantage', 'market_status', track_details)
+            
+        elif endpoint == 'IPO_CALENDAR':
+            params["function"] = "IPO_CALENDAR"
+            track_api_call('alpha_vantage', 'ipo_calendar', track_details)
+            
+        elif endpoint == 'EARNINGS_CALENDAR':
+            params["function"] = "EARNINGS_CALENDAR"
+            track_api_call('alpha_vantage', 'earnings_calendar', track_details)
+            
+        elif endpoint == 'CRYPTO_INTRADAY':
+            params.update({
+                "function": "CRYPTO_INTRADAY",
+                "symbol": option,
+                "market": "USD",
+                "interval": "5min"
+            })
+            track_details['crypto_symbol'] = option
+            track_api_call('alpha_vantage', 'crypto_intraday', track_details)
+            
+        else:
+            return jsonify({
+                'error': 'Invalid endpoint specified',
+                'data': []
+            })
+
+        app.logger.debug(f"Making API request to: {url}")
+        app.logger.debug(f"With parameters: {params}")
+        
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        
+        app.logger.debug(f"Response status code: {response.status_code}")
+        app.logger.debug(f"Response content type: {response.headers.get('content-type', 'unknown')}")
+        
+        # For SECTOR endpoint, log the raw response
+        if endpoint == 'SECTOR':
+            app.logger.debug(f"SECTOR raw response: {response.text[:1000]}...")  # First 1000 chars
+
+        # Add the request option to the response object for use in process_response
+        response.request_option = option
+        
+        # Process response based on endpoint type
+        if endpoint in ['IPO_CALENDAR', 'EARNINGS_CALENDAR']:
+            result = process_response(response, endpoint)
+        else:
+            # Check for rate limit messages in JSON response
+            try:
+                data = response.json()
+                if "Note" in data:
+                    error_msg = data.get("Note", "Rate limit reached")
+                    app.logger.debug(f"Rate limit hit: {error_msg}")
+                    track_details['error'] = error_msg
+                    track_api_call('alpha_vantage', f'{endpoint.lower()}_rate_limit', track_details)
+                    return jsonify({
+                        'error': 'API rate limit reached - Please try again later',
+                        'data': []
+                    })
+            except ValueError as e:
+                app.logger.error(f"JSON parsing error: {str(e)}")
+                app.logger.error(f"Response content: {response.text[:500]}...")
+                return jsonify({
+                    'error': 'Invalid response format from API',
+                    'data': []
+                })
+                
+            result = process_response(response, endpoint)
+            
+        return jsonify(result)
+
+    except requests.exceptions.RequestException as e:
+        error_msg = str(e)
+        app.logger.error(f"Request error: {error_msg}")
+        track_details['error'] = error_msg
+        track_api_call('alpha_vantage', f'{endpoint.lower()}_request_error', track_details)
+        return jsonify({
+            'error': 'Failed to fetch market data',
+            'data': []
+        })
+    except Exception as e:
+        error_msg = str(e)
+        app.logger.error(f"Unexpected error: {error_msg}")
+        track_details['error'] = error_msg
+        track_api_call('alpha_vantage', f'{endpoint.lower()}_error', track_details)
+        return jsonify({
+            'error': 'An unexpected error occurred',
+            'data': []
+        })
+
+@cache.memoize(timeout=300)  # Cache for 5 minutes
+def fetch_sector_data():
+    """Fetch and cache sector performance data."""
+    url = "https://www.alphavantage.co/query"
+    params = {
+        "function": "SECTOR",
+        "apikey": ALPHA_VANTAGE_API_KEY
+    }
+    
+    try:
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        app.logger.error(f"Error fetching sector data: {str(e)}")
+        return None
+
+def process_response(response, endpoint):
+    app.logger.debug(f"Processing {endpoint} response")
+    app.logger.debug(f"Response content type: {response.headers.get('Content-Type', 'unknown')}")
+    
+    try:
+        if endpoint in ['IPO_CALENDAR', 'EARNINGS_CALENDAR']:
+            raw_text = response.text.strip()
+            app.logger.debug(f"Raw response text (first 100 chars): {raw_text[:100]}...")
+            
+            if not raw_text:
+                return {
+                    'error': f'No {endpoint.lower().replace("_", " ")} data available',
+                    'details': 'The API returned an empty response'
+                }
+            
+            if raw_text.count('\n') <= 1:
+                return {
+                    'error': f'No {endpoint.lower().replace("_", " ")} data available at this time',
+                    'details': 'No records found in the current time period'
+                }
+            
+            lines = raw_text.split('\n')
+            headers = lines[0].split(',')
+            data = []
+            
+            for line in lines[1:]:
+                if line.strip():  # Skip empty lines
+                    values = line.split(',')
+                    item = dict(zip(headers, values))
+                    data.append(item)
+            
+            app.logger.debug(f"Processed {len(data)} records")
+            return {'data': data}
+            
+        else:  # JSON response
+            json_data = response.json()
+            app.logger.debug(f"JSON response keys: {list(json_data.keys())}")
+            
+            if not json_data:
+                return {
+                    'error': f'No {endpoint.lower().replace("_", " ")} data available',
+                    'details': 'The API returned an empty response'
+                }
+            
+            if endpoint == 'TOP_GAINERS_LOSERS':
+                if response.request_option in json_data:
+                    return {'data': json_data[response.request_option]}
+                return {
+                    'error': 'No data available for the selected option',
+                    'details': f'No data found for {response.request_option}'
+                }
+                
+            elif endpoint == 'SECTOR':
+                # Try to get cached data first
+                cached_data = fetch_sector_data()
+                if cached_data:
+                    json_data = cached_data
+                
+                # Debug log the entire response for SECTOR endpoint
+                app.logger.debug(f"Full SECTOR response: {json_data}")
+                
+                if not json_data:
+                    return {
+                        'error': 'No sector performance data available',
+                        'details': 'The sector performance API is currently unavailable'
+                    }
+                
+                time_period_map = {
+                    'real_time': 'Rank A: Real-Time Performance',
+                    '1day': 'Rank B: 1 Day Performance',
+                    '5day': 'Rank C: 5 Day Performance',
+                    '1month': 'Rank D: 1 Month Performance',
+                    '3month': 'Rank E: 3 Month Performance',
+                    'ytd': 'Rank F: Year-to-Date (YTD) Performance',
+                    '1year': 'Rank G: 1 Year Performance',
+                    '3year': 'Rank H: 3 Year Performance',
+                    '5year': 'Rank I: 5 Year Performance',
+                    '10year': 'Rank J: 10 Year Performance'
+                }
+                
+                period_key = time_period_map.get(response.request_option)
+                app.logger.debug(f"Looking for sector data with key: {period_key}")
+                app.logger.debug(f"Available keys in response: {list(json_data.keys())}")
+                
+                if not period_key:
+                    return {
+                        'error': 'Invalid time period selected',
+                        'details': f'The time period "{response.request_option}" is not supported'
+                    }
+                
+                if period_key not in json_data:
+                    return {
+                        'error': 'No sector performance data available for the selected time period',
+                        'details': f'No data found for period: {response.request_option}'
+                    }
+                
+                sector_data = []
+                for sector, performance in json_data[period_key].items():
+                    try:
+                        # Remove any '%' symbol and convert to float
+                        perf_value = float(performance.rstrip('%') if isinstance(performance, str) else performance)
+                        sector_data.append({
+                            'sector': sector,
+                            'performance': perf_value
+                        })
+                    except (ValueError, AttributeError) as e:
+                        app.logger.error(f"Error processing sector {sector} data: {e}")
+                        continue
+                
+                if sector_data:
+                    app.logger.debug(f"Processed {len(sector_data)} sectors")
+                    return {'data': sector_data}
+                else:
+                    return {
+                        'error': 'No valid sector performance data available',
+                        'details': 'Could not process any sector performance values'
+                    }
+                
+            elif endpoint == 'MARKET_STATUS':
+                if 'markets' in json_data:
+                    return {'data': json_data['markets']}
+                return {
+                    'error': 'No market status data available',
+                    'details': 'The market status data is not available in the API response'
+                }
+                
+            elif endpoint == 'CRYPTO_INTRADAY':
+                if 'Time Series Crypto (5min)' in json_data:
+                    time_series = json_data['Time Series Crypto (5min)']
+                    formatted_data = [
+                        {
+                            'timestamp': timestamp,
+                            'price': float(values['1. open']),
+                            'volume': float(values['5. volume'])
+                        }
+                        for timestamp, values in list(time_series.items())[:12]  # Last hour of data
+                    ]
+                    return {'data': formatted_data}
+                return {
+                    'error': 'No cryptocurrency data available',
+                    'details': 'No recent trading data found for the selected cryptocurrency'
+                }
+            
+            return {
+                'error': 'Unsupported endpoint type',
+                'details': f'The endpoint "{endpoint}" is not properly configured'
+            }
+            
+    except Exception as e:
+        app.logger.error(f"Error processing {endpoint} response: {str(e)}")
+        app.logger.error(f"Response content: {response.text[:500]}...")  # Log first 500 chars of response
+        return {
+            'error': f'Error processing {endpoint.lower().replace("_", " ")} data',
+            'details': f'An error occurred while processing the data: {str(e)}'
+        }
+
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.
     # Set FLASK_DEBUG=1 (or "true"/"on") in your development environment.

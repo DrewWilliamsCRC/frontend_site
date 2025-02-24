@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Tracker{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="fas fa-chart-line"></i> Stock Tracker</h2>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <select id="endpointSelector" class="form-select" aria-label="Select market data endpoint">
+                        <option value="">Select Endpoint</option>
+                        <option value="DOW_COMPANIES">DOW Companies</option>
+                        <option value="TOP_GAINERS_LOSERS">Top Gainers & Losers</option>
+                        <option value="SECTOR">Sector Performance</option>
+                        <option value="MARKET_STATUS">Market Status</option>
+                        <option value="IPO_CALENDAR">IPO Calendar</option>
+                        <option value="EARNINGS_CALENDAR">Earnings Calendar</option>
+                        <option value="CRYPTO_INTRADAY">Crypto Intraday</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <select id="optionsSelector" class="form-select" aria-label="Select data view option" disabled>
+                        <option value="">Select Option</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="loadingSpinner" class="text-center d-none">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            
+            <div id="errorMessage" class="alert alert-danger d-none" role="alert"></div>
+            
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead id="tableHeader"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: var(--bg-color);
+}
+
+.dark-mode .card {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.card-header {
+    background-color: var(--bg-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+}
+
+.card-header h2 {
+    color: var(--text-color);
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.card-header h2 i {
+    color: var(--text-color);
+    opacity: 0.9;
+}
+
+.dark-mode .card-header {
+    background-color: var(--bg-color);
+}
+
+.dark-mode .card-header h2 {
+    color: #fff;
+}
+
+.dark-mode .card-header h2 i {
+    color: #fff;
+}
+
+.card-body {
+    background-color: var(--bg-color);
+}
+
+.dark-mode .card-body {
+    background-color: var(--bg-secondary);
+}
+
+.form-select {
+    min-width: 200px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.form-select:disabled {
+    background-color: var(--bg-secondary);
+    opacity: 0.7;
+}
+
+.dark-mode .form-select {
+    background-color: var(--bg-color);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.25);
+}
+
+.table {
+    margin-bottom: 0;
+    color: var(--text-color);
+}
+
+.table th {
+    border-top: none;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    border-bottom-color: var(--border-color);
+}
+
+.table td {
+    vertical-align: middle;
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+.dark-mode .table {
+    color: var(--text-color);
+}
+
+.dark-mode .table td,
+.dark-mode .table th {
+    border-color: var(--border-color);
+}
+
+.dark-mode .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.text-success {
+    color: #10B981 !important;
+}
+
+.text-danger {
+    color: #EF4444 !important;
+}
+
+.dark-mode .text-success {
+    color: #34D399 !important;
+}
+
+.dark-mode .text-danger {
+    color: #F87171 !important;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.dark-mode .text-muted {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.gap-2 {
+    gap: 0.5rem !important;
+}
+
+/* Loading spinner styles */
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Fix for dark mode dropdown */
+.dark-mode .form-select option {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+/* Improve table responsiveness in dark mode */
+.dark-mode .table-responsive {
+    border-color: var(--border-color);
+}
+
+/* Add subtle hover effect for table rows */
+.table-hover tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dark-mode .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+</style>
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/stock-tracker.js') }}"></script>
+{% endblock %}
+{% endblock %} 
