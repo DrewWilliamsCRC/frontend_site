@@ -1,0 +1,671 @@
+{% extends "base.html" %}
+
+{% block title %}Alpha Vantage API Browser{% endblock %}
+
+{% block styles %}
+<style>
+    :root {
+        /* Light mode variables */
+        --card-bg: #fff;
+        --card-border: #ddd;
+        --card-shadow: rgba(0,0,0,0.1);
+        --card-shadow-hover: rgba(0,0,0,0.15);
+        --text-primary: #2c3e50;
+        --text-secondary: #666;
+        --form-bg: #f8f9fa;
+        --form-border: #ced4da;
+        --tab-bg: #f8f9fa;
+        --tab-border: #ddd;
+        --tab-active-bg: #007bff;
+        --tab-active-color: white;
+        --response-bg: #f8f9fa;
+        --code-color: #333;
+    }
+
+    [data-theme="dark"] {
+        /* Dark mode variables */
+        --card-bg: #2c3e50;
+        --card-border: #34495e;
+        --card-shadow: rgba(0,0,0,0.3);
+        --card-shadow-hover: rgba(0,0,0,0.4);
+        --text-primary: #ecf0f1;
+        --text-secondary: #bdc3c7;
+        --form-bg: #34495e;
+        --form-border: #465c71;
+        --tab-bg: #34495e;
+        --tab-border: #465c71;
+        --tab-active-bg: #3498db;
+        --tab-active-color: white;
+        --response-bg: #34495e;
+        --code-color: #ecf0f1;
+    }
+    
+    .api-browser {
+        padding: 20px;
+    }
+    
+    .category-section {
+        margin-bottom: 30px;
+    }
+    
+    .function-card {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 4px var(--card-shadow);
+        transition: all 0.3s ease;
+    }
+    
+    .function-card:hover {
+        box-shadow: 0 4px 8px var(--card-shadow-hover);
+        transform: translateY(-2px);
+    }
+    
+    .function-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .function-name {
+        font-weight: bold;
+        color: var(--text-primary);
+    }
+    
+    .function-description {
+        color: var(--text-secondary);
+        margin-bottom: 15px;
+    }
+    
+    .params-form {
+        display: none;
+        background: var(--form-bg);
+        padding: 15px;
+        border-radius: 6px;
+        margin-top: 10px;
+        border: 1px solid var(--form-border);
+    }
+    
+    .param-group {
+        margin-bottom: 10px;
+    }
+    
+    .param-label {
+        display: block;
+        margin-bottom: 5px;
+        color: var(--text-primary);
+    }
+    
+    .param-input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid var(--form-border);
+        border-radius: 4px;
+        background: var(--card-bg);
+        color: var(--text-primary);
+    }
+
+    .param-input:focus {
+        outline: none;
+        border-color: var(--tab-active-bg);
+        box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+    }
+    
+    .response-section {
+        margin-top: 15px;
+    }
+    
+    .response-data {
+        background: var(--response-bg);
+        padding: 15px;
+        border-radius: 6px;
+        white-space: pre-wrap;
+        font-family: monospace;
+        max-height: 400px;
+        overflow-y: auto;
+        color: var(--code-color);
+        border: 1px solid var(--form-border);
+    }
+    
+    .error-message {
+        color: #dc3545;
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 4px;
+        background: rgba(220, 53, 69, 0.1);
+    }
+    
+    .success-message {
+        color: #28a745;
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 4px;
+        background: rgba(40, 167, 69, 0.1);
+    }
+    
+    .category-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        overflow-x: auto;
+        padding-bottom: 10px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--tab-active-bg) var(--form-bg);
+    }
+
+    .category-tabs::-webkit-scrollbar {
+        height: 6px;
+    }
+
+    .category-tabs::-webkit-scrollbar-track {
+        background: var(--form-bg);
+        border-radius: 3px;
+    }
+
+    .category-tabs::-webkit-scrollbar-thumb {
+        background: var(--tab-active-bg);
+        border-radius: 3px;
+    }
+    
+    .category-tab {
+        padding: 8px 16px;
+        background: var(--tab-bg);
+        border: 1px solid var(--tab-border);
+        border-radius: 20px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.3s ease;
+        color: var(--text-primary);
+    }
+
+    .category-tab:hover {
+        background: var(--tab-active-bg);
+        color: var(--tab-active-color);
+        border-color: var(--tab-active-bg);
+    }
+    
+    .category-tab.active {
+        background: var(--tab-active-bg);
+        color: var(--tab-active-color);
+        border-color: var(--tab-active-bg);
+    }
+    
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        margin: 20px 0;
+        color: var(--text-primary);
+    }
+    
+    .loading-spinner i {
+        animation: spin 1s linear infinite;
+    }
+
+    /* Custom button styles */
+    .btn-primary {
+        background: var(--tab-active-bg);
+        border-color: var(--tab-active-bg);
+        color: var(--tab-active-color);
+    }
+
+    .btn-primary:hover {
+        background: #0056b3;
+        border-color: #0056b3;
+    }
+
+    .btn-success {
+        background: #28a745;
+        border-color: #28a745;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #218838;
+        border-color: #1e7e34;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Alert styles */
+    .alert-danger {
+        background: rgba(220, 53, 69, 0.1);
+        border: 1px solid rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+    }
+
+    [data-theme="dark"] .alert-danger {
+        background: rgba(220, 53, 69, 0.2);
+        border-color: rgba(220, 53, 69, 0.3);
+        color: #ff6b6b;
+    }
+
+    .search-box {
+        position: relative;
+    }
+
+    .search-box input {
+        padding-left: 35px;
+        background: var(--form-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--form-border);
+    }
+
+    .search-box::before {
+        content: '\f002';
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-secondary);
+    }
+
+    .button-group {
+        display: flex;
+        gap: 8px;
+    }
+
+    .param-help-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .param-help-item {
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--form-border);
+    }
+
+    .param-help-item:last-child {
+        border-bottom: none;
+    }
+
+    /* Modal styles for dark mode */
+    [data-theme="dark"] .modal-content {
+        background: var(--card-bg);
+        color: var(--text-primary);
+    }
+
+    [data-theme="dark"] .modal-header {
+        border-bottom-color: var(--form-border);
+    }
+
+    [data-theme="dark"] .modal-footer {
+        border-top-color: var(--form-border);
+    }
+
+    [data-theme="dark"] .btn-close {
+        filter: invert(1) grayscale(100%) brightness(200%);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container api-browser">
+    <h1 class="mb-4">Alpha Vantage API Browser</h1>
+    
+    <div class="search-box mb-3">
+        <input type="text" id="searchInput" class="form-control" placeholder="Search for API endpoints...">
+    </div>
+    
+    <div class="category-tabs" id="categoryTabs">
+        <!-- Categories will be populated by JavaScript -->
+    </div>
+    
+    <div id="functionsList">
+        <!-- API functions will be populated by JavaScript -->
+    </div>
+    
+    <div class="loading-spinner">
+        <i class="fas fa-spinner fa-2x"></i>
+    </div>
+</div>
+
+<!-- Parameter Help Modal -->
+<div class="modal fade" id="paramHelpModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Parameter Help</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Content will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let apiFunctions = null;
+let currentCategory = null;
+
+// Parameter hints and defaults
+const PARAM_HINTS = {
+    'symbol': 'Stock symbol (e.g., IBM, AAPL)',
+    'interval': 'Time interval between data points (1min, 5min, 15min, 30min, 60min, daily, weekly, monthly)',
+    'adjusted': 'Whether to return adjusted data (true/false)',
+    'extended_hours': 'Include extended hours data (true/false)',
+    'outputsize': 'Amount of data to return (compact/full)',
+    'series_type': 'Price type (close, open, high, low)',
+    'time_period': 'Number of data points used in calculations',
+    'from_symbol': 'Source currency symbol (e.g., USD)',
+    'to_symbol': 'Target currency symbol (e.g., EUR)',
+    'from_currency': 'Source currency code (e.g., USD)',
+    'to_currency': 'Target currency code (e.g., EUR)',
+    'market': 'Market for crypto (e.g., USD, EUR)',
+    'maturity': 'Treasury maturity (3month, 2year, 5year, 7year, 10year, 30year)',
+    'date': 'Date in YYYY-MM-DD format',
+    'strike': 'Option strike price',
+    'option_type': 'Option type (CALL/PUT)',
+    'tickers': 'Comma-separated list of stock symbols',
+    'topics': 'Comma-separated list of topics',
+    'time_from': 'Start time (YYYYMMDDTHHMM)',
+    'time_to': 'End time (YYYYMMDDTHHMM)',
+    'sort': 'Sort order (LATEST, EARLIEST, RELEVANCE)',
+    'limit': 'Number of results to return',
+    'horizon': 'Time horizon (3month, 6month, 12month)',
+    'fastperiod': 'Fast period for MACD (default: 12)',
+    'slowperiod': 'Slow period for MACD (default: 26)',
+    'signalperiod': 'Signal period for MACD (default: 9)',
+    'fastkperiod': 'Fast K period for Stochastic (default: 5)',
+    'slowkperiod': 'Slow K period for Stochastic (default: 3)',
+    'slowdperiod': 'Slow D period for Stochastic (default: 3)',
+    'nbdevup': 'Standard deviations above the mean (default: 2)',
+    'nbdevdn': 'Standard deviations below the mean (default: 2)',
+    'fastlimit': 'Fast limit for MAMA (default: 0.5)',
+    'slowlimit': 'Slow limit for MAMA (default: 0.05)'
+};
+
+const DEFAULT_VALUES = {
+    'interval': '5min',
+    'adjusted': 'true',
+    'extended_hours': 'true',
+    'outputsize': 'compact',
+    'series_type': 'close',
+    'time_period': '14',
+    'market': 'USD',
+    'sort': 'LATEST',
+    'limit': '50',
+    'horizon': '3month',
+    'fastperiod': '12',
+    'slowperiod': '26',
+    'signalperiod': '9',
+    'fastkperiod': '5',
+    'slowkperiod': '3',
+    'slowdperiod': '3',
+    'nbdevup': '2',
+    'nbdevdn': '2',
+    'fastlimit': '0.5',
+    'slowlimit': '0.05'
+};
+
+// Fetch API functions when the page loads
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const response = await fetch('/alpha_vantage/api/functions');
+        apiFunctions = await response.json();
+        
+        // Create category tabs
+        createCategoryTabs();
+        
+        // Show the first category by default
+        const firstCategory = Object.keys(apiFunctions)[0];
+        showCategory(firstCategory);
+
+        // Setup search functionality
+        setupSearch();
+    } catch (error) {
+        console.error('Error fetching API functions:', error);
+        showError('Failed to load API functions. Please try again later.');
+    }
+});
+
+function setupSearch() {
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        
+        if (!searchTerm) {
+            // If search is empty, show current category
+            showCategory(currentCategory);
+            return;
+        }
+
+        // Search across all categories
+        const functionsList = document.getElementById('functionsList');
+        functionsList.innerHTML = '';
+        
+        Object.entries(apiFunctions).forEach(([category, functions]) => {
+            Object.entries(functions).forEach(([functionName, details]) => {
+                if (functionName.toLowerCase().includes(searchTerm) || 
+                    details.description.toLowerCase().includes(searchTerm)) {
+                    const card = createFunctionCard(functionName, details, category);
+                    functionsList.appendChild(card);
+                }
+            });
+        });
+    });
+}
+
+function createCategoryTabs() {
+    const tabsContainer = document.getElementById('categoryTabs');
+    Object.keys(apiFunctions).forEach(category => {
+        const tab = document.createElement('div');
+        tab.className = 'category-tab';
+        tab.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+        tab.onclick = () => {
+            showCategory(category);
+            document.getElementById('searchInput').value = '';
+        };
+        tabsContainer.appendChild(tab);
+    });
+}
+
+function showCategory(category) {
+    currentCategory = category;
+    
+    // Update active tab
+    document.querySelectorAll('.category-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.textContent.toLowerCase() === category);
+    });
+    
+    // Clear and populate functions list
+    const functionsList = document.getElementById('functionsList');
+    functionsList.innerHTML = '';
+    
+    Object.entries(apiFunctions[category]).forEach(([functionName, details]) => {
+        const card = createFunctionCard(functionName, details, category);
+        functionsList.appendChild(card);
+    });
+}
+
+function createFunctionCard(functionName, details, category) {
+    const card = document.createElement('div');
+    card.className = 'function-card';
+    
+    const header = document.createElement('div');
+    header.className = 'function-header';
+    
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'function-name';
+    nameSpan.textContent = functionName;
+    
+    const buttonGroup = document.createElement('div');
+    buttonGroup.className = 'button-group';
+    
+    const helpButton = document.createElement('button');
+    helpButton.className = 'btn btn-info btn-sm me-2';
+    helpButton.innerHTML = '<i class="fas fa-question-circle" aria-hidden="true"></i> Help';
+    helpButton.setAttribute('aria-label', 'Show parameter help');
+    helpButton.onclick = () => showParameterHelp(functionName, details.params);
+    
+    const tryButton = document.createElement('button');
+    tryButton.className = 'btn btn-primary btn-sm';
+    tryButton.textContent = 'Try it';
+    tryButton.onclick = () => toggleParamsForm(functionName);
+    
+    buttonGroup.appendChild(helpButton);
+    buttonGroup.appendChild(tryButton);
+    
+    header.appendChild(nameSpan);
+    header.appendChild(buttonGroup);
+    
+    const description = document.createElement('div');
+    description.className = 'function-description';
+    description.textContent = details.description;
+    
+    const paramsForm = createParamsForm(functionName, details.params, category);
+    
+    card.appendChild(header);
+    card.appendChild(description);
+    card.appendChild(paramsForm);
+    
+    return card;
+}
+
+function showParameterHelp(functionName, params) {
+    const modal = new bootstrap.Modal(document.getElementById('paramHelpModal'));
+    const modalBody = document.querySelector('#paramHelpModal .modal-body');
+    const modalTitle = document.querySelector('#paramHelpModal .modal-title');
+    
+    modalTitle.textContent = `Parameters for ${functionName}`;
+    
+    let content = '<div class="param-help-list">';
+    params.forEach(param => {
+        const hint = PARAM_HINTS[param] || 'No additional information available';
+        const defaultValue = DEFAULT_VALUES[param] ? `<br><small>Default: ${DEFAULT_VALUES[param]}</small>` : '';
+        content += `
+            <div class="param-help-item">
+                <strong>${param}</strong>
+                <p>${hint}${defaultValue}</p>
+            </div>
+        `;
+    });
+    content += '</div>';
+    
+    modalBody.innerHTML = content;
+    modal.show();
+}
+
+function createParamsForm(functionName, params, category) {
+    const form = document.createElement('form');
+    form.className = 'params-form';
+    form.id = `form-${functionName}`;
+    
+    params.forEach(param => {
+        const group = document.createElement('div');
+        group.className = 'param-group';
+        
+        const label = document.createElement('label');
+        label.className = 'param-label';
+        label.textContent = param.charAt(0).toUpperCase() + param.slice(1).replace(/_/g, ' ');
+        
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'param-input';
+        input.name = param;
+        input.required = true;
+        input.placeholder = PARAM_HINTS[param] || '';
+        
+        // Set default value if available
+        if (DEFAULT_VALUES[param]) {
+            input.value = DEFAULT_VALUES[param];
+        }
+        
+        const hint = document.createElement('small');
+        hint.className = 'text-muted d-block mt-1';
+        hint.textContent = PARAM_HINTS[param] || '';
+        
+        group.appendChild(label);
+        group.appendChild(input);
+        group.appendChild(hint);
+        form.appendChild(group);
+    });
+    
+    const submitButton = document.createElement('button');
+    submitButton.type = 'submit';
+    submitButton.className = 'btn btn-success mt-3';
+    submitButton.textContent = 'Execute';
+    
+    const responseSection = document.createElement('div');
+    responseSection.className = 'response-section';
+    responseSection.innerHTML = `
+        <div class="response-data" style="display: none;"></div>
+        <div class="error-message" style="display: none;"></div>
+    `;
+    
+    form.appendChild(submitButton);
+    form.appendChild(responseSection);
+    
+    form.onsubmit = (e) => handleFormSubmit(e, functionName, category);
+    
+    return form;
+}
+
+function toggleParamsForm(functionName) {
+    const form = document.getElementById(`form-${functionName}`);
+    const allForms = document.querySelectorAll('.params-form');
+    
+    // Hide all other forms
+    allForms.forEach(f => {
+        if (f !== form) {
+            f.style.display = 'none';
+        }
+    });
+    
+    // Toggle this form
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function handleFormSubmit(event, functionName, category) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const responseData = form.querySelector('.response-data');
+    const errorMessage = form.querySelector('.error-message');
+    const loadingSpinner = document.querySelector('.loading-spinner');
+    
+    // Clear previous responses
+    responseData.style.display = 'none';
+    errorMessage.style.display = 'none';
+    loadingSpinner.style.display = 'block';
+    
+    // Build query parameters
+    const formData = new FormData(form);
+    const queryParams = new URLSearchParams(formData);
+    
+    try {
+        const response = await fetch(`/alpha_vantage/api/${category}/${functionName}?${queryParams}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            errorMessage.textContent = data.error;
+            errorMessage.style.display = 'block';
+        } else {
+            responseData.textContent = JSON.stringify(data.data, null, 2);
+            responseData.style.display = 'block';
+        }
+    } catch (error) {
+        errorMessage.textContent = 'An error occurred while fetching data. Please try again.';
+        errorMessage.style.display = 'block';
+    } finally {
+        loadingSpinner.style.display = 'none';
+    }
+}
+
+function showError(message) {
+    const functionsList = document.getElementById('functionsList');
+    functionsList.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+}
+</script>
+{% endblock %} 

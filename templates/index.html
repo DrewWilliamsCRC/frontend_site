@@ -3,456 +3,237 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<div class="dashboard-header" data-aos="fade-down">
-  <h1 class="welcome-text">Welcome back, {{ user }}!</h1>
-  <p class="text-muted">Access your services and monitoring tools</p>
+<!-- Market Indices Section -->
+<div class="market-indices">
+  <div class="row g-2">
+    <div class="col-20">
+      <a href="https://www.google.com/finance/quote/.DJI:INDEXDJX" class="index-link" target="_blank" rel="noopener noreferrer">
+        <div class="index-card" data-index="DJI">
+          <div class="index-header">
+            <div class="index-title">
+              <i class="fas fa-chart-line"></i>
+              <span>DOW JONES</span>
+            </div>
+            <div class="trend-icon">▲</div>
+          </div>
+          <div class="index-data">
+            <div class="loading-spinner">
+              <i class="fas fa-spinner fa-spin"></i>
+              <span>Loading...</span>
+            </div>
+          </div>
+          <div class="last-update">LAST | 6:33:02 PM EST</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-20">
+      <a href="https://www.google.com/finance/quote/.INX:INDEXSP" class="index-link" target="_blank" rel="noopener noreferrer">
+        <div class="index-card" data-index="SPX">
+          <div class="index-header">
+            <div class="index-title">
+              <i class="fas fa-chart-line"></i>
+              <span>S&P 500</span>
+            </div>
+            <div class="trend-icon">▲</div>
+          </div>
+          <div class="index-data">
+            <div class="loading-spinner">
+              <i class="fas fa-spinner fa-spin"></i>
+              <span>Loading...</span>
+            </div>
+          </div>
+          <div class="last-update">LAST | 6:33:02 PM EST</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-20">
+      <a href="https://www.google.com/finance/quote/.IXIC:INDEXNASDAQ" class="index-link" target="_blank" rel="noopener noreferrer">
+        <div class="index-card" data-index="IXIC">
+          <div class="index-header">
+            <div class="index-title">
+              <i class="fas fa-chart-line"></i>
+              <span>NASDAQ</span>
+            </div>
+            <div class="trend-icon">▲</div>
+          </div>
+          <div class="index-data">
+            <div class="loading-spinner">
+              <i class="fas fa-spinner fa-spin"></i>
+              <span>Loading...</span>
+            </div>
+          </div>
+          <div class="last-update">LAST | 6:33:02 PM EST</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-20">
+      <a href="https://www.google.com/finance/quote/VIXY:NYSEARCA" class="index-link" target="_blank" rel="noopener noreferrer">
+        <div class="index-card" data-index="VIXY">
+          <div class="index-header">
+            <div class="index-title">
+              <i class="fas fa-chart-bar"></i>
+              <span>VIX</span>
+            </div>
+            <div class="trend-icon">▲</div>
+          </div>
+          <div class="index-data">
+            <div class="loading-spinner">
+              <i class="fas fa-spinner fa-spin"></i>
+              <span>Loading...</span>
+            </div>
+          </div>
+          <div class="last-update">LAST | 6:33:02 PM EST</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-20">
+      <a href="https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve" class="index-link" target="_blank" rel="noopener noreferrer">
+        <div class="index-card" data-index="UST10Y">
+          <div class="index-header">
+            <div class="index-title">
+              <i class="fas fa-landmark"></i>
+              <span>10Y TREASURY</span>
+            </div>
+            <div class="trend-icon">▲</div>
+          </div>
+          <div class="index-data">
+            <div class="loading-spinner">
+              <i class="fas fa-spinner fa-spin"></i>
+              <span>Loading...</span>
+            </div>
+          </div>
+          <div class="last-update">LAST | 6:33:02 PM EST</div>
+        </div>
+      </a>
+    </div>
+  </div>
 </div>
 
-<div class="dashboard-grid">
-  <!-- Media Management Section -->
-  <section class="section">
-    <div class="section-header">
-      <h2><i class="fas fa-film"></i> Media Management</h2>
-    </div>
-    <div class="service-grid">
-      {% for service in media_services %}
-        <div class="service-card" {% if not service.is_default %}data-service-id="{{ service['id'] }}"{% endif %}>
-          {% if not service.is_default and service['id'] is not none %}
-            <!-- Edit button -->
-            <a href="{{ url_for('edit_service', service_id=service['id']) }}" class="btn-edit-service" title="Edit service">
-              <i class="fas fa-cog"></i>
-            </a>
-            
-            <!-- Delete button -->
-            <form method="POST" action="{{ url_for('delete_service', service_id=service['id']) }}"
-                  class="delete-service" onsubmit="return confirm('Delete this service?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn-delete-service" title="Delete service">
-                <i class="fas fa-trash-alt"></i>
-              </button>
-            </form>
-          {% endif %}
-          
-          <!-- Service link wrapper -->
-          <a href="{{ service['url'] }}" target="_blank" class="service-link">
-            <div class="service-icon">
-              <i class="fas {{ service['icon'] }}"></i>
-            </div>
-            <h3>{{ service['name'] }}</h3>
-            {% if service['description'] %}
-              <p>{{ service['description'] }}</p>
-            {% endif %}
-          </a>
-        </div>
-      {% endfor %}
-
-      <!-- Add service card -->
-      <a href="{{ url_for('add_service') }}" class="service-card add-card">
-        <div class="service-icon">
-          <i class="fas fa-plus-circle"></i>
-        </div>
-        <h3>Add New Service</h3>
-        <p>Create a custom service link</p>
-      </a>
-    </div>
-  </section>
-
-  <!-- System Management Section -->
-  <section class="section">
-    <div class="section-header">
-      <h2><i class="fas fa-server"></i> System Management</h2>
-    </div>
-    <div class="service-grid">
-      {% for service in system_services %}
-        <div class="service-card" {% if not service.is_default %}data-service-id="{{ service['id'] }}"{% endif %}>
-          {% if not service.is_default and service['id'] is not none %}
-            <!-- Edit button -->
-            <a href="{{ url_for('edit_service', service_id=service['id']) }}" class="btn-edit-service" title="Edit service">
-              <i class="fas fa-cog"></i>
-            </a>
-            
-            <!-- Delete button -->
-            <form method="POST" action="{{ url_for('delete_service', service_id=service['id']) }}"
-                  class="delete-service" onsubmit="return confirm('Delete this service?');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn-delete-service" title="Delete service">
-                <i class="fas fa-trash-alt"></i>
-              </button>
-            </form>
-          {% endif %}
-          
-          <!-- Service link wrapper -->
-          <a href="{{ service['url'] }}" target="_blank" class="service-link">
-            <div class="service-icon">
-              <i class="fas {{ service['icon'] }}"></i>
-            </div>
-            <h3>{{ service['name'] }}</h3>
-            {% if service['description'] %}
-              <p>{{ service['description'] }}</p>
-            {% endif %}
-          </a>
-        </div>
-      {% endfor %}
-
-      <!-- Add service card -->
-      <a href="{{ url_for('add_service') }}" class="service-card add-card">
-        <div class="service-icon">
-          <i class="fas fa-plus-circle"></i>
-        </div>
-        <h3>Add New Service</h3>
-        <p>Create a custom service link</p>
-      </a>
-    </div>
-  </section>
-
-  <!-- Weather Section -->
-  {% if forecast_data %}
-  <section class="section">
-    <div class="section-header">
-      <h2><i class="fas fa-cloud-sun"></i> Weather Forecast for {{ city_name }}</h2>
-    </div>
-    <div class="weather-grid">
-      {% for day in forecast_data %}
-      <div class="weather-card">
-        <h3>{{ day.date_str }}</h3>
-        <img src="{{ day.icon_url }}" alt="{{ day.description }}">
-        <p class="temp-range">{{ day.temp_min }}°F - {{ day.temp_max }}°F</p>
-        <p class="weather-desc">{{ day.description }}</p>
+<div class="container mt-4">
+  <div class="dashboard-grid">
+    <!-- System Management Section -->
+    <section id="system" class="section">
+      <div class="section-header">
+        <h2><i class="fas fa-server"></i> System Management</h2>
       </div>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
+      <div class="service-grid">
+        {% for service in system_services %}
+          <div class="service-card" {% if not service.is_default %}data-service-id="{{ service['id'] }}"{% endif %}>
+            <a href="{{ service['url'] }}" target="_blank" class="service-link" {% if service['description'] %}title="{{ service['description'] }}"{% endif %}>
+              <div class="service-icon">
+                <i class="fas {{ service['icon'] }}"></i>
+              </div>
+              <h3>{{ service['name'] }}</h3>
+            </a>
+            {% if not service.is_default and service['id'] is not none %}
+              <div class="service-actions">
+                <a href="{{ url_for('edit_service', service_id=service['id']) }}" class="btn-edit-service" title="Edit service">
+                  <i class="fas fa-pen"></i>
+                </a>
+                <form method="POST" action="{{ url_for('delete_service', service_id=service['id']) }}"
+                      class="delete-service" onsubmit="return confirm('Delete this service?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn-delete-service" title="Delete service">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+        <a href="{{ url_for('add_service', section='system') }}" class="service-card add-card" title="Create a custom service link">
+          <div class="service-icon">
+            <i class="fas fa-plus-circle"></i>
+          </div>
+          <h3>Add New Service</h3>
+        </a>
+      </div>
+    </section>
+
+    <!-- Media Management Section -->
+    <section id="media" class="section">
+      <div class="section-header">
+        <h2><i class="fas fa-film"></i> Media Management</h2>
+      </div>
+      <div class="service-grid">
+        {% for service in media_services %}
+          <div class="service-card" {% if not service.is_default %}data-service-id="{{ service['id'] }}"{% endif %}>
+            <a href="{{ service['url'] }}" target="_blank" class="service-link" {% if service['description'] %}title="{{ service['description'] }}"{% endif %}>
+              <div class="service-icon">
+                <i class="fas {{ service['icon'] }}"></i>
+              </div>
+              <h3>{{ service['name'] }}</h3>
+            </a>
+            {% if not service.is_default and service['id'] is not none %}
+              <div class="service-actions">
+                <a href="{{ url_for('edit_service', service_id=service['id']) }}" class="btn-edit-service" title="Edit service">
+                  <i class="fas fa-pen"></i>
+                </a>
+                <form method="POST" action="{{ url_for('delete_service', service_id=service['id']) }}"
+                      class="delete-service" onsubmit="return confirm('Delete this service?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn-delete-service" title="Delete service">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+        <a href="{{ url_for('add_service', section='media') }}" class="service-card add-card" title="Create a custom service link">
+          <div class="service-icon">
+            <i class="fas fa-plus-circle"></i>
+          </div>
+          <h3>Add New Service</h3>
+        </a>
+      </div>
+    </section>
+
+    <!-- Weather Section -->
+    {% if forecast_data %}
+    <section class="section">
+      <div class="section-header">
+        <h2><i class="fas fa-cloud-sun"></i> Weather Forecast for {{ city_name }}</h2>
+      </div>
+      <div class="weather-grid">
+        {% for day in forecast_data %}
+        <div class="weather-card">
+          <a href="https://weather.com/weather/today/l/{{ '%0.4f' % day.lat }},{{ '%0.4f' % day.lon }}" class="weather-link" target="_blank" rel="noopener">
+            <h3>{{ day.date_str }}</h3>
+            <img src="{{ day.icon_url }}" alt="{{ day.description }}">
+            <p class="temp-range">{{ day.temp_min }}°F - {{ day.temp_max }}°F</p>
+            <p class="weather-desc">{{ day.description }}</p>
+          </a>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
 </div>
-
-<style>
-.service-card {
-  position: relative;
-  background-color: white;
-  padding: var(--spacing-lg);
-  border-radius: var(--radius-lg);
-  border: 1px solid #e5e7eb;
-  transition: all var(--transition-normal);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.btn-edit-service,
-.btn-delete-service {
-  position: absolute;
-  top: 10px;
-  background: none;
-  border: none;
-  color: var(--text-light);
-  padding: 5px;
-  cursor: pointer;
-  transition: color var(--transition-fast);
-  z-index: 2;
-}
-
-.btn-edit-service {
-  right: 40px;
-}
-
-.btn-delete-service {
-  right: 10px;
-}
-
-.dashboard-header {
-  margin-bottom: var(--spacing-xl);
-}
-
-.welcome-text {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: var(--spacing-xs);
-}
-
-.dashboard-section {
-  margin-bottom: var(--spacing-xl);
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  font-size: 1.5rem;
-  margin-bottom: var(--spacing-lg);
-}
-
-.service-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(var(--button-width, 280px), 1fr));
-  gap: var(--spacing-md);
-  width: 100%;
-}
-
-.service-link {
-  text-decoration: none;
-  color: var(--text-dark);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  position: relative;
-  z-index: 1;
-}
-
-.service-link h3 {
-  margin: var(--spacing-sm) 0;
-  color: var(--text-dark);
-}
-
-.service-link p {
-  color: var(--text-light);
-  opacity: 0.9;
-}
-
-.service-icon {
-  font-size: 2rem;
-  color: var(--primary);
-  margin-bottom: var(--spacing-md);
-  flex-shrink: 0;
-}
-
-.service-card h3 {
-  font-size: 1.25rem;
-  margin-bottom: var(--spacing-xs);
-  color: var(--text-dark);
-  text-align: center;
-}
-
-.service-card p {
-  font-size: 0.875rem;
-  opacity: 0.8;
-  text-align: center;
-  margin: 0;
-}
-
-.weather-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-xl);
-}
-
-.weather-card {
-  background-color: white;
-  padding: var(--spacing-lg);
-  border-radius: var(--radius-lg);
-  border: 1px solid #e5e7eb;
-  text-align: center;
-  transition: all var(--transition-normal);
-}
-
-.weather-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-lg);
-}
-
-.weather-card h3 {
-  color: var(--text-dark);
-  margin: var(--spacing-sm) 0;
-}
-
-.weather-card p {
-  color: var(--text-light);
-  opacity: 0.9;
-}
-
-.weather-icon {
-  font-size: 2rem;
-  color: var(--primary);
-  margin-bottom: var(--spacing-sm);
-}
-
-.weather-temp {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-dark);
-  margin: var(--spacing-sm) 0;
-}
-
-.weather-description {
-  color: var(--text-light);
-  opacity: 0.9;
-}
-
-/* Dark mode adjustments for weather */
-body.dark-mode .weather-card {
-  background-color: #1f2937;
-  border-color: #374151;
-}
-
-body.dark-mode .weather-card:hover {
-  background-color: #2d3748;
-}
-
-body.dark-mode .weather-card h3 {
-  color: #e5e7eb;
-}
-
-body.dark-mode .weather-card p {
-  color: #9ca3af;
-  opacity: 1;
-}
-
-body.dark-mode .weather-temp {
-  color: #e5e7eb;
-}
-
-body.dark-mode .weather-description {
-  color: #9ca3af;
-  opacity: 1;
-}
-
-/* Weather icon colors in dark mode */
-body.dark-mode .weather-icon {
-  color: var(--primary);  /* Keep the icon color consistent with other sections */
-}
-
-/* Dark mode adjustments */
-body.dark-mode .service-card {
-  background-color: var(--bg-dark);
-  border-color: var(--border-dark);
-}
-
-body.dark-mode .service-link {
-  color: var(--text-light);
-}
-
-body.dark-mode .service-link h3 {
-  color: #e5e7eb;
-}
-
-body.dark-mode .service-link p {
-  color: #9ca3af;
-  opacity: 1;
-}
-
-body.dark-mode .service-card:hover {
-  background-color: #2d3748;
-}
-
-body.dark-mode .btn-edit-service,
-body.dark-mode .btn-delete-service {
-  color: var(--text-dark);
-}
-
-body.dark-mode .btn-edit-service:hover,
-body.dark-mode .btn-delete-service:hover {
-  color: var(--primary-dark);
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .service-grid,
-  .weather-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .welcome-text {
-    font-size: 1.5rem;
-  }
-}
-
-.add-card {
-  border: 2px dashed #e5e7eb;
-  background-color: transparent;
-}
-
-.add-card:hover {
-  border-color: var(--primary);
-  background-color: rgba(79, 70, 229, 0.05);
-}
-
-.section {
-  margin-bottom: var(--spacing-3xl);  /* Increased from default spacing */
-  padding: var(--spacing-xl) 0;
-}
-
-.section-header {
-  margin-bottom: var(--spacing-xl);
-}
-
-.section-header h2 {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  font-size: 1.5rem;
-  color: var(--text-dark);
-}
-
-/* Dark mode support */
-body.dark-mode .section-header h2 {
-  color: var(--text-light);
-}
-
-.default-services {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(var(--button-width, 280px), 1fr));
-    gap: var(--spacing-md);
-    width: 100%;
-    margin-bottom: var(--spacing-md);
-}
-
-.sortable-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(var(--button-width, 280px), 1fr));
-    gap: var(--spacing-md);
-    width: 100%;
-    margin-bottom: var(--spacing-md);
-}
-
-.sortable-ghost {
-    opacity: 0.5;
-    background-color: var(--primary);
-}
-
-.sortable-chosen {
-    background-color: var(--primary);
-}
-
-.sortable-drag {
-    opacity: 0.8;
-}
-
-body.dark-mode .sortable-chosen {
-    background-color: var(--primary-dark);
-}
-
-.service-card:not(.add-card) {
-    cursor: move;
-}
-</style>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='js/market-indices.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const mediaGrid = document.querySelector('.service-grid');
-    const systemGrid = document.querySelector('.section:nth-child(2) .service-grid');
+    // Initialize sortable grids
+    const systemGrid = document.querySelector('.service-grid');
+    const mediaGrid = document.querySelector('.section:nth-child(2) .service-grid');
     
     function initSortable(gridElement, section) {
         if (!gridElement) return;
         
         new Sortable(gridElement, {
             animation: 150,
-            filter: '.add-card',  // Don't allow sorting the "Add" card
+            filter: '.add-card',
             onEnd: function(evt) {
-                // Get all service cards except the "Add" card
                 const serviceCards = Array.from(evt.target.children)
                     .filter(card => !card.classList.contains('add-card'));
                 
-                // Get service IDs, filtering out any null/undefined values
                 const serviceIds = serviceCards
                     .map(card => card.dataset.serviceId)
-                    .filter(Boolean);  // This will remove any undefined or null values
+                    .filter(Boolean);
                 
-                // Only send request if we have service IDs to reorder
                 if (serviceIds.length > 0) {
                     fetch('/services/reorder', {
                         method: 'POST',
@@ -470,8 +251,190 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    initSortable(mediaGrid, 'media');
     initSortable(systemGrid, 'system');
+    initSortable(mediaGrid, 'media');
 });
 </script>
+
+<style>
+/* Market Indices Styles */
+.market-indices {
+    margin-bottom: 0.75rem;
+    overflow-x: auto;
+    scroll-behavior: smooth;  /* Modern smooth scrolling */
+    width: 100%;
+}
+
+.market-indices .row {
+    margin: 0 -0.2rem;
+    display: flex;
+    flex-wrap: nowrap;
+    min-width: min-content;  /* Changed from max-content for better behavior */
+    width: 100%;  /* Ensure full width */
+}
+
+.market-indices .col-20 {
+    flex: 0 0 20%;
+    max-width: 20%;
+    min-width: 220px;
+    padding: 0 0.2rem;
+    box-sizing: border-box;  /* Ensure padding is included in width */
+}
+
+.market-indices .index-card {
+    border: none;
+    border-radius: 3px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.4rem;
+    transition: all 0.3s ease;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 85px;
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;  /* Ensure padding is included in width */
+}
+
+.market-indices .index-card.positive {
+    background: #00843D;  /* Green background for positive */
+}
+
+.market-indices .index-card.negative {
+    background: #DC2626;  /* Red background for negative */
+}
+
+.market-indices .index-card.positive:hover {
+    box-shadow: 0 4px 12px rgba(0, 132, 61, 0.2);  /* Green shadow */
+}
+
+.market-indices .index-card.negative:hover {
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);  /* Red shadow */
+}
+
+.market-indices .index-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+}
+
+.market-indices .trend-icon {
+    color: white;
+    font-size: 0.65rem;
+    line-height: 1;
+    margin-left: 0.15rem;
+}
+
+.market-indices .index-title {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: white;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.75px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    text-decoration: none;
+    white-space: nowrap;  /* Prevent text wrapping */
+}
+
+.market-indices .index-title i {
+    font-size: 0.75rem;
+    color: white;
+}
+
+.market-indices .index-data {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.market-indices .price {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    line-height: 1;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.market-indices .change {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.2rem;
+    font-weight: 500;
+    color: white;
+    font-size: 0.75rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.market-indices .change i {
+    display: none;  /* Hide the icon in the change value since we show it next to title */
+}
+
+.market-indices .loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    color: white;
+    opacity: 0.9;
+    font-size: 0.75rem;
+    height: 100%;
+    width: 100%;
+}
+
+/* Last updated text style */
+.market-indices .last-update {
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 0.5px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin-top: auto;
+    padding-top: 0;
+    line-height: 1;
+}
+
+/* Remove hover effect color changes since we want to keep the colored backgrounds */
+.dark-mode .market-indices .index-card.positive {
+    background: #00843D;
+}
+
+.dark-mode .market-indices .index-card.negative {
+    background: #DC2626;
+}
+
+.index-link:hover .index-card {
+    transform: translateY(-2px);
+}
+
+.market-indices .description {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+    font-style: italic;
+}
+
+.dark-mode .market-indices .description {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Add styles to remove underline from the link */
+.market-indices .index-link {
+    text-decoration: none;
+}
+
+.market-indices .index-link:hover {
+    text-decoration: none;
+}
+</style>
 {% endblock %}

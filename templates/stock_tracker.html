@@ -1,0 +1,580 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Tracker{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="fas fa-chart-line"></i> Stock Tracker</h2>
+        </div>
+        <div class="card-body">
+            <form id="stockForm" class="mb-4">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="endpointSelector" class="form-label">Select Data Type</label>
+                        <select id="endpointSelector" class="form-select" aria-label="Select market data endpoint" required>
+                            <option value="">Select Endpoint</option>
+                            <option value="STOCK_SYMBOL">Stock Symbol</option>
+                            <option value="DOW_COMPANIES">DOW Companies</option>
+                            <option value="TOP_GAINERS_LOSERS">Top Gainers & Losers</option>
+                            <option value="SECTOR">Sector Performance</option>
+                            <option value="MARKET_STATUS">Market Status</option>
+                            <option value="IPO_CALENDAR">IPO Calendar</option>
+                            <option value="EARNINGS_CALENDAR">Earnings Calendar</option>
+                            <option value="CRYPTO_INTRADAY">Crypto Intraday</option>
+                            <option value="INSIDER_TRANSACTIONS">Insider Transactions</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="optionsSelector" class="form-label">Select Option</label>
+                        <select id="optionsSelector" class="form-select" aria-label="Select data view option" disabled required>
+                            <option value="">Select Option</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4" id="symbolInputContainer" style="display: none;">
+                        <label for="symbolInput" class="form-label">Stock Symbol</label>
+                        <div class="input-group">
+                            <input type="text" id="symbolInput" class="form-control" placeholder="Enter Stock Symbol (e.g., AAPL)" aria-label="Stock Symbol">
+                            <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <small class="form-text text-muted mt-1">Enter a valid stock symbol</small>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary" id="submitButton">
+                            <i class="fas fa-chart-bar me-2"></i>Get Data
+                        </button>
+                    </div>
+                </div>
+            </form>
+            
+            <div id="loadingSpinner" class="text-center d-none">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            
+            <div id="errorMessage" class="alert alert-danger d-none" role="alert"></div>
+            
+            <div class="table-controls mb-3">
+                <div class="search-container">
+                    <input type="text" id="tableSearch" class="form-control" placeholder="Search table..." aria-label="Search table">
+                    <i class="fas fa-search search-icon"></i>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead id="tableHeader"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="pagination-controls">
+                <button class="btn btn-outline-secondary" id="prevButton" disabled>Previous</button>
+                <span class="pagination-info">Page 1 of 10</span>
+                <button class="btn btn-outline-secondary" id="nextButton">Next</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: var(--bg-color);
+}
+
+.dark-mode .card {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.card-header {
+    background-color: var(--bg-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+}
+
+.card-header h2 {
+    color: var(--text-color);
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.card-header h2 i {
+    color: var(--text-color);
+    opacity: 0.9;
+}
+
+.dark-mode .card-header {
+    background-color: var(--bg-color);
+}
+
+.dark-mode .card-header h2 {
+    color: #fff;
+}
+
+.dark-mode .card-header h2 i {
+    color: #fff;
+}
+
+.card-body {
+    background-color: var(--bg-color);
+}
+
+.dark-mode .card-body {
+    background-color: var(--bg-secondary);
+}
+
+.form-select {
+    min-width: 200px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.form-select:disabled {
+    background-color: var(--bg-secondary);
+    opacity: 0.7;
+}
+
+.dark-mode .form-select {
+    background-color: var(--bg-color);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.25);
+}
+
+.table {
+    margin-bottom: 0;
+    color: var(--text-color);
+}
+
+.table th {
+    border-top: none;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    border-bottom-color: var(--border-color);
+}
+
+.table td {
+    vertical-align: middle;
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+.dark-mode .table {
+    color: var(--text-color);
+}
+
+.dark-mode .table td,
+.dark-mode .table th {
+    border-color: var(--border-color);
+}
+
+.dark-mode .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.text-success {
+    color: #10B981 !important;
+}
+
+.text-danger {
+    color: #EF4444 !important;
+}
+
+.dark-mode .text-success {
+    color: #34D399 !important;
+}
+
+.dark-mode .text-danger {
+    color: #F87171 !important;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.dark-mode .text-muted {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.gap-2 {
+    gap: 0.5rem !important;
+}
+
+/* Loading spinner styles */
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Fix for dark mode dropdown */
+.dark-mode .form-select option {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+/* Improve table responsiveness in dark mode */
+.dark-mode .table-responsive {
+    border-color: var(--border-color);
+}
+
+/* Add subtle hover effect for table rows */
+.table-hover tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dark-mode .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Updated styles for symbol input group */
+.input-group {
+    display: flex;
+    align-items: stretch;
+}
+
+.input-group .form-control {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: none;
+    background-color: #ffffff;
+    color: #333333;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    width: 100%;
+}
+
+.input-group .btn {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    color: white;
+    transition: all 0.2s ease;
+}
+
+.input-group .btn:hover {
+    background-color: var(--primary-color-dark);
+    border-color: var(--primary-color-dark);
+}
+
+.input-group .btn i {
+    font-size: 0.875rem;
+}
+
+.form-text {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Dark mode enhancements */
+.dark-mode .input-group .btn {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.dark-mode .input-group .btn:hover {
+    background-color: var(--primary-color-dark);
+    border-color: var(--primary-color-dark);
+}
+
+.dark-mode .form-text {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.dark-mode .input-group .form-control {
+    background-color: #2d3748;
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark-mode .input-group .form-control:focus {
+    background-color: #2d3748;
+    border-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.dark-mode .input-group .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Add styles for form labels and submit button */
+.form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.dark-mode .form-label {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+#submitButton {
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    color: white;
+}
+
+#submitButton i {
+    font-size: 0.875rem;
+    color: white;
+}
+
+.btn-outline-secondary {
+    color: var(--text-color);
+    border-color: var(--border-color);
+    background-color: transparent;
+}
+
+.btn-outline-secondary:hover {
+    color: var(--text-color);
+    background-color: var(--bg-hover);
+    border-color: var(--text-color);
+}
+
+.dark-mode .btn-outline-secondary {
+    color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark-mode .btn-outline-secondary:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.me-2 {
+    margin-right: 0.5rem !important;
+}
+
+/* Add search controls styles */
+.table-controls {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1rem;
+}
+
+.search-container {
+    position: relative;
+    max-width: 300px;
+    width: 100%;
+}
+
+.search-container input {
+    padding-right: 2.5rem;
+    background-color: #ffffff;
+    border: 1px solid var(--border-color);
+    color: #333333;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+.search-container input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.15);
+    outline: none;
+}
+
+.search-container input::placeholder {
+    color: rgba(51, 51, 51, 0.5);
+}
+
+.search-container .search-icon {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(51, 51, 51, 0.5);
+    pointer-events: none;
+}
+
+/* Dark mode enhancements for search */
+.dark-mode .search-container input {
+    background-color: #2d3748;
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+.dark-mode .search-container input:focus {
+    background-color: #2d3748;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.3);
+}
+
+.dark-mode .search-container input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.dark-mode .search-container .search-icon {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* Add pagination styles */
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin: 1rem 0;
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.pagination-controls button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+    background-color: var(--bg-hover);
+    border-color: var(--primary-color);
+}
+
+.pagination-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-controls .pagination-info {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* Dark mode enhancements for pagination */
+.dark-mode .pagination-controls {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .pagination-controls button {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.dark-mode .pagination-controls button:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--primary-color);
+}
+
+.dark-mode .pagination-controls .pagination-info {
+    color: rgba(255, 255, 255, 0.6);
+}
+</style>
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/stock-tracker.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('stockForm');
+    const endpointSelector = document.getElementById('endpointSelector');
+    const symbolInputContainer = document.getElementById('symbolInputContainer');
+    const symbolInput = document.getElementById('symbolInput');
+    const searchButton = document.getElementById('searchButton');
+    const optionsSelector = document.getElementById('optionsSelector');
+    const submitButton = document.getElementById('submitButton');
+
+    function validateSymbol(symbol) {
+        const symbolRegex = /^[A-Z]{1,5}$/;
+        return symbolRegex.test(symbol);
+    }
+
+    function handleSymbolSearch() {
+        const symbol = symbolInput.value.trim().toUpperCase();
+        if (validateSymbol(symbol)) {
+            symbolInput.value = symbol;
+            optionsSelector.value = 'all';
+            symbolInput.classList.remove('is-invalid');
+        } else {
+            symbolInput.classList.add('is-invalid');
+            window.stockTracker.showError('Please enter a valid stock symbol (1-5 capital letters)');
+        }
+    }
+
+    endpointSelector.addEventListener('change', () => {
+        const selectedEndpoint = endpointSelector.value;
+        symbolInputContainer.style.display = selectedEndpoint === 'INSIDER_TRANSACTIONS' || selectedEndpoint === 'STOCK_SYMBOL' ? 'block' : 'none';
+        
+        if (selectedEndpoint === 'INSIDER_TRANSACTIONS' || selectedEndpoint === 'STOCK_SYMBOL') {
+            symbolInput.value = '';
+            optionsSelector.value = 'all';
+            symbolInput.focus();
+        }
+    });
+
+    // Handle symbol search
+    searchButton.addEventListener('click', handleSymbolSearch);
+    symbolInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSymbolSearch();
+        }
+    });
+
+    // Handle form submission
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const endpoint = endpointSelector.value;
+        if (!endpoint) {
+            window.stockTracker.showError('Please select an endpoint');
+            return;
+        }
+
+        if (endpoint === 'INSIDER_TRANSACTIONS') {
+            const symbol = symbolInput.value.trim().toUpperCase();
+            if (!validateSymbol(symbol)) {
+                window.stockTracker.showError('Please enter a valid stock symbol (1-5 capital letters)');
+                return;
+            }
+        } else if (!optionsSelector.value) {
+            window.stockTracker.showError('Please select an option');
+            return;
+        }
+
+        window.stockTracker.fetchData();
+    });
+});
+</script>
+{% endblock %}
+{% endblock %} 

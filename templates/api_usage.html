@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block title %}API Usage{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <!-- Section Headers -->
+  <div class="api-section-header">API Usage Statistics</div>
+  
+  <div class="api-grid">
+    <!-- Alpha Vantage Section -->
+    <div class="api-section">
+      <div class="section-title">
+        <i class="fas fa-chart-line"></i>
+        Alpha Vantage API
+      </div>
+      
+      <div class="api-tile limit-tile">
+        <div class="tile-content">
+          <div class="tile-label">Hourly Limit</div>
+          <div class="tile-value">4.5K</div>
+          <div class="tile-stat">
+            <span class="stat-number">{{ "{:,}".format(stats.hour.used) }}</span>
+            <span class="stat-label">used</span>
+          </div>
+          <div class="tile-stat">
+            <span class="stat-number">{{ "{:,}".format(stats.hour.remaining) }}</span>
+            <span class="stat-label">remaining</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="api-tile limit-tile">
+        <div class="tile-content">
+          <div class="tile-label">Daily Limit</div>
+          <div class="tile-value">108K</div>
+          <div class="tile-stat">
+            <span class="stat-number">{{ "{:,}".format(stats.day.used) }}</span>
+            <span class="stat-label">used</span>
+          </div>
+          <div class="tile-stat">
+            <span class="stat-number">{{ "{:,}".format(stats.day.remaining) }}</span>
+            <span class="stat-label">remaining</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="api-tile info-tile">
+        <div class="tile-content">
+          <div class="tile-description">
+            <i class="fas fa-info-circle"></i>
+            Premium tier with 75 calls/minute
+          </div>
+          <div class="tile-description">
+            <i class="fas fa-sync"></i>
+            Updates every minute
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Guardian Section -->
+    <div class="api-section">
+      <div class="section-title">
+        <i class="fas fa-newspaper"></i>
+        The Guardian API
+      </div>
+      
+      <div class="api-tile limit-tile">
+        <div class="tile-content">
+          <div class="tile-label">Hourly Limit</div>
+          <div class="tile-value">100</div>
+          <div class="tile-stat">
+            <span class="stat-number">{{ "{:,}".format(guardian_stats.hour.used) }}</span>
+            <span class="stat-label">used</span>
+          </div>
+          <div class="tile-stat">
+            <span class="stat-number">{{ "{:,}".format(guardian_stats.hour.remaining) }}</span>
+            <span class="stat-label">remaining</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="api-tile limit-tile">
+        <div class="tile-content">
+          <div class="tile-label">Daily Limit</div>
+          <div class="tile-value">5K</div>
+          <div class="tile-stat">
+            <span class="stat-number">{{ "{:,}".format(guardian_stats.day.used) }}</span>
+            <span class="stat-label">used</span>
+          </div>
+          <div class="tile-stat">
+            <span class="stat-number">{{ "{:,}".format(guardian_stats.day.remaining) }}</span>
+            <span class="stat-label">remaining</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="api-tile info-tile">
+        <div class="tile-content">
+          <div class="tile-description">
+            <i class="fas fa-info-circle"></i>
+            Developer tier service
+          </div>
+          <div class="tile-description">
+            <i class="fas fa-clock"></i>
+            Updates every 5 minutes
+          </div>
+          <div class="tile-description">
+            <i class="fas fa-layer-group"></i>
+            5-minute cache per section
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OpenWeatherMap Section -->
+    <div class="api-section">
+      <div class="section-title">
+        <i class="fas fa-cloud-sun"></i>
+        OpenWeatherMap API
+      </div>
+      
+      <div class="api-tile limit-tile">
+        <div class="tile-content">
+          <div class="tile-label">Hourly Limit</div>
+          <div class="tile-value">42</div>
+          <div class="tile-stat">
+            <span class="stat-number">{{ "{:,}".format(owm_stats.hour.used) }}</span>
+            <span class="stat-label">used</span>
+          </div>
+          <div class="tile-stat">
+            <span class="stat-number">{{ "{:,}".format(owm_stats.hour.remaining) }}</span>
+            <span class="stat-label">remaining</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="api-tile limit-tile">
+        <div class="tile-content">
+          <div class="tile-label">Daily Limit</div>
+          <div class="tile-value">1K</div>
+          <div class="tile-stat">
+            <span class="stat-number">{{ "{:,}".format(owm_stats.day.used) }}</span>
+            <span class="stat-label">used</span>
+          </div>
+          <div class="tile-stat">
+            <span class="stat-number">{{ "{:,}".format(owm_stats.day.remaining) }}</span>
+            <span class="stat-label">remaining</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="api-tile info-tile">
+        <div class="tile-content">
+          <div class="tile-description">
+            <i class="fas fa-info-circle"></i>
+            Free tier service
+          </div>
+          <div class="tile-description">
+            <i class="fas fa-sync"></i>
+            Updates every minute
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Common Info -->
+  <div class="common-info">
+    <div class="info-badge">
+      <i class="fas fa-sync"></i>
+      Resets at midnight UTC
+    </div>
+    <div class="info-badge">
+      <i class="fas fa-shield-alt"></i>
+      Rate limiting enabled
+    </div>
+  </div>
+</div>
+
+{% block styles %}
+<style>
+.api-section-header {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 24px;
+  padding: 0 20px;
+}
+
+.api-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  padding: 0 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.api-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.section-title i {
+  color: var(--primary-color);
+}
+
+.api-tile {
+  background: var(--bg-color);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: transform 0.2s ease;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.api-tile:hover {
+  transform: translateY(-2px);
+}
+
+.limit-tile {
+  background: linear-gradient(145deg, var(--bg-color), rgba(255, 255, 255, 0.05));
+}
+
+.info-tile {
+  background: linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.05));
+}
+
+.tile-content {
+  flex: 1;
+}
+
+.tile-label {
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  color: var(--primary-color);
+}
+
+.tile-value {
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 16px;
+  background: linear-gradient(120deg, var(--primary-color), var(--primary-color-light));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.tile-stat {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.tile-stat:last-child {
+  margin-bottom: 0;
+}
+
+.stat-number {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.stat-label {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.tile-description {
+  font-size: 14px;
+  color: var(--text-color);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tile-description i {
+  color: var(--primary-color);
+  font-size: 16px;
+}
+
+.tile-description:last-child {
+  margin-bottom: 0;
+}
+
+.common-info {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 32px;
+  padding: 0 20px;
+}
+
+.info-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-color);
+  border-radius: 20px;
+  font-size: 14px;
+  color: var(--text-color);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-badge i {
+  color: var(--primary-color);
+}
+
+.dark-mode .api-tile {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .limit-tile {
+  background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.08));
+}
+
+.dark-mode .info-tile {
+  background: linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0.05));
+}
+
+@media (max-width: 1200px) {
+  .api-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .api-grid {
+    grid-template-columns: 1fr;
+    padding: 15px;
+  }
+
+  .api-section-header {
+    padding: 0 15px;
+    margin-bottom: 16px;
+  }
+
+  .common-info {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .tile-value {
+    font-size: 36px;
+  }
+
+  .stat-number {
+    font-size: 20px;
+  }
+}
+
+:root {
+  --primary-color-light: #2196f3;
+  --primary-color: #1976d2;
+  --primary-color-dark: #0d47a1;
+}
+</style>
+{% endblock %}
+{% endblock %} 
