@@ -884,8 +884,15 @@ function loadMarketSentiment() {
     document.getElementById('sentiment-chart').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
     document.getElementById('news-sentiment').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
     
-    // Make API call
-    fetch(`/api/trend-insight/sentiment?time_range=${dateRange}`)
+    // Make API call with sector parameter
+    let apiUrl = `/api/trend-insight/sentiment?time_range=${dateRange}`;
+    
+    // Add sector parameter if not "All Sectors"
+    if (activeSector !== 'All Sectors') {
+        apiUrl += `&topics=${activeSector.toLowerCase()}`;
+    }
+    
+    fetch(apiUrl)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
@@ -1032,8 +1039,18 @@ function loadAIRecommendations() {
     // Show loading state
     document.getElementById('recommendations').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
     
-    // Make API call
-    fetch('/api/trend-insight/recommendations')
+    // Get active sector filter
+    const activeSector = document.querySelector('.filter-badge.active').textContent;
+    
+    // Make API call with sector parameter
+    let apiUrl = '/api/trend-insight/recommendations';
+    
+    // Add sector parameter if not "All Sectors"
+    if (activeSector !== 'All Sectors') {
+        apiUrl += `?sector=${activeSector.toLowerCase()}`;
+    }
+    
+    fetch(apiUrl)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
@@ -1099,8 +1116,18 @@ function loadUnusualPatterns() {
     // Show loading state
     document.getElementById('unusual-patterns').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
     
-    // Make API call
-    fetch('/api/trend-insight/unusual-patterns')
+    // Get active sector filter
+    const activeSector = document.querySelector('.filter-badge.active').textContent;
+    
+    // Make API call with sector parameter
+    let apiUrl = '/api/trend-insight/unusual-patterns';
+    
+    // Add sector parameter if not "All Sectors"
+    if (activeSector !== 'All Sectors') {
+        apiUrl += `?sector=${activeSector.toLowerCase()}`;
+    }
+    
+    fetch(apiUrl)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
