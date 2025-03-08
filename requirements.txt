@@ -14,3 +14,10 @@ certifi>=2023.7.22 # security requirement
 charset-normalizer~=2.0.0 # requests dependency
 idna>=2.5 # requests dependency
 dnspython==2.6.1
+
+# AI Experiments Dependencies
+pandas==2.2.2
+numpy==1.26.4
+matplotlib==3.8.4
+seaborn==0.13.2
+scikit-learn==1.5.0
