@@ -3607,6 +3607,14 @@ def ai_dashboard():
     
     return render_template('ai_dashboard.html', is_authenticated=is_authenticated)
 
+@app.route('/market-indices-standalone')
+def market_indices_standalone():
+    """
+    Render a standalone page that only displays market indices.
+    This is a simplified test page.
+    """
+    return render_template('market_indices_standalone.html')
+
 @app.route('/api/ai-status')
 def ai_status():
     """
