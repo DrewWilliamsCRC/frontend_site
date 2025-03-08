@@ -2584,8 +2584,7 @@ def get_ai_insights():
         except ImportError as e:
             app.logger.error(f"Import error: {str(e)}")
             return jsonify({
-                "error": "Failed to import AI modules",
-                "details": str(e)
+                "error": "Failed to import AI modules"
             }), 500
         
         # Create Alpha Vantage API instance
@@ -2794,7 +2793,7 @@ def get_ai_insights():
     
     except Exception as e:
         app.logger.error(f"Error getting AI insights: {str(e)}")
-        return jsonify({"error": "Failed to get AI insights", "details": str(e)}), 500
+        return jsonify({"error": "Failed to get AI insights"}), 500
 
 def calculate_market_metrics(processed_data, period='1d'):
     """Calculate market metrics based on processed data."""
