@@ -42,3 +42,4 @@ deploy.sh
 *.hintrc*
 .vscode/settings.json
 *.jar
+full_logs.txt
