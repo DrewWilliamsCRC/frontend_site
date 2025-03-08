@@ -123,7 +123,9 @@ else:
 # --------------------
 # Select appropriate database URL based on environment
 if os.environ.get("FLASK_ENV") == "development":
-    DATABASE_URL = os.environ.get("DEV_DATABASE_URL", os.environ.get("DATABASE_URL"))
+    # When running in Docker, we should use the "db" service name, not localhost
+    # The docker-compose.dev.yml already sets DATABASE_URL correctly
+    DATABASE_URL = os.environ.get("DATABASE_URL", os.environ.get("DEV_DATABASE_URL"))
 else:
     DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -175,7 +177,7 @@ def init_db():
                     api_name TEXT NOT NULL,
                     endpoint TEXT NOT NULL,
                     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-                    details JSONB,
+                    request_params JSONB,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 );
                 
@@ -184,8 +186,8 @@ def init_db():
                 ON api_usage (api_name, timestamp);
                 
                 -- Index for JSON querying if needed
-                CREATE INDEX IF NOT EXISTS idx_api_usage_details 
-                ON api_usage USING GIN (details);
+                CREATE INDEX IF NOT EXISTS idx_api_usage_request_params 
+                ON api_usage USING GIN (request_params);
             """)
             
             conn.commit()
@@ -560,7 +562,7 @@ def track_api_call(api_name, endpoint, details=None):
         conn = get_db_connection()
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO api_usage (api_name, endpoint, timestamp, details)
+                INSERT INTO api_usage (api_name, endpoint, timestamp, request_params)
                 VALUES (%s, %s, CURRENT_TIMESTAMP, %s)
             """, (api_name, endpoint, json.dumps(details) if details else None))
             conn.commit()
@@ -873,7 +875,7 @@ def refresh_cat():
     return jsonify({"url": new_cat_url})
 
 # Register the blueprints with URL prefixes
-app.register_blueprint(user_manager_bp, url_prefix="/admin")
+app.register_blueprint(user_manager_bp)
 app.register_blueprint(alpha_vantage_bp, url_prefix="/alpha_vantage")
 
 # Updated route: Redirect to National Weather Service detailed forecast page

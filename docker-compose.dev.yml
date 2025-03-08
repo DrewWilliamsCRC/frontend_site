@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16-alpine
+    platform: linux/amd64  # Use amd64 for better local compatibility, can be adjusted as needed
+    user: postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      POSTGRES_PASSWORD_ENCRYPTION: scram-sha-256
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"  # Expose to host machine without restriction
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - app_network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev  # We'll create this file next
+    volumes:
+      - .:/app  # Mount the entire project for hot reloading
+      - /app/.venv  # Exclude the virtual environment directory
+      - /app/__pycache__  # Exclude cache directories
+      - ./logs:/app/logs  # Persist logs
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - SECRET_KEY=${SECRET_KEY}
+      - OWM_API_KEY=${OWM_API_KEY}
+      - FLASK_DEBUG=1
+      - FLASK_ENV=development
+      - PORT=${PORT}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
+    ports:
+      - "${PORT}:${PORT}"  # Expose without restriction for easier local development
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["flask", "run", "--host=0.0.0.0", "--port=${PORT}", "--debug"]
+    networks:
+      - app_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  app_network:
+    driver: bridge 

@@ -26,6 +26,17 @@
       </div>
       
       <div class="form-group">
+        <label for="email">
+          <i class="fas fa-envelope"></i>
+          Email
+        </label>
+        <input type="email" id="email" name="email" 
+               value="{{ user.email }}" required 
+               class="form-control" autocomplete="email">
+        <p class="help-text">The user's email address</p>
+      </div>
+      
+      <div class="form-group">
         <label for="password">
           <i class="fas fa-lock"></i>
           New Password

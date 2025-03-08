@@ -57,6 +57,65 @@ python3 -c "from app import init_db; init_db()"
 docker compose up -d
 ```
 
+### Docker Development Environment
+
+This project includes a local Docker development setup that's optimized for fast iteration and easy setup.
+
+#### Using the Development Script
+
+We've included a convenient script to manage the Docker development environment:
+
+1. Make the script executable:
+```bash
+chmod +x dev.sh
+```
+
+2. Start the development environment:
+```bash
+./dev.sh up
+```
+
+3. Access the application:
+   - Frontend: http://localhost:5001
+   - PostgreSQL: localhost:5432 (using credentials from .env)
+
+4. Other useful commands:
+```bash
+./dev.sh down       # Stop the environment
+./dev.sh rebuild    # Rebuild and restart containers
+./dev.sh logs       # View logs
+./dev.sh exec       # Open a shell in the frontend container
+./dev.sh db         # Open PostgreSQL CLI
+./dev.sh help       # Show all commands
+```
+
+#### Features of the Docker Development Environment
+
+- 🔄 **Live Reloading** - Changes to your code apply immediately
+- 📂 **Volume Mounting** - Your local files are mounted into the container
+- 🛠️ **Development Mode** - Flask debug mode is enabled
+- 📊 **Database Persistence** - Your database data persists between restarts
+- 🐳 **Isolated Environment** - Consistent development experience across machines
+
+#### Manual Docker Compose (Alternative)
+
+If you prefer to use Docker Compose directly:
+
+```bash
+# Start services
+docker-compose -f docker-compose.dev.yml up -d
+
+# Rebuild and start services
+docker-compose -f docker-compose.dev.yml up -d --build
+
+# Stop services
+docker-compose -f docker-compose.dev.yml down
+```
+
+### Local Setup Without Docker
+
+// ... existing code ...
+
 ## Project Structure
 
 ```
