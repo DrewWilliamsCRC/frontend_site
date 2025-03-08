@@ -539,3 +539,4 @@ Before deploying to production, ensure the following:
 * Bootstrap and Font Awesome for UI components
 * The security community for best practices
 * Alpha Vantage API for stock market data
+
