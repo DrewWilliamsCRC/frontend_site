@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Indices Standalone</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        #market-indices-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3498db;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Market Indices Standalone</h1>
+        <div id="market-indices-container">
+            <div class="loader"></div> Loading market indices...
+        </div>
+    </div>
+
+    <script>
+        // Immediately log that script is running
+        console.log('Standalone page script loaded');
+        
+        // Global error handler
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Global error caught:', message, 'at', source, lineno, colno, error);
+            document.body.innerHTML += `<div style="color:red; padding:20px; font-weight:bold; position:fixed; bottom:0; right:0; background:white; border:2px solid red; z-index:9999">
+                JavaScript Error: ${message} (Line: ${lineno})
+            </div>`;
+            return true;
+        };
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded in standalone page');
+            fetchAndDisplayMarketIndices();
+        });
+        
+        async function fetchAndDisplayMarketIndices() {
+            console.log('Starting to fetch market indices in standalone page');
+            
+            // Find the container
+            const container = document.getElementById('market-indices-container');
+            if (!container) {
+                console.error('FATAL ERROR: Container #market-indices-container not found!');
+                document.body.innerHTML = '<div style="color:red; padding:20px; font-weight:bold;">ERROR: market-indices-container not found</div>';
+                return;
+            }
+            
+            try {
+                // Debug message directly in the container
+                container.innerHTML = '<div>Attempting API fetch...</div>';
+                
+                // Fetch data from API
+                console.log('Making API request to /api/market-indices');
+                const response = await fetch('/api/market-indices');
+                console.log('API response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+                
+                // Parse JSON data
+                const data = await response.json();
+                console.log('API data received:', data);
+                
+                // Clear loading indicator
+                container.innerHTML = '';
+                
+                // Check if data has indices
+                if (!data || !data.indices) {
+                    console.error('No indices data found in API response');
+                    container.innerHTML = '<div style="padding:15px; background-color:#ffeeee; border:1px solid #ffcccc; border-radius:5px;">No market data available</div>';
+                    return;
+                }
+                
+                // Display each index
+                const indices = data.indices;
+                console.log('Displaying indices:', Object.keys(indices));
+                
+                for (const symbol in indices) {
+                    if (indices.hasOwnProperty(symbol)) {
+                        const indexData = indices[symbol];
+                        
+                        // Create a simple card element with inline styles
+                        const card = document.createElement('div');
+                        card.style.border = '1px solid #ddd';
+                        card.style.padding = '15px';
+                        card.style.margin = '10px';
+                        card.style.borderRadius = '5px';
+                        card.style.backgroundColor = '#f9f9f9';
+                        card.style.display = 'inline-block';
+                        card.style.minWidth = '150px';
+                        card.style.textAlign = 'center';
+                        
+                        // Use very simple text content
+                        card.innerHTML = `<strong>${symbol}</strong><br>${indexData.price}`;
+                        
+                        // Add to container
+                        container.appendChild(card);
+                        console.log(`Added card for ${symbol}`);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Error in fetchAndDisplayMarketIndices:', error);
+                container.innerHTML = `<div style="padding:15px; background-color:#ffeeee; border:1px solid #ffcccc; border-radius:5px;">
+                    Failed to load market data: ${error.message}
+                </div>`;
+            }
+        }
+    </script>
+</body>
+</html> 

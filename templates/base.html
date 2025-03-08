@@ -98,6 +98,10 @@
           <i class="fas fa-robot"></i>
           <span>AI Insights</span>
         </a>
+        <a href="{{ url_for('ai_dashboard') }}" class="nav-item {% if request.endpoint == 'ai_dashboard' %}active{% endif %}">
+          <i class="fas fa-brain"></i>
+          <span>AI Dashboard</span>
+        </a>
         <a href="{{ url_for('logout') }}" class="nav-item">
           <i class="fas fa-sign-out-alt"></i>
           <span>Logout</span>
