@@ -29,6 +29,14 @@ Thumbs.db
 .env.*
 !.env.example
 
+# API keys and secrets
+*api_key*
+*apikey*
+*secret*
+*.pem
+credentials.json
+secrets.json
+
 deploy.sh
 *.pyc
 *.hintrc*

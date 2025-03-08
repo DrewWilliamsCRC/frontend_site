@@ -25,7 +25,7 @@ logger = logging.getLogger('alpha_vantage_pipeline')
 
 # Load environment variables
 load_dotenv()
-ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY", "02XUX8CW5OPKPEG0")
+ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -63,6 +63,11 @@ class AlphaVantageAPI:
         self.api_key = api_key or ALPHA_VANTAGE_API_KEY
         if not self.api_key:
             raise ValueError("Alpha Vantage API key is required.")
+        
+        # Security check to prevent API keys being hardcoded
+        if self.api_key and (len(self.api_key) == 16 or len(self.api_key) == 32) and self.api_key == api_key:
+            logger.warning("API key appears to be directly provided rather than loaded from environment")
+            logger.warning("For security, please use environment variables or secure storage instead")
         
         self.session = requests.Session()
         self.last_call_time = None
