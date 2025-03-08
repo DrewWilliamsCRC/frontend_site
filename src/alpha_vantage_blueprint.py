@@ -7,7 +7,10 @@ import logging
 import json
 from hashlib import md5
 import time
-from . import cache
+# Removed direct import of cache to avoid circular imports
+
+# Define the blueprint
+alpha_vantage_bp = Blueprint('alpha_vantage', __name__, url_prefix='/alpha_vantage')
 
 # Get API key from environment
 ALPHA_VANTAGE_API_KEY = os.environ.get("ALPHA_VANTAGE_API_KEY")
@@ -188,7 +191,7 @@ def api_call(category, function_name):
     cache_key = get_cache_key(function_name, params)
     
     # Check cache first
-    cached_result = cache.get(cache_key)
+    cached_result = current_app.cache.get(cache_key)
     if cached_result:
         # Add cache metadata to response
         if isinstance(cached_result, dict):
@@ -216,7 +219,7 @@ def api_call(category, function_name):
         # Store in cache if successful
         if response.status_code == 200:
             cache_duration = get_cache_duration(function_name)
-            cache.set(cache_key, data, timeout=cache_duration)
+            current_app.cache.set(cache_key, data, timeout=cache_duration)
             
         return jsonify(data), response.status_code
         
