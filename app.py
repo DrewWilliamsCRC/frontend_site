@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 import random
 import time
+import logging
 
 # Load environment variables before any other configuration
 print("Loading environment variables from .env file...")
@@ -4020,11 +4021,14 @@ def analyze_news_data():
         })
     except Exception as e:
         print(f"Error in analyze_news_data: {str(e)}")
+        log_error(f"Error in analyze_news_data: {str(e)}")
         return jsonify({
             'status': 'error',
-            'message': f'Error analyzing news data: {str(e)}'
+            'message': 'An internal error has occurred while analyzing news data.'
         }), 500
 
+def log_error(message):
+    logging.error(message)
 
 def fetch_news_for_section(section, page_size=50):
     """
