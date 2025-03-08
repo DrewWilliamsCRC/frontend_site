@@ -3392,8 +3392,7 @@ def get_alerts():
     except ImportError as e:
         app.logger.error(f"Import error: {str(e)}")
         return jsonify({
-            "error": "Failed to import alert system module",
-            "details": str(e)
+            "error": "Failed to import alert system module"
         }), 500
     
     # Get user_id from session
@@ -3437,8 +3436,7 @@ def get_alerts():
         app.logger.error(traceback.format_exc())
         
         return jsonify({
-            "error": "Failed to retrieve alert rules",
-            "details": str(e)
+            "error": "Failed to retrieve alert rules"
         }), 500
 
 
