@@ -11,7 +11,7 @@ touch /app/logs/gunicorn.log
 touch /app/logs/access.log
 
 echo "Starting entrypoint script..."
-echo "Database URL: $DATABASE_URL"
+echo "Database URL: ${DATABASE_URL//:*@/:***@}"
 echo "Database Host: $DB_HOST"
 echo "Database Port: $DB_PORT"
 echo "Database User: $POSTGRES_USER"
@@ -37,9 +37,64 @@ echo "Database is ready!"
 echo "Testing database connection with full connection string..."
 PGPASSWORD=$POSTGRES_PASSWORD psql "$DATABASE_URL" -c '\conninfo'
 
-# Initialize the database
+# Initialize the database - this has been made more robust
 echo "Initializing database..."
-python3 -c "from app import init_db; init_db()"
+python3 -c "
+try:
+    from app import init_db
+    print('Found init_db function, initializing database...')
+    init_db()
+    print('Database initialized successfully')
+except ImportError as e:
+    print(f'Warning: {str(e)}')
+    print('Creating basic database schema directly...')
+    import psycopg2
+    import os
+    
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    
+    # Create users table
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            city_name TEXT,
+            button_width INTEGER DEFAULT 200,
+            button_height INTEGER DEFAULT 200,
+            news_categories TEXT DEFAULT 'general'
+        );
+    ''')
+    
+    # Create api_usage table
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS api_usage (
+            id SERIAL PRIMARY KEY,
+            api_name TEXT NOT NULL,
+            endpoint TEXT NOT NULL,
+            timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+            request_params JSONB,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        -- Index for efficient querying of recent usage
+        CREATE INDEX IF NOT EXISTS idx_api_usage_timestamp 
+        ON api_usage (api_name, timestamp);
+        
+        -- Index for JSON querying if needed
+        CREATE INDEX IF NOT EXISTS idx_api_usage_request_params 
+        ON api_usage USING GIN (request_params);
+    ''')
+    
+    conn.commit()
+    conn.close()
+    print('Basic schema created successfully')
+except Exception as e:
+    print(f'Warning: Could not initialize database: {str(e)}')
+    print('Continuing with startup anyway...')
+"
 
 # Start the Flask application with gunicorn
 echo "Starting Gunicorn with 4 workers..."
