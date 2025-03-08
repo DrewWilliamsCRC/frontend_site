@@ -16,7 +16,7 @@ if [ -f /etc/alpine-release ]; then
     
     # Install critical scientific packages first
     echo "Installing critical scientific packages first..."
-    pip install --no-cache-dir pandas numpy matplotlib seaborn || true
+    pip install --no-cache-dir pandas numpy matplotlib seaborn scikit-learn || true
     
     # Installation strategy: 
     # 1. Try batch installation first for most packages (much faster)
@@ -59,7 +59,7 @@ fi
 
 # Verify critical packages are installed
 echo "Verifying critical packages..."
-for pkg in Flask gunicorn psycopg2 pandas numpy matplotlib seaborn; do
+for pkg in Flask gunicorn psycopg2 pandas numpy matplotlib seaborn scikit-learn; do
     if pip show $pkg > /dev/null 2>&1; then
         echo "✓ $pkg is installed"
     else

@@ -18,7 +18,7 @@ echo -e "${GREEN}Building and starting containers with scientific packages...${N
 ./dev.sh rebuild
 
 echo -e "${YELLOW}Verifying package installation...${NC}"
-docker compose exec frontend pip list | grep -E "pandas|numpy|matplotlib|seaborn"
+docker compose exec frontend pip list | grep -E "pandas|numpy|matplotlib|seaborn|scikit-learn"
 
 echo -e "${GREEN}Testing AI Insights endpoint...${NC}"
 curl -s http://localhost:5001/api/ai-insights | grep -v "error" && echo -e "${GREEN}Success! AI Insights is working correctly.${NC}" || echo -e "${RED}Error: AI Insights still has issues.${NC}"
