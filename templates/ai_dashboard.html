@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}AI Dashboard - Market Indices{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ai-dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Market Indices</h1>
+    <p>Live market data for major indices</p>
+    
+    <!-- This is our main container for market indices -->
+    <div id="market-indices-container">
+        <div class="loader"></div> Loading market data...
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/ai-dashboard.js') }}"></script>
+{% endblock %} 

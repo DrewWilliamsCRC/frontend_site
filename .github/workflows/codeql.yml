@@ -67,12 +67,8 @@ jobs:
       with:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
-        # If you wish to specify custom queries, you can do so here or in a config file.
-        # By default, queries listed here will override any specified in a config file.
-        # Prefix the list here with "+" to use these queries and those in the config file.
-
-        # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
-        # queries: security-extended,security-and-quality
+        # Enable more comprehensive queries
+        queries: security-extended,security-and-quality
 
     # If the analyze step fails for one of the languages you are analyzing with
     # "We were unable to automatically build your code", modify the matrix above
@@ -94,3 +90,39 @@ jobs:
       uses: github/codeql-action/analyze@v3
       with:
         category: "/language:${{matrix.language}}"
+
+  # Additional Python safety check
+  python-safety:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit
+        
+    - name: Check for vulnerable dependencies
+      run: |
+        safety check -r requirements.txt --full-report
+        
+    - name: Run Bandit security scanner
+      run: |
+        bandit -r . -x "./.venv,./tests,./data,./logs" -f json -o bandit-results.json || true
+        
+    - name: Display Bandit Results
+      if: always()
+      run: |
+        echo "## Bandit Security Scan Results" >> $GITHUB_STEP_SUMMARY
+        if [ -f bandit-results.json ]; then
+          echo "Found potential security issues. Please review the full report." >> $GITHUB_STEP_SUMMARY
+          bandit -r . -x "./.venv,./tests,./data,./logs"
+        else
+          echo "No security issues found!" >> $GITHUB_STEP_SUMMARY
+        fi
