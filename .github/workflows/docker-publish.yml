@@ -48,31 +48,35 @@ jobs:
           echo "SECRET_KEY=test-secret-key" >> .env
           echo "FLASK_ENV=testing" >> .env
           
-      - name: Run tests
+      - name: Create test directory if needed
         run: |
-          if [ -d "tests" ]; then
-            pytest tests/
-          else
-            echo "No tests directory found. Creating example test directory."
+          if [ ! -d "tests" ]; then
+            echo "No tests directory found. Creating it now."
             mkdir -p tests
-            cat > tests/test_app.py << 'EOF'
-            import os
-            import sys
-            import pytest
-            
-            # Add parent directory to path to allow importing app
-            sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-            
-            def test_app_initialized():
-                """Test if the app can be imported and initialized"""
-                try:
-                    from app import app
-                    assert app is not None
-                except ImportError:
-                    pytest.skip("Could not import app, skipping test")
-            EOF
-            pytest tests/
           fi
+          
+      - name: Create basic test file if needed
+        run: |
+          if [ ! -f "tests/test_app.py" ]; then
+            echo "Creating a basic test file."
+            echo 'import os' > tests/test_app.py
+            echo 'import sys' >> tests/test_app.py
+            echo 'import pytest' >> tests/test_app.py
+            echo '' >> tests/test_app.py
+            echo '# Add parent directory to path to allow importing app' >> tests/test_app.py
+            echo 'sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))'  >> tests/test_app.py
+            echo '' >> tests/test_app.py
+            echo 'def test_app_initialized():' >> tests/test_app.py
+            echo '    """Test if the app can be imported and initialized"""' >> tests/test_app.py
+            echo '    try:' >> tests/test_app.py
+            echo '        from app import app' >> tests/test_app.py
+            echo '        assert app is not None' >> tests/test_app.py
+            echo '    except ImportError:' >> tests/test_app.py
+            echo '        pytest.skip("Could not import app, skipping test")' >> tests/test_app.py
+          fi
+          
+      - name: Run tests
+        run: pytest tests/
 
   # Test job only runs on PRs
   test:
