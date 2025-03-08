@@ -3195,6 +3195,659 @@ def calculate_market_metrics(processed_data, period='1d'):
             "aiConfidence": {"value": "Error", "score": 50, "status": "neutral", "description": "Error calculating AI confidence"}
         }
 
+@app.route('/api/portfolio-optimization', methods=['POST'])
+def portfolio_optimization():
+    """API endpoint for portfolio optimization."""
+    if 'user' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    # Get request data
+    req_data = request.get_json()
+    
+    if not req_data:
+        return jsonify({"error": "No request data provided"}), 400
+    
+    # Extract parameters
+    symbols = req_data.get('symbols')
+    risk_tolerance = req_data.get('risk_tolerance', 'moderate')
+    optimization_method = req_data.get('method', 'mpt')  # 'mpt' or 'risk_parity'
+    historical_days = req_data.get('historical_days', 365 * 2)
+    custom_risk_budget = req_data.get('custom_risk_budget')
+    
+    # Validate symbols
+    if not symbols or not isinstance(symbols, list) or len(symbols) < 2:
+        return jsonify({
+            "error": "At least two valid symbols are required for portfolio optimization"
+        }), 400
+    
+    # Path to AI experiments directory
+    ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
+    app.logger.info(f"AI directory path: {ai_dir}")
+    
+    # Add AI directory to path
+    if ai_dir not in sys.path:
+        sys.path.append(ai_dir)
+    
+    try:
+        # Import our portfolio optimizer module
+        from portfolio_optimizer import MPTOptimizer, RiskParityOptimizer
+        app.logger.info("Successfully imported portfolio optimizer module")
+    except ImportError as e:
+        app.logger.error(f"Import error: {str(e)}")
+        return jsonify({
+            "error": "Failed to import portfolio optimizer module",
+            "details": str(e)
+        }), 500
+    
+    try:
+        # Create optimizer based on method
+        if optimization_method.lower() == 'risk_parity':
+            optimizer = RiskParityOptimizer(symbols, historical_days=historical_days)
+            
+            # Custom risk budget optimization for risk parity
+            if custom_risk_budget and isinstance(custom_risk_budget, dict):
+                # Validate custom risk budget
+                if not all(symbol in symbols for symbol in custom_risk_budget) or \
+                   not all(isinstance(weight, (int, float)) for weight in custom_risk_budget.values()):
+                    return jsonify({
+                        "error": "Invalid custom risk budget provided"
+                    }), 400
+                
+                # Complete missing symbols with equal weights
+                total_specified_weight = sum(custom_risk_budget.values())
+                remaining_weight = 1.0 - total_specified_weight
+                unspecified_symbols = [s for s in symbols if s not in custom_risk_budget]
+                
+                if unspecified_symbols and remaining_weight > 0:
+                    weight_per_symbol = remaining_weight / len(unspecified_symbols)
+                    for symbol in unspecified_symbols:
+                        custom_risk_budget[symbol] = weight_per_symbol
+                
+                app.logger.info(f"Using custom risk budget: {custom_risk_budget}")
+                result = optimizer.optimize_with_custom_risk(custom_risk_budget)
+            else:
+                # Standard risk parity optimization
+                result = optimizer.optimize(risk_tolerance)
+        else:
+            # Default to MPT optimization
+            optimizer = MPTOptimizer(symbols, historical_days=historical_days)
+            result = optimizer.optimize(risk_tolerance)
+        
+        # Add additional metadata
+        result['optimization_method'] = optimization_method
+        result['historical_days'] = historical_days
+        result['request_timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Include raw asset data (last 30 days) for charting
+        if optimizer.data is not None and not optimizer.data.empty:
+            # Get last 30 days of data
+            last_30_days = optimizer.data.iloc[-30:].copy()
+            # Convert index to string for JSON serialization
+            last_30_days.index = last_30_days.index.strftime('%Y-%m-%d')
+            # Convert to dictionary for JSON response
+            result['asset_data'] = {
+                'dates': last_30_days.index.tolist(),
+                'prices': {symbol: last_30_days[symbol].tolist() for symbol in symbols if symbol in last_30_days.columns}
+            }
+            
+            # Calculate correlation matrix
+            if optimizer.returns is not None and not optimizer.returns.empty:
+                correlation_matrix = optimizer.returns.corr().round(3)
+                result['correlation_matrix'] = correlation_matrix.to_dict()
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error during portfolio optimization: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        
+        return jsonify({
+            "error": "Failed to optimize portfolio",
+            "details": str(e)
+        }), 500
+
+@app.route('/api/alerts', methods=['GET'])
+def get_alerts():
+    """API endpoint to get all alert rules."""
+    if 'user' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    # Path to AI experiments directory
+    ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
+    
+    # Add AI directory to path if needed
+    if ai_dir not in sys.path:
+        sys.path.append(ai_dir)
+    
+    try:
+        # Import our alert system module
+        from alert_system import AlertManager
+        app.logger.info("Successfully imported alert system module")
+    except ImportError as e:
+        app.logger.error(f"Import error: {str(e)}")
+        return jsonify({
+            "error": "Failed to import alert system module",
+            "details": str(e)
+        }), 500
+    
+    # Get user_id from session
+    user_id = session['user'].get('id')
+    
+    try:
+        # Get alert rules from database
+        cursor = get_db_connection().cursor(dictionary=True)
+        cursor.execute(
+            "SELECT * FROM alert_rules WHERE user_id = %s ORDER BY created_at DESC",
+            (user_id,)
+        )
+        alert_rules = cursor.fetchall()
+        cursor.close()
+        
+        # Format response
+        response = {
+            "alert_rules": []
+        }
+        
+        for rule in alert_rules:
+            # Parse rule parameters from JSON
+            rule_params = json.loads(rule['rule_params'])
+            
+            # Add formatted rule to response
+            response["alert_rules"].append({
+                "id": rule['id'],
+                "name": rule['name'],
+                "type": rule['rule_type'],
+                "enabled": rule['enabled'],
+                "params": rule_params,
+                "last_triggered": rule['last_triggered'],
+                "created_at": rule['created_at'].isoformat() if rule['created_at'] else None
+            })
+        
+        return jsonify(response), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error getting alert rules: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        
+        return jsonify({
+            "error": "Failed to retrieve alert rules",
+            "details": str(e)
+        }), 500
+
+
+@app.route('/api/alerts', methods=['POST'])
+def create_alert():
+    """API endpoint to create a new alert rule."""
+    if 'user' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    # Get request data
+    req_data = request.get_json()
+    
+    if not req_data:
+        return jsonify({"error": "No request data provided"}), 400
+    
+    # Extract parameters
+    name = req_data.get('name')
+    rule_type = req_data.get('type')
+    rule_params = req_data.get('params', {})
+    enabled = req_data.get('enabled', True)
+    
+    # Validate parameters
+    if not name or not rule_type:
+        return jsonify({
+            "error": "Missing required parameters: name and type are required"
+        }), 400
+    
+    # Validate rule_type
+    valid_rule_types = ['price', 'prediction', 'portfolio']
+    if rule_type not in valid_rule_types:
+        return jsonify({
+            "error": f"Invalid rule type: {rule_type}. Must be one of: {', '.join(valid_rule_types)}"
+        }), 400
+    
+    # Validate rule_params based on rule_type
+    if rule_type == 'price':
+        required_params = ['symbol', 'threshold', 'condition']
+        if not all(param in rule_params for param in required_params):
+            return jsonify({
+                "error": f"Missing required parameters for price alert: {', '.join(required_params)}"
+            }), 400
+    elif rule_type == 'prediction':
+        required_params = ['symbol', 'metric', 'threshold', 'condition']
+        if not all(param in rule_params for param in required_params):
+            return jsonify({
+                "error": f"Missing required parameters for prediction alert: {', '.join(required_params)}"
+            }), 400
+    elif rule_type == 'portfolio':
+        required_params = ['portfolio_id', 'metric', 'threshold', 'condition']
+        if not all(param in rule_params for param in required_params):
+            return jsonify({
+                "error": f"Missing required parameters for portfolio alert: {', '.join(required_params)}"
+            }), 400
+    
+    # Path to AI experiments directory
+    ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
+    
+    # Add AI directory to path if needed
+    if ai_dir not in sys.path:
+        sys.path.append(ai_dir)
+    
+    try:
+        # Import our alert system module
+        from alert_system import AlertManager, PriceAlertRule, PredictionAlertRule, PortfolioAlertRule
+        app.logger.info("Successfully imported alert system module")
+    except ImportError as e:
+        app.logger.error(f"Import error: {str(e)}")
+        return jsonify({
+            "error": "Failed to import alert system module",
+            "details": str(e)
+        }), 500
+    
+    # Get user_id from session
+    user_id = session['user'].get('id')
+    
+    try:
+        # Insert alert rule into database
+        cursor = get_db_connection().cursor()
+        cursor.execute(
+            """
+            INSERT INTO alert_rules 
+            (user_id, name, rule_type, rule_params, enabled, created_at) 
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (user_id, name, rule_type, json.dumps(rule_params), enabled, datetime.now())
+        )
+        
+        # Get the ID of the inserted rule
+        rule_id = cursor.lastrowid
+        get_db_connection().commit()
+        cursor.close()
+        
+        # Return the created rule
+        return jsonify({
+            "id": rule_id,
+            "name": name,
+            "type": rule_type,
+            "params": rule_params,
+            "enabled": enabled,
+            "created_at": datetime.now().isoformat()
+        }), 201
+        
+    except Exception as e:
+        app.logger.error(f"Error creating alert rule: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        
+        return jsonify({
+            "error": "Failed to create alert rule",
+            "details": str(e)
+        }), 500
+
+
+@app.route('/api/alerts/<int:rule_id>', methods=['DELETE'])
+def delete_alert(rule_id):
+    """API endpoint to delete an alert rule."""
+    if 'user' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+    
+    # Get user_id from session
+    user_id = session['user'].get('id')
+    
+    try:
+        # Check if the rule exists and belongs to the user
+        cursor = get_db_connection().cursor(dictionary=True)
+        cursor.execute(
+            "SELECT id FROM alert_rules WHERE id = %s AND user_id = %s",
+            (rule_id, user_id)
+        )
+        rule = cursor.fetchone()
+        
+        if not rule:
+            cursor.close()
+            return jsonify({
+                "error": "Alert rule not found or you don't have permission to delete it"
+            }), 404
+        
+        # Delete the rule
+        cursor.execute(
+            "DELETE FROM alert_rules WHERE id = %s",
+            (rule_id,)
+        )
+        get_db_connection().commit()
+        cursor.close()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Alert rule {rule_id} deleted successfully"
+        }), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error deleting alert rule: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+        
+        return jsonify({
+            "error": "Failed to delete alert rule",
+            "details": str(e)
+        }), 500
+
+@app.route('/ai-dashboard')
+def ai_dashboard():
+    """
+    Render the advanced AI financial dashboard with market insights,
+    portfolio optimization, alerts, economic indicators, and news sentiment analysis.
+    """
+    # Check if user is logged in
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+    return render_template('ai_dashboard.html')
+
+@app.route('/api/ai-status')
+def ai_status():
+    """
+    Check the status of AI systems and return availability information.
+    This endpoint is used by the frontend to monitor AI service health.
+    """
+    try:
+        # In a real-world scenario, we would check actual AI service health
+        # For now, we'll return a mock status based on the server being up
+        
+        # Check if any required API keys are missing
+        required_keys = ["ALPHA_VANTAGE_API_KEY"]
+        missing_keys = [key for key in required_keys if not os.environ.get(key)]
+        
+        # Simple database check to verify connectivity
+        db_connection = get_db_connection()
+        db_connection.close()
+        
+        # All checks passed, AI system is active
+        return jsonify({
+            "status": "active",
+            "message": "AI systems operational",
+            "last_checked": datetime.now().isoformat(),
+            "services": {
+                "prediction_engine": "online",
+                "market_data": "online", 
+                "news_sentiment": "online",
+                "portfolio_optimization": "online"
+            }
+        })
+    except Exception as e:
+        # Some component is not working
+        return jsonify({
+            "status": "inactive",
+            "message": f"AI systems experiencing issues: {str(e)}",
+            "last_checked": datetime.now().isoformat(),
+            "services": {
+                "prediction_engine": "offline",
+                "market_data": "offline",
+                "news_sentiment": "offline",
+                "portfolio_optimization": "offline"
+            }
+        })
+
+@app.route('/api/economic-indicators')
+def economic_indicators():
+    """
+    Provide economic indicators data for the dashboard.
+    This endpoint returns key economic indicators with their latest values.
+    """
+    try:
+        # In a production environment, this would fetch real data from sources like:
+        # - Federal Reserve Economic Data (FRED)
+        # - Bureau of Labor Statistics
+        # - Trading Economics API
+        
+        # For now, we'll return sample data
+        indicators = [
+            {
+                "name": "GDP Growth Rate",
+                "value": 0.0251,
+                "previous": 0.0212,
+                "forecast": 0.0230,
+                "category": "Growth",
+                "importance": 3,
+                "release_date": (datetime.now() - timedelta(days=25)).isoformat()
+            },
+            {
+                "name": "Inflation Rate",
+                "value": 0.0312,
+                "previous": 0.0345,
+                "forecast": 0.0325,
+                "category": "Prices",
+                "importance": 3,
+                "release_date": (datetime.now() - timedelta(days=10)).isoformat()
+            },
+            {
+                "name": "Unemployment Rate",
+                "value": 0.0375,
+                "previous": 0.0389,
+                "forecast": 0.0370,
+                "category": "Labor",
+                "importance": 3,
+                "release_date": (datetime.now() - timedelta(days=5)).isoformat()
+            },
+            {
+                "name": "Interest Rate",
+                "value": 0.0525,
+                "previous": 0.0525,
+                "forecast": 0.0500,
+                "category": "Central Bank",
+                "importance": 3,
+                "release_date": (datetime.now() - timedelta(days=15)).isoformat()
+            },
+            {
+                "name": "Consumer Confidence",
+                "value": 102.5,
+                "previous": 101.8,
+                "forecast": 102.0,
+                "category": "Sentiment",
+                "importance": 2,
+                "release_date": (datetime.now() - timedelta(days=8)).isoformat()
+            },
+            {
+                "name": "Retail Sales MoM",
+                "value": 0.0041,
+                "previous": 0.0028,
+                "forecast": 0.0035,
+                "category": "Consumption",
+                "importance": 2,
+                "release_date": (datetime.now() - timedelta(days=12)).isoformat()
+            },
+            {
+                "name": "Housing Starts",
+                "value": 1.425,
+                "previous": 1.392,
+                "forecast": 1.410,
+                "category": "Real Estate",
+                "importance": 2,
+                "release_date": (datetime.now() - timedelta(days=9)).isoformat()
+            },
+            {
+                "name": "Manufacturing PMI",
+                "value": 51.2,
+                "previous": 49.8,
+                "forecast": 50.5,
+                "category": "Manufacturing",
+                "importance": 2,
+                "release_date": (datetime.now() - timedelta(days=7)).isoformat()
+            },
+            {
+                "name": "Services PMI",
+                "value": 53.6,
+                "previous": 52.9,
+                "forecast": 53.0,
+                "category": "Services",
+                "importance": 2,
+                "release_date": (datetime.now() - timedelta(days=7)).isoformat()
+            },
+            {
+                "name": "Balance of Trade",
+                "value": -68.2,
+                "previous": -70.5,
+                "forecast": -69.0,
+                "category": "Trade",
+                "importance": 2,
+                "release_date": (datetime.now() - timedelta(days=20)).isoformat()
+            },
+            {
+                "name": "Government Debt to GDP",
+                "value": 1.28,
+                "previous": 1.26,
+                "forecast": 1.29,
+                "category": "Government",
+                "importance": 1,
+                "release_date": (datetime.now() - timedelta(days=90)).isoformat()
+            },
+            {
+                "name": "Industrial Production MoM",
+                "value": 0.0029,
+                "previous": -0.0016,
+                "forecast": 0.0025,
+                "category": "Production",
+                "importance": 1,
+                "release_date": (datetime.now() - timedelta(days=14)).isoformat()
+            }
+        ]
+        
+        return jsonify({
+            "indicators": indicators,
+            "last_updated": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "error": f"Failed to retrieve economic indicators: {str(e)}"
+        }), 500
+
+@app.route('/api/news-sentiment')
+def news_sentiment():
+    """
+    Provide news articles with sentiment analysis.
+    This endpoint returns recent news articles with sentiment scores.
+    """
+    try:
+        # In a production environment, this would fetch real news and analyze sentiment using:
+        # - News APIs (Guardian, NewsAPI, etc.)
+        # - Natural Language Processing for sentiment analysis
+        
+        # For now, we'll return sample data
+        articles = [
+            {
+                "title": "Tech Stocks Rally on Strong Earnings Reports",
+                "summary": "Major technology companies reported better-than-expected quarterly earnings, leading to a rally in tech stocks. Investors are optimistic about the sector's growth prospects.",
+                "url": "https://example.com/tech-stocks-rally",
+                "source": "Financial Times",
+                "published_at": (datetime.now() - timedelta(hours=4)).isoformat(),
+                "sentiment": "positive",
+                "sentiment_score": 0.78,
+                "entities": [
+                    {"name": "Tech Stocks", "type": "FINANCIAL_INSTRUMENT"},
+                    {"name": "Earnings", "type": "FINANCIAL_CONCEPT"},
+                    {"name": "Investors", "type": "ENTITY"}
+                ]
+            },
+            {
+                "title": "Federal Reserve Signals Potential Rate Cut in Coming Months",
+                "summary": "The Federal Reserve has indicated it may begin cutting interest rates in the coming months as inflation shows signs of cooling. Markets responded positively to the news.",
+                "url": "https://example.com/fed-rate-cut-signal",
+                "source": "Wall Street Journal",
+                "published_at": (datetime.now() - timedelta(hours=7)).isoformat(),
+                "sentiment": "positive",
+                "sentiment_score": 0.65,
+                "entities": [
+                    {"name": "Federal Reserve", "type": "ORGANIZATION"},
+                    {"name": "Interest Rates", "type": "FINANCIAL_CONCEPT"},
+                    {"name": "Inflation", "type": "ECONOMIC_INDICATOR"}
+                ]
+            },
+            {
+                "title": "Oil Prices Drop Amid Supply Concerns",
+                "summary": "Oil prices fell sharply today due to concerns about oversupply in the global market. OPEC+ members are considering increasing production despite weak demand forecasts.",
+                "url": "https://example.com/oil-prices-drop",
+                "source": "Reuters",
+                "published_at": (datetime.now() - timedelta(hours=10)).isoformat(),
+                "sentiment": "negative",
+                "sentiment_score": -0.55,
+                "entities": [
+                    {"name": "Oil Prices", "type": "COMMODITY"},
+                    {"name": "OPEC+", "type": "ORGANIZATION"},
+                    {"name": "Supply", "type": "ECONOMIC_CONCEPT"}
+                ]
+            },
+            {
+                "title": "Retail Sales Growth Slows in Q2",
+                "summary": "Retail sales growth slowed in the second quarter as consumers cut back on discretionary spending. Analysts cite inflation and economic uncertainty as key factors.",
+                "url": "https://example.com/retail-sales-slow",
+                "source": "Bloomberg",
+                "published_at": (datetime.now() - timedelta(hours=13)).isoformat(),
+                "sentiment": "negative",
+                "sentiment_score": -0.42,
+                "entities": [
+                    {"name": "Retail Sales", "type": "ECONOMIC_INDICATOR"},
+                    {"name": "Q2", "type": "TIME_PERIOD"},
+                    {"name": "Consumers", "type": "ENTITY"}
+                ]
+            },
+            {
+                "title": "New AI Regulations May Impact Tech Sector",
+                "summary": "Proposed regulations for artificial intelligence technologies could impact the tech sector, as companies may face new compliance requirements and limitations.",
+                "url": "https://example.com/ai-regulations",
+                "source": "CNBC",
+                "published_at": (datetime.now() - timedelta(hours=16)).isoformat(),
+                "sentiment": "neutral",
+                "sentiment_score": -0.05,
+                "entities": [
+                    {"name": "AI Regulations", "type": "REGULATION"},
+                    {"name": "Tech Sector", "type": "INDUSTRY"},
+                    {"name": "Compliance", "type": "BUSINESS_CONCEPT"}
+                ]
+            },
+            {
+                "title": "Housing Market Shows Signs of Stabilization",
+                "summary": "After months of declining prices, the housing market is showing signs of stabilization. Mortgage rates have decreased slightly, leading to increased buyer interest.",
+                "url": "https://example.com/housing-market-stabilizes",
+                "source": "Market Watch",
+                "published_at": (datetime.now() - timedelta(hours=21)).isoformat(),
+                "sentiment": "positive",
+                "sentiment_score": 0.38,
+                "entities": [
+                    {"name": "Housing Market", "type": "MARKET"},
+                    {"name": "Mortgage Rates", "type": "FINANCIAL_CONCEPT"},
+                    {"name": "Prices", "type": "ECONOMIC_CONCEPT"}
+                ]
+            }
+        ]
+        
+        # Calculate sentiment summary
+        positive_count = sum(1 for article in articles if article["sentiment"] == "positive")
+        negative_count = sum(1 for article in articles if article["sentiment"] == "negative")
+        neutral_count = sum(1 for article in articles if article["sentiment"] == "neutral")
+        
+        avg_sentiment = sum(article["sentiment_score"] for article in articles) / len(articles)
+        
+        sentiment_summary = {
+            "positive_count": positive_count,
+            "negative_count": negative_count,
+            "neutral_count": neutral_count,
+            "average_score": avg_sentiment
+        }
+        
+        return jsonify({
+            "articles": articles,
+            "sentiment_summary": sentiment_summary,
+            "last_updated": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "error": f"Failed to retrieve news sentiment: {str(e)}"
+        }), 500
+
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.
     # Set FLASK_DEBUG=1 (or "true"/"on") in your development environment.

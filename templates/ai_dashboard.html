@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}AI Financial Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ai-dashboard.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <!-- Header section -->
+  <header class="flex justify-between items-center mb-lg">
+    <div>
+      <h1>AI Financial Dashboard</h1>
+      <p class="text-secondary">Advanced market analysis powered by artificial intelligence</p>
+    </div>
+    <div class="flex items-center gap-md">
+      <button id="dark-mode-toggle" class="btn btn-icon" title="Toggle dark mode">
+        <i class="fas fa-moon"></i>
+      </button>
+      <span class="status">
+        <span class="status-indicator status-positive"></span>
+        AI Engine Active
+      </span>
+    </div>
+  </header>
+
+  <!-- Navigation tabs -->
+  <nav class="tabs">
+    <div class="tab active" data-tab="market-insights">
+      <i class="fas fa-chart-line mr-sm"></i> Market Insights
+    </div>
+    <div class="tab" data-tab="portfolio-optimization">
+      <i class="fas fa-briefcase mr-sm"></i> Portfolio Optimization
+    </div>
+    <div class="tab" data-tab="alerts">
+      <i class="fas fa-bell mr-sm"></i> Alerts
+    </div>
+    <div class="tab" data-tab="economic-indicators">
+      <i class="fas fa-landmark mr-sm"></i> Economic Indicators
+    </div>
+    <div class="tab" data-tab="news-sentiment">
+      <i class="fas fa-newspaper mr-sm"></i> News Sentiment
+    </div>
+    <div class="ml-auto">
+      <div id="last-updated" class="text-secondary">
+        <small>Last updated: <span id="update-timestamp">Just now</span></small>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Market Insights Tab Content -->
+  <div id="market-insights-content" class="tab-content active">
+    <!-- Loading indicator -->
+    <div id="marketIndices-loading" class="flex justify-center items-center py-lg hidden">
+      <div class="loader"></div>
+      <span class="ml-sm">Loading market data...</span>
+    </div>
+    
+    <!-- Error alert -->
+    <div id="marketIndices-error" class="alert alert-error hidden">
+      Failed to load market indices data.
+    </div>
+    
+    <!-- Content will be filled dynamically by JavaScript -->
+    <div class="dashboard-layout">
+      <!-- Market Overview Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Market Overview</h3>
+          <div class="card-actions">
+            <button data-refresh="marketIndices" class="btn btn-icon" title="Refresh">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="market-indices-container"></div>
+        </div>
+        <div class="card-footer">
+          <small>Source: Alpha Vantage</small>
+        </div>
+      </div>
+      
+      <!-- AI Prediction Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">AI Market Prediction</h3>
+          <div class="card-actions">
+            <button data-refresh="aiInsights" class="btn btn-icon" title="Refresh">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="ai-prediction-container"></div>
+        </div>
+        <div class="card-footer">
+          <small>Powered by TensorFlow & LSTM Models</small>
+        </div>
+      </div>
+      
+      <!-- Feature Importance Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Feature Importance</h3>
+        </div>
+        <div class="card-body">
+          <div id="feature-importance-container" class="chart-container"></div>
+        </div>
+        <div class="card-footer">
+          <small>Factors influencing AI predictions</small>
+        </div>
+      </div>
+      
+      <!-- Market Metrics Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Market Metrics</h3>
+        </div>
+        <div class="card-body">
+          <div id="market-metrics-container" class="metrics-grid"></div>
+        </div>
+        <div class="card-footer">
+          <small>Based on technical indicators</small>
+        </div>
+      </div>
+      
+      <!-- Prediction History Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Prediction History</h3>
+        </div>
+        <div class="card-body">
+          <div id="prediction-history-container" class="chart-container"></div>
+        </div>
+        <div class="card-footer">
+          <small>Last 10 days performance</small>
+        </div>
+      </div>
+      
+      <!-- Return Prediction Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Return Predictions</h3>
+        </div>
+        <div class="card-body">
+          <div id="return-prediction-container"></div>
+        </div>
+        <div class="card-footer">
+          <small>7-day forecast</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Portfolio Optimization Tab Content (will be loaded when the tab is clicked) -->
+  <div id="portfolio-optimization-content" class="tab-content">
+    <!-- Loading indicator -->
+    <div id="portfolioOptimization-loading" class="flex justify-center items-center py-lg hidden">
+      <div class="loader"></div>
+      <span class="ml-sm">Optimizing portfolio...</span>
+    </div>
+    
+    <!-- Error alert -->
+    <div id="portfolioOptimization-error" class="alert alert-error hidden">
+      Failed to optimize portfolio.
+    </div>
+    
+    <!-- Success message -->
+    <div id="portfolioOptimization-success" class="alert alert-success hidden">
+      Portfolio successfully optimized.
+    </div>
+    
+    <!-- Portfolio Form and Results (to be filled via JavaScript) -->
+    <div class="dashboard-layout">
+      <!-- Form Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Portfolio Optimization</h3>
+        </div>
+        <div class="card-body">
+          <form id="portfolio-optimization-form">
+            <div class="form-group">
+              <label class="form-label" for="symbols">Stock Symbols</label>
+              <input type="text" id="symbols" name="symbols" class="form-control" 
+                     placeholder="AAPL, MSFT, GOOGL, AMZN, NVDA" required>
+              <small class="text-secondary">Comma-separated list of stock symbols</small>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="risk_tolerance">Risk Tolerance</label>
+              <select id="risk_tolerance" name="risk_tolerance" class="form-control form-select">
+                <option value="low">Low Risk</option>
+                <option value="moderate" selected>Moderate Risk</option>
+                <option value="high">High Risk</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="method">Optimization Method</label>
+              <select id="method" name="method" class="form-control form-select">
+                <option value="mpt" selected>Modern Portfolio Theory</option>
+                <option value="risk_parity">Risk Parity</option>
+              </select>
+            </div>
+            
+            <div id="custom-risk-container" class="form-group hidden">
+              <div class="flex items-center mb-sm">
+                <input type="checkbox" id="use_custom_risk" name="use_custom_risk" value="true">
+                <label for="use_custom_risk" class="ml-sm">Use custom risk budget</label>
+              </div>
+              <div id="risk-budget-inputs" class="hidden">
+                <!-- This will be filled dynamically based on selected symbols -->
+              </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-magic mr-sm"></i> Optimize Portfolio
+            </button>
+          </form>
+        </div>
+      </div>
+      
+      <!-- Results Card (hidden until optimization is performed) -->
+      <div class="card hidden" id="portfolio-results-card">
+        <div class="card-header">
+          <h3 class="card-title">Optimization Results</h3>
+        </div>
+        <div class="card-body">
+          <div id="portfolio-results-container"></div>
+        </div>
+      </div>
+      
+      <!-- Chart Card (hidden until optimization is performed) -->
+      <div class="card hidden" id="portfolio-chart-card">
+        <div class="card-header">
+          <h3 class="card-title">Portfolio Allocation</h3>
+        </div>
+        <div class="card-body">
+          <div id="portfolio-chart-container" class="chart-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerts Tab Content (will be loaded when the tab is clicked) -->
+  <div id="alerts-content" class="tab-content">
+    <!-- Loading indicator -->
+    <div id="alerts-loading" class="flex justify-center items-center py-lg hidden">
+      <div class="loader"></div>
+      <span class="ml-sm">Loading alerts...</span>
+    </div>
+    
+    <!-- Error alert -->
+    <div id="alerts-error" class="alert alert-error hidden">
+      Failed to load alerts.
+    </div>
+    
+    <!-- Alerts content (filled via JavaScript) -->
+    <div class="dashboard-layout">
+      <!-- Create Alert Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Create Alert</h3>
+        </div>
+        <div class="card-body">
+          <!-- Error alert -->
+          <div id="alertCreate-error" class="alert alert-error hidden">
+            Failed to create alert.
+          </div>
+          
+          <!-- Success message -->
+          <div id="alertCreate-success" class="alert alert-success hidden">
+            Alert created successfully.
+          </div>
+          
+          <form id="alert-form">
+            <div class="form-group">
+              <label class="form-label" for="alert_name">Alert Name</label>
+              <input type="text" id="alert_name" name="name" class="form-control" 
+                     placeholder="AAPL Price Alert" required>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" for="alert_type">Alert Type</label>
+              <select id="alert_type" name="type" class="form-control form-select">
+                <option value="price" selected>Price Alert</option>
+                <option value="prediction">AI Prediction Alert</option>
+                <option value="portfolio">Portfolio Alert</option>
+              </select>
+            </div>
+            
+            <!-- Dynamic fields for price alerts -->
+            <div id="price-alert-fields">
+              <div class="form-group">
+                <label class="form-label" for="alert_symbol">Symbol</label>
+                <input type="text" id="alert_symbol" name="symbol" class="form-control" 
+                       placeholder="AAPL" required>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label" for="alert_condition">Condition</label>
+                <select id="alert_condition" name="condition" class="form-control form-select">
+                  <option value="above">Above</option>
+                  <option value="below">Below</option>
+                  <option value="cross_above">Crosses Above</option>
+                  <option value="cross_below">Crosses Below</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label" for="alert_threshold">Threshold</label>
+                <input type="number" id="alert_threshold" name="threshold" class="form-control" 
+                       placeholder="180.00" step="0.01" required>
+              </div>
+            </div>
+            
+            <!-- Dynamic fields for prediction alerts (hidden initially) -->
+            <div id="prediction-alert-fields" class="hidden">
+              <!-- Will be filled dynamically based on alert type -->
+            </div>
+            
+            <!-- Dynamic fields for portfolio alerts (hidden initially) -->
+            <div id="portfolio-alert-fields" class="hidden">
+              <!-- Will be filled dynamically based on alert type -->
+            </div>
+            
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-bell mr-sm"></i> Create Alert
+            </button>
+          </form>
+        </div>
+      </div>
+      
+      <!-- Alerts List Card -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Your Alerts</h3>
+          <div class="card-actions">
+            <button data-refresh="alerts" class="btn btn-icon" title="Refresh">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="alerts-list-container">
+            <!-- Will be filled dynamically -->
+            <p class="text-center">No alerts found.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Economic Indicators Tab Content (will be implemented in the next phase) -->
+  <div id="economic-indicators-content" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Economic Indicators</h3>
+      </div>
+      <div class="card-body">
+        <p>Economic indicators data will be implemented in the next phase.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- News Sentiment Tab Content (will be implemented in the next phase) -->
+  <div id="news-sentiment-content" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">News Sentiment Analysis</h3>
+      </div>
+      <div class="card-body">
+        <p>News sentiment analysis will be implemented in the next phase.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/ai-charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/portfolio-optimization.js') }}"></script>
+<script src="{{ url_for('static', filename='js/alerts-system.js') }}"></script>
+<script src="{{ url_for('static', filename='js/news-economic.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai-dashboard.js') }}"></script>
+{% endblock %} 

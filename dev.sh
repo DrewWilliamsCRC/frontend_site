@@ -50,6 +50,7 @@ show_help() {
     echo "Commands:"
     echo "  up       - Start the development environment"
     echo "  down     - Stop the development environment"
+    echo "  restart  - Restart the development environment"
     echo "  rebuild  - Rebuild containers and start"
     echo "  logs     - Show logs from containers"
     echo "  ps       - Show container status"
@@ -70,6 +71,16 @@ case "$1" in
     down)
         echo -e "${GREEN}Stopping development environment...${NC}"
         ${DOCKER_COMPOSE} -f docker-compose.dev.yml down
+        ;;
+    restart)
+        echo -e "${GREEN}Restarting development environment...${NC}"
+        echo -e "${YELLOW}Stopping containers...${NC}"
+        ${DOCKER_COMPOSE} -f docker-compose.dev.yml down
+        echo -e "${YELLOW}Starting containers...${NC}"
+        ${DOCKER_COMPOSE} -f docker-compose.dev.yml up -d
+        echo -e "${GREEN}Development environment restarted!${NC}"
+        echo "Frontend available at: http://localhost:5001"
+        echo "PostgreSQL available at: localhost:5432"
         ;;
     rebuild)
         echo -e "${GREEN}Rebuilding and starting development environment...${NC}"
