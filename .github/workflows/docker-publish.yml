@@ -134,14 +134,16 @@ jobs:
         run: |
           echo "hash=$(md5sum requirements.txt build-helpers/requirements-alpine.txt 2>/dev/null | md5sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
 
-      # Set up build cache with improved key
-      - name: Cache Docker layers
-        uses: actions/cache@v3
+      # Set up build cache with improved key and enhanced settings
+      - name: Set up Docker Build Cache
+        id: buildx-cache
+        uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}-${{ steps.requirements-hash.outputs.hash }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('dockerfile', 'requirements.txt', 'build-helpers/**') }}-${{ steps.requirements-hash.outputs.hash }}
           restore-keys: |
-            ${{ runner.os }}-buildx-${{ github.sha }}-
+            ${{ runner.os }}-buildx-${{ hashFiles('dockerfile', 'requirements.txt', 'build-helpers/**') }}-
+            ${{ runner.os }}-buildx-${{ github.ref }}-
             ${{ runner.os }}-buildx-
 
       # Print Dockerfile content for debugging
@@ -207,14 +209,16 @@ jobs:
         run: |
           echo "hash=$(md5sum requirements.txt build-helpers/requirements-alpine.txt 2>/dev/null | md5sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
 
-      # Set up build cache with improved key
-      - name: Cache Docker layers
-        uses: actions/cache@v3
+      # Set up build cache with improved key and enhanced settings
+      - name: Set up Docker Build Cache
+        id: buildx-cache
+        uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}-${{ steps.requirements-hash.outputs.hash }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('dockerfile', 'requirements.txt', 'build-helpers/**') }}-${{ steps.requirements-hash.outputs.hash }}
           restore-keys: |
-            ${{ runner.os }}-buildx-${{ github.sha }}-
+            ${{ runner.os }}-buildx-${{ hashFiles('dockerfile', 'requirements.txt', 'build-helpers/**') }}-
+            ${{ runner.os }}-buildx-${{ github.ref }}-
             ${{ runner.os }}-buildx-
 
       - name: Log into Docker Hub
@@ -235,12 +239,20 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: dawttu00/dawttu_private:frontend
-          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-from: |
+            type=local,src=/tmp/.buildx-cache
+            type=registry,ref=dawttu00/dawttu_private:frontend
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           build-args: |
             BUILDPLATFORM=linux/amd64
             TARGETPLATFORM=linux/amd64
             PYTHON_VERSION=3.10-alpine
+          # Enable better caching with build layers
+          provenance: false
+          outputs: type=registry,push=true
+          # Add layer caching
+          no-cache: false
+          pull: true
 
       # Move cache
       - name: Move cache
