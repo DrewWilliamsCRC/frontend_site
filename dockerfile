@@ -68,7 +68,7 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
 # Install critical Python packages directly in the final stage too
 # This ensures they're available even in case of any issues with the copied site-packages
-RUN pip install python-dotenv flask flask-caching flask-wtf flask-limiter gunicorn requests psycopg2-binary click urllib3
+RUN pip install python-dotenv flask flask-caching flask-wtf flask-limiter gunicorn requests psycopg2-binary click urllib3 pandas numpy
 
 # Copy application code
 COPY . .

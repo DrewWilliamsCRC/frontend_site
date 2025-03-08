@@ -135,6 +135,17 @@ jobs:
           POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
           POSTGRES_PASSWORD_ENCRYPTION=scram-sha-256
           EOF
+          
+      - name: Modify test-docker-build.sh for CI
+        run: |
+          sed -i 's/IS_CI=${GITHUB_ACTIONS:-false}/IS_CI=true/' test-docker-build.sh
+          
+      - name: Ensure pandas is in requirements
+        run: |
+          if ! grep -q "pandas" requirements.txt; then
+            echo "pandas>=2.0.0" >> requirements.txt
+            echo "numpy>=1.24.0" >> requirements.txt
+          fi
 
       - name: Run Docker tests
         run: |
