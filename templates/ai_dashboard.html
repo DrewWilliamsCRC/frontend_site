@@ -1,23 +1,404 @@
 {% extends "base.html" %}
 
-{% block title %}AI Dashboard - Market Indices{% endblock %}
+{% block title %}AI Financial Dashboard{% endblock %}
 
-{% block extra_css %}
+{% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ai-dashboard.css') }}">
+<style>
+    /* Status indicator panel */
+    .status-indicator-panel {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-family: system-ui, -apple-system, sans-serif;
+    }
+    
+    #debug-css-badge, #debug-js-badge, #debug-api-badge {
+        font-weight: normal;
+        background-color: #6c757d;
+        min-width: 38px;
+        text-align: center;
+    }
+    
+    #debug-css-badge.loaded, #debug-js-badge.loaded, #debug-api-badge.loaded {
+        background-color: #28a745;
+    }
+    
+    #debug-css-badge.error, #debug-js-badge.error, #debug-api-badge.error {
+        background-color: #dc3545;
+    }
+    
+    #debug-timestamp {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    
+    .dark-mode .status-indicator-panel {
+        background-color: #343a40;
+        border-color: #495057;
+    }
+    
+    /* Debug styling */
+    .debug-info {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 10px;
+        margin-bottom: 15px;
+        font-family: monospace;
+    }
+    .debug-loading {
+        display: none;
+    }
+    .debug-error {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    .debug-success {
+        color: #28a745;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Market Indices</h1>
-    <p>Live market data for major indices</p>
-    
-    <!-- This is our main container for market indices -->
-    <div id="market-indices-container">
-        <div class="loader"></div> Loading market data...
+<div class="container-fluid">
+    <!-- Compact Debug Indicator -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="status-indicator-panel">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <span class="badge rounded-pill me-2" id="debug-css-badge">CSS</span>
+                        <span class="badge rounded-pill me-2" id="debug-js-badge">JS</span>
+                        <span class="badge rounded-pill me-3" id="debug-api-badge">API</span>
+                        <small class="text-muted" id="debug-timestamp"></small>
+                    </div>
+                    <button id="debug-reload-btn" class="btn btn-sm btn-outline-secondary py-0 px-2" 
+                            title="Reload dashboard data" aria-label="Reload dashboard data">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div id="debug-error-message" class="small text-danger mt-1 d-none"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1>AI Financial Intelligence Dashboard</h1>
+            <p class="text-muted">Real-time market analysis powered by advanced AI algorithms</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <!-- Market Indices Panel -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-chart-line"></i> Market Indices
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="market-indices-container">
+                        <div class="loader"></div> Loading market data...
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Market Prediction Panel -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title">
+                        <i class="fas fa-robot"></i> AI Market Prediction
+                    </h5>
+                    <div class="model-selector">
+                        <select id="prediction-model-selector" class="form-select form-select-sm" aria-label="Select prediction model">
+                            <option value="ensemble">Ensemble Model</option>
+                            <option value="random_forest">Random Forest</option>
+                            <option value="gradient_boosting">Gradient Boosting</option>
+                            <option value="neural_network">Neural Network</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="market-prediction-container">
+                        <div class="loader"></div> Initializing AI models...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- News Sentiment Analysis -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-newspaper"></i> News Sentiment Analysis
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="news-sentiment-container">
+                        <div class="loader"></div> Analyzing news sentiment...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature Importance -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-list-ol"></i> Top Predictive Features
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="feature-importance-container">
+                        <div class="loader"></div> Loading feature importance...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <!-- Portfolio Optimization -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title">
+                        <i class="fas fa-balance-scale"></i> Portfolio Optimization
+                    </h5>
+                    <div class="optimization-selector">
+                        <select id="optimization-strategy-selector" class="form-select form-select-sm" aria-label="Select optimization strategy">
+                            <option value="max_sharpe">Maximize Sharpe Ratio</option>
+                            <option value="min_vol">Minimize Volatility</option>
+                            <option value="risk_parity">Risk Parity</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="portfolio-optimization-container">
+                        <div class="loader"></div> Running portfolio optimization...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <!-- Economic Indicators -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-chart-bar"></i> Economic Indicators
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="economic-indicators-container">
+                        <div class="loader"></div> Loading economic indicators...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts System -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title">
+                        <i class="fas fa-bell"></i> AI Alert System
+                    </h5>
+                    <button id="create-alert-btn" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus"></i> New Alert
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="alerts-container">
+                        <div class="loader"></div> Loading alert configuration...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Creation Modal -->
+<div class="modal fade" id="alert-modal" tabindex="-1" aria-labelledby="alert-modal-label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="alert-modal-label">Create New AI Alert</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="alert-form">
+                    <!-- Alert form content will be loaded here -->
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-alert-btn">Create Alert</button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/ai-dashboard-debug.js') }}"></script>
 <script src="{{ url_for('static', filename='js/ai-dashboard.js') }}"></script>
+
+<!-- Hide stock ticker and news ticker for better performance -->
+<script>
+// Hide the tickers as early as possible
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide stock ticker
+    const stockTickerContainer = document.querySelector('.stock-ticker-container');
+    if (stockTickerContainer) {
+        stockTickerContainer.style.display = 'none';
+        console.log('Stock ticker hidden for better dashboard performance');
+    }
+    
+    // Hide news ticker
+    const newsTicker = document.getElementById('newsTicker');
+    if (newsTicker) {
+        newsTicker.style.display = 'none';
+        console.log('News ticker hidden for better dashboard performance');
+    }
+    
+    // Add some extra space for the main content since we removed the ticker
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+        mainContent.style.paddingBottom = '20px';
+    }
+    
+    // Remove spacer that's normally there for the news ticker
+    const tickerSpacer = document.querySelector('.content-wrapper > div[style="height: 40px;"]');
+    if (tickerSpacer) {
+        tickerSpacer.style.height = '0';
+    }
+});
+</script>
+
+<!-- Inline debugging script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('AI Dashboard Debug: DOM loaded');
+    
+    // Update timestamp
+    function updateTimestamp() {
+        const timestampEl = document.getElementById('debug-timestamp');
+        if (timestampEl) {
+            const now = new Date();
+            timestampEl.textContent = now.toLocaleTimeString();
+        }
+    }
+    
+    // Check if main JS file is loaded
+    function checkJsLoaded() {
+        const jsBadge = document.getElementById('debug-js-badge');
+        if (typeof dashboardState !== 'undefined') {
+            jsBadge.textContent = 'JS ✓';
+            jsBadge.classList.add('loaded');
+            jsBadge.classList.remove('error');
+        } else {
+            jsBadge.textContent = 'JS ✗';
+            jsBadge.classList.add('error');
+            jsBadge.classList.remove('loaded');
+        }
+    }
+    
+    // Check if CSS is loaded
+    function checkCssLoaded() {
+        const cssBadge = document.getElementById('debug-css-badge');
+        const testEl = document.createElement('div');
+        testEl.className = 'ai-dashboard-css-test';
+        testEl.style.display = 'none';
+        document.body.appendChild(testEl);
+        
+        // Get computed style
+        const style = window.getComputedStyle(testEl);
+        const hasCustomStyle = style.getPropertyValue('--ai-dashboard-loaded');
+        
+        if (hasCustomStyle) {
+            cssBadge.textContent = 'CSS ✓';
+            cssBadge.classList.add('loaded');
+            cssBadge.classList.remove('error');
+        } else {
+            cssBadge.textContent = 'CSS ✗';
+            cssBadge.classList.add('error');
+            cssBadge.classList.remove('loaded');
+        }
+        
+        document.body.removeChild(testEl);
+    }
+    
+    // Directly load AI insights data
+    function loadAiInsightsData() {
+        const apiBadge = document.getElementById('debug-api-badge');
+        const errorMessage = document.getElementById('debug-error-message');
+        
+        apiBadge.textContent = 'API...';
+        apiBadge.classList.remove('loaded', 'error');
+        errorMessage.classList.add('d-none');
+        errorMessage.textContent = '';
+        
+        updateTimestamp();
+        
+        fetch('/api/ai-insights')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`API returned status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                apiBadge.textContent = 'API ✓';
+                apiBadge.classList.add('loaded');
+                
+                // Populate dashboard data
+                if (typeof window.dashboardState === 'undefined') {
+                    window.dashboardState = { data: data };
+                    console.log('Created dashboardState object with data');
+                } else {
+                    window.dashboardState.data = data;
+                    console.log('Updated existing dashboardState with data');
+                }
+                
+                // Try to call the normal function if it exists
+                if (typeof loadMarketIndices === 'function') {
+                    console.log('Calling loadMarketIndices function');
+                    loadMarketIndices();
+                } else {
+                    console.log('loadMarketIndices function not found');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading AI insights:', error);
+                apiBadge.textContent = 'API ✗';
+                apiBadge.classList.add('error');
+                
+                // Show error message
+                errorMessage.textContent = `Error: ${error.message}`;
+                errorMessage.classList.remove('d-none');
+            });
+    }
+    
+    // Set up reload button
+    const reloadBtn = document.getElementById('debug-reload-btn');
+    if (reloadBtn) {
+        reloadBtn.addEventListener('click', function() {
+            loadAiInsightsData();
+        });
+    }
+    
+    // Run checks
+    setTimeout(checkJsLoaded, 500);
+    setTimeout(checkCssLoaded, 500);
+    loadAiInsightsData();
+});
+</script>
 {% endblock %} 
