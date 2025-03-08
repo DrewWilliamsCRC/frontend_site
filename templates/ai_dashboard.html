@@ -13,6 +13,18 @@
 
 {% block content %}
 <div class="container">
+  {% if not is_authenticated %}
+  <div class="login-banner">
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle mr-sm"></i>
+      <div>
+        <strong>You are viewing demo data.</strong>
+        <p>Please <a href="{{ url_for('login') }}">log in</a> to access real-time market data and AI insights.</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Header section -->
   <header class="flex justify-between items-center mb-lg">
     <div>

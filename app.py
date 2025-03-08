@@ -2418,8 +2418,64 @@ def verify_alpha_vantage_key(api_key):
 @app.route('/api/market-indices')
 def get_market_indices():
     """Fetch market indices data from Yahoo Finance."""
-    if 'user' not in session:
-        return jsonify({"error": "Authentication required"}), 401
+    # Check for authentication
+    is_authenticated = 'user' in session
+    
+    # If not authenticated, return demo data instead of 401
+    if not is_authenticated:
+        app.logger.info("Unauthenticated request to market-indices API, returning demo data")
+        # Return demo data
+        demo_data = {
+            "indices": {
+                'DJI': {
+                    'symbol': 'DJI',
+                    'apiSymbol': '^DJI',
+                    'price': '42,500.35',
+                    'change': '+125.69',
+                    'percent_change': '+0.32',
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'source': 'demo'
+                },
+                'SPX': {
+                    'symbol': 'SPX',
+                    'apiSymbol': '^GSPC',
+                    'price': '5,450.32',
+                    'change': '+15.29',
+                    'percent_change': '+0.31',
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'source': 'demo'
+                },
+                'IXIC': {
+                    'symbol': 'IXIC',
+                    'apiSymbol': '^IXIC',
+                    'price': '17,700.42',
+                    'change': '-3.01',
+                    'percent_change': '-0.02',
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'source': 'demo'
+                },
+                'VIX': {
+                    'symbol': 'VIX',
+                    'apiSymbol': '^VIX',
+                    'price': '14.2',
+                    'change': '-0.29',
+                    'percent_change': '-2.04',
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'source': 'demo'
+                },
+                'TNX': {
+                    'symbol': 'TNX',
+                    'apiSymbol': '^TNX',
+                    'price': '4.32',
+                    'change': '+0.02',
+                    'percent_change': '+0.51',
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'source': 'demo'
+                }
+            },
+            "demo": True
+        }
+        return jsonify(demo_data)
 
     try:
         # Track API call
@@ -2544,7 +2600,13 @@ def get_market_indices():
                 }
                 app.logger.warning(f"Using simulated data for {symbol_key} after API error")
         
-        return jsonify(results)
+        # New: Format the response to match our expected structure
+        formatted_results = {
+            "indices": results,
+            "demo": False
+        }
+        
+        return jsonify(formatted_results)
         
     except Exception as e:
         app.logger.error(f"Error fetching market indices: {str(e)}")
@@ -3540,11 +3602,10 @@ def ai_dashboard():
     Render the advanced AI financial dashboard with market insights,
     portfolio optimization, alerts, economic indicators, and news sentiment analysis.
     """
-    # Check if user is logged in
-    if 'user' not in session:
-        return redirect(url_for('login'))
+    # Allow unauthenticated access but show a banner
+    is_authenticated = 'user' in session
     
-    return render_template('ai_dashboard.html')
+    return render_template('ai_dashboard.html', is_authenticated=is_authenticated)
 
 @app.route('/api/ai-status')
 def ai_status():
@@ -3560,21 +3621,22 @@ def ai_status():
         required_keys = ["ALPHA_VANTAGE_API_KEY"]
         missing_keys = [key for key in required_keys if not os.environ.get(key)]
         
-        # Simple database check to verify connectivity
-        db_connection = get_db_connection()
-        db_connection.close()
+        # Get authentication status
+        is_authenticated = 'user' in session
         
-        # All checks passed, AI system is active
+        if missing_keys:
+            app.logger.warning(f"AI status check: Missing required API keys: {', '.join(missing_keys)}")
+            status = "degraded"
+            message = f"Missing API keys: {', '.join(missing_keys)}"
+        else:
+            status = "active"
+            message = "All AI systems operational"
+        
         return jsonify({
-            "status": "active",
-            "message": "AI systems operational",
-            "last_checked": datetime.now().isoformat(),
-            "services": {
-                "prediction_engine": "online",
-                "market_data": "online", 
-                "news_sentiment": "online",
-                "portfolio_optimization": "online"
-            }
+            "status": status,
+            "message": message,
+            "authenticated": is_authenticated,
+            "timestamp": datetime.now().isoformat()
         })
     except Exception as e:
         # Some component is not working

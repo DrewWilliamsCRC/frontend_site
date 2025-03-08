@@ -419,4 +419,56 @@ body {
   align-items: center;
   justify-content: center;
   gap: 4px;
+}
+
+/* Login banner for unauthenticated users */
+.login-banner {
+  margin-bottom: var(--spacing-lg);
+}
+
+.login-banner .alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-left: 4px solid #3b82f6;
+}
+
+.login-banner .alert i {
+  color: #3b82f6;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.login-banner p {
+  margin-top: var(--spacing-xs);
+  margin-bottom: 0;
+}
+
+.login-banner a {
+  color: #3b82f6;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.login-banner strong {
+  font-weight: 600;
+}
+
+.dark-mode .login-banner .alert {
+  background-color: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.dark-mode .login-banner .alert,
+.dark-mode .login-banner p,
+.dark-mode .login-banner strong {
+  color: white !important;
+}
+
+.dark-mode .login-banner a {
+  color: #93c5fd !important;
 } 

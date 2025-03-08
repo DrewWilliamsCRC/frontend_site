@@ -40,9 +40,28 @@ const dashboardState = {
 };
 
 /**
+ * Debug logging function to help troubleshoot issues
+ * @param {string} component - The component or function name
+ * @param {string} message - The debug message
+ * @param {any} data - Optional data to log
+ */
+function debugLog(component, message, data = null) {
+    const timestamp = new Date().toISOString();
+    const prefix = `[${timestamp}] [${component}]`;
+    
+    if (data) {
+        console.log(`${prefix} ${message}`, data);
+    } else {
+        console.log(`${prefix} ${message}`);
+    }
+}
+
+/**
  * Initialize the dashboard
  */
 function initDashboard() {
+  debugLog('INIT', 'Dashboard initialization started');
+  
   // Setup event listeners
   setupTabNavigation();
   setupThemeToggle();
@@ -55,6 +74,8 @@ function initDashboard() {
   
   // Setup refresh intervals
   setupDataRefreshIntervals();
+  
+  debugLog('INIT', 'Dashboard initialization completed');
 }
 
 /**
@@ -206,11 +227,15 @@ function applyTheme() {
  * Load initial data for the dashboard
  */
 function loadInitialData() {
+  debugLog('DATA', 'Loading initial data');
+  
   // Check AI status first
   checkAiStatus();
   
   // Load data for the active tab
-  loadTabData(dashboardState.ui.currentTab);
+  const currentTab = dashboardState.ui.currentTab;
+  debugLog('DATA', `Loading data for active tab: ${currentTab}`);
+  loadTabData(currentTab);
 }
 
 /**
@@ -448,135 +473,342 @@ function getChangeClass(change) {
 }
 
 /**
- * Fetch market indices data from API
+ * Global error handler to catch unhandled errors
+ */
+window.addEventListener('error', function(event) {
+    console.error('CRITICAL ERROR:', event.error);
+    // Display a user-friendly message
+    const errorContainer = document.createElement('div');
+    errorContainer.className = 'alert alert-error';
+    errorContainer.innerHTML = '<strong>Something went wrong</strong><p>The dashboard encountered an error. Please try refreshing the page.</p>';
+    document.querySelector('.container')?.prepend(errorContainer);
+});
+
+/**
+ * Fetches market indices data from the API
+ * @returns {Promise<Object>} The market indices data
  */
 async function fetchMarketIndices() {
-  showLoading('market');
-  
-  try {
-    console.log('Fetching market indices data...');
-    const response = await fetch('/api/market-indices');
-    
-    if (!response.ok) {
-      console.error('API returned error status:', response.status);
-      throw new Error(`Failed to fetch market indices (${response.status})`);
-    }
-    
-    const data = await response.json();
-    console.log('Market indices data received:', data);
-    
-    // Store in cache regardless of format
-    dashboardState.cache.marketIndices = data;
-    dashboardState.lastUpdated.marketIndices = new Date();
-    
-    // The display function will handle unexpected data formats
-    displayMarketIndices(data);
-    
-  } catch (error) {
-    console.error('Error fetching market indices:', error);
-    // Pass empty data to the display function which will show fallback data
-    displayMarketIndices(null);
-    showError('market', error.message);
-  } finally {
-    hideLoading('market');
-  }
-}
-
-/**
- * Display market indices
- * @param {Object} data - Market indices data
- */
-function displayMarketIndices(data) {
-  const indicesContainer = document.getElementById('market-indices-container');
-  const indicesUpdated = document.getElementById('update-timestamp');
-  
-  if (indicesContainer) {
-    indicesContainer.innerHTML = '';
-    
-    // Create a grid to hold the indices
-    const indicesGrid = document.createElement('div');
-    indicesGrid.className = 'metrics-grid';
-    indicesContainer.appendChild(indicesGrid);
+    debugLog('fetchMarketIndices', 'Starting to fetch market indices data');
     
     try {
-      // Check if data has the expected structure
-      if (!data || !data.indices) {
-        // Fallback with demo data if the API didn't return the expected format
-        console.warn('Market indices data is not in the expected format, using fallback data');
+        // Find the loading indicator and show it
+        const loadingEl = document.getElementById('marketIndices-loading');
+        if (loadingEl) {
+            loadingEl.classList.remove('hidden');
+        }
         
-        const fallbackData = {
-          'SPX': { symbol: 'SPX', price: '5,021.84', change: '+15.29', percent_change: '+0.31' },
-          'DJI': { symbol: 'DJI', price: '38,996.39', change: '+125.69', percent_change: '+0.32' },
-          'IXIC': { symbol: 'IXIC', price: '17,962.55', change: '-3.01', percent_change: '-0.02' },
-          'VIX': { symbol: 'VIX', price: '13.92', change: '-0.29', percent_change: '-2.04' },
-          'TNX': { symbol: 'TNX', price: '4.44', change: '+0.02', percent_change: '+0.51' }
-        };
+        // Hide any error messages
+        const errorEl = document.getElementById('marketIndices-error');
+        if (errorEl) {
+            errorEl.classList.add('hidden');
+        }
         
-        Object.entries(fallbackData).forEach(([symbol, indexData]) => {
-          createIndexCard(indicesGrid, symbol, indexData);
+        // If we have cached data and it's less than 5 minutes old, use it
+        const now = new Date();
+        if (dashboardState.cache.marketIndices && 
+            (now - dashboardState.lastUpdated.marketIndices) < 300000) {
+            debugLog('fetchMarketIndices', 'Using cached market indices data', dashboardState.cache.marketIndices);
+            
+            // Hide loading
+            if (loadingEl) {
+                loadingEl.classList.add('hidden');
+            }
+            
+            return dashboardState.cache.marketIndices;
+        }
+        
+        debugLog('fetchMarketIndices', 'Making API request to /api/market-indices');
+        const response = await fetch('/api/market-indices', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            },
+            credentials: 'same-origin' // Include cookies for authentication
         });
         
-        // Add a note that this is demo data
-        const demoNote = document.createElement('div');
-        demoNote.className = 'demo-data-note';
-        demoNote.innerHTML = '<small>Using demo data (API error)</small>';
-        indicesContainer.appendChild(demoNote);
-      } else {
-        // Use the actual data from the API
-        Object.entries(data.indices).forEach(([symbol, indexData]) => {
-          createIndexCard(indicesGrid, symbol, indexData);
-        });
-      }
-      
-      // Update the timestamp if it exists
-      if (indicesUpdated) {
-        indicesUpdated.textContent = formatDate(new Date());
-      }
+        debugLog('fetchMarketIndices', `Response status: ${response.status}`);
+        
+        // Check if response is ok (status in the range 200-299)
+        if (!response.ok) {
+            if (response.status === 401) {
+                debugLog('fetchMarketIndices', 'Authentication required - showing demo data');
+                
+                // Hide loading
+                if (loadingEl) {
+                    loadingEl.classList.add('hidden');
+                }
+                
+                return showDemoData();
+            }
+            
+            const errorText = await response.text();
+            debugLog('fetchMarketIndices', 'Error response', errorText);
+            throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+        }
+        
+        // Parse JSON response
+        const data = await response.json();
+        debugLog('fetchMarketIndices', 'Successfully parsed API response', data);
+        
+        // Cache the data and update the timestamp
+        dashboardState.cache.marketIndices = data;
+        dashboardState.lastUpdated.marketIndices = now;
+        
+        // Hide loading
+        if (loadingEl) {
+            loadingEl.classList.add('hidden');
+        }
+        
+        // Show a banner if this is demo data
+        if (data.demo === true) {
+            debugLog('fetchMarketIndices', 'Displaying demo data banner');
+            // Display the indices data first
+            displayMarketIndices(data);
+        } else {
+            // Display the indices data
+            displayMarketIndices(data);
+        }
+        
+        return data;
     } catch (error) {
-      console.error('Error displaying market indices:', error);
-      indicesContainer.innerHTML = '<div class="alert alert-error">Error displaying market data</div>';
+        debugLog('fetchMarketIndices', 'Error fetching market indices', error);
+        
+        // Hide loading indicator
+        const loadingEl = document.getElementById('marketIndices-loading');
+        if (loadingEl) {
+            loadingEl.classList.add('hidden');
+        }
+        
+        // Show error message
+        const errorEl = document.getElementById('marketIndices-error');
+        if (errorEl) {
+            errorEl.classList.remove('hidden');
+            errorEl.innerHTML = `Failed to load market data: ${error.message}`;
+        }
+        
+        // Fall back to demo data if we have an error
+        return showDemoData();
     }
-  }
 }
 
 /**
- * Creates an index card for the market indices grid
- * @param {HTMLElement} container - The container to append the card to
- * @param {string} symbol - The market symbol
- * @param {Object} data - The market data for this symbol
+ * Display fallback demo data for market indices
  */
-function createIndexCard(container, symbol, data) {
-  const indexItem = document.createElement('div');
-  indexItem.className = `metric-item`;
+function showDemoData() {
+  debugLog('UI', 'Showing demo market data');
   
-  // Determine if change is positive, negative, or neutral
-  const changeValue = parseFloat(data.percent_change);
-  const changeClass = changeValue > 0 ? 'text-positive' : 
-                     (changeValue < 0 ? 'text-negative' : '');
-  
-  const arrowIcon = changeValue > 0 ? 'fa-caret-up' : 
-                   (changeValue < 0 ? 'fa-caret-down' : 'fa-minus');
-  
-  // Format the symbol's full name
-  const symbolNames = {
-    'SPX': 'S&P 500',
-    'DJI': 'Dow Jones',
-    'IXIC': 'NASDAQ',
-    'VIX': 'Volatility',
-    'TNX': 'Treasury 10Y'
+  // Create fallback data
+  const fallbackData = {
+    demo: true,
+    indices: {
+      'SPX': { symbol: 'SPX', price: '5,021.84', change: '+15.29', percent_change: '+0.31', source: 'demo' },
+      'DJI': { symbol: 'DJI', price: '38,996.39', change: '+125.69', percent_change: '+0.32', source: 'demo' },
+      'IXIC': { symbol: 'IXIC', price: '17,962.55', change: '-3.01', percent_change: '-0.02', source: 'demo' },
+      'VIX': { symbol: 'VIX', price: '13.92', change: '-0.29', percent_change: '-2.04', source: 'demo' },
+      'TNX': { symbol: 'TNX', price: '4.44', change: '+0.02', percent_change: '+0.51', source: 'demo' }
+    }
   };
   
-  const symbolName = symbolNames[symbol] || symbol;
+  // Store in cache
+  dashboardState.cache.marketIndices = fallbackData;
+  dashboardState.lastUpdated.marketIndices = new Date();
   
-  indexItem.innerHTML = `
-    <div class="metric-label">${symbolName}</div>
-    <div class="metric-value">${data.price}</div>
-    <div class="metric-change ${changeClass}">
-      <i class="fas ${arrowIcon}"></i> ${data.percent_change}%
-    </div>
-  `;
+  // Display the demo data
+  displayMarketIndices(fallbackData);
   
-  container.appendChild(indexItem);
+  return fallbackData;
+}
+
+/**
+ * Displays market indices data in the UI
+ * @param {Object} data - The market indices data
+ */
+function displayMarketIndices(data) {
+    debugLog('displayMarketIndices', 'Displaying market indices data', data);
+    
+    if (!data) {
+        debugLog('displayMarketIndices', 'No data to display');
+        return;
+    }
+    
+    try {
+        // Find the container by ID
+        const container = document.getElementById('market-indices-container');
+        
+        // If container not found, try searching by class or creating it
+        if (!container) {
+            debugLog('displayMarketIndices', 'Container #market-indices-container not found, looking for alternatives');
+            
+            // Try to find by class
+            let altContainer = document.querySelector('.market-indices');
+            
+            // If that doesn't work, try the card body
+            if (!altContainer) {
+                altContainer = document.querySelector('.card-body');
+            }
+            
+            // If we still can't find it, create a placeholder
+            if (!altContainer) {
+                debugLog('displayMarketIndices', 'No suitable container found, adding placeholder to body');
+                altContainer = document.createElement('div');
+                altContainer.id = 'market-indices-container';
+                document.body.appendChild(altContainer);
+            }
+            
+            // Add an ID so we can find it next time
+            if (!altContainer.id) {
+                altContainer.id = 'market-indices-container';
+            }
+            
+            displayMarketIndicesInContainer(altContainer, data);
+        } else {
+            // Use the found container
+            displayMarketIndicesInContainer(container, data);
+        }
+    } catch (error) {
+        debugLog('displayMarketIndices', 'Error displaying market indices', error);
+        
+        // Try one more fallback approach - add directly to the body
+        try {
+            const fallbackContainer = document.createElement('div');
+            fallbackContainer.id = 'emergency-market-indices';
+            fallbackContainer.className = 'alert alert-warning';
+            fallbackContainer.innerHTML = '<strong>Market Indices (Emergency Fallback)</strong>';
+            document.body.prepend(fallbackContainer);
+            
+            displayMarketIndicesInContainer(fallbackContainer, data);
+        } catch (fallbackError) {
+            console.error('Critical failure in displaying market indices', fallbackError);
+        }
+    }
+}
+
+/**
+ * Helper function to actually display the indices in a container
+ */
+function displayMarketIndicesInContainer(container, data) {
+    // Clear the container
+    container.innerHTML = '';
+    
+    // Check if data has the indices property (new structure)
+    const indices = data.indices || data;
+    
+    debugLog('displayMarketIndicesInContainer', 'Processing indices data', indices);
+    
+    // Create cards for each index
+    if (indices.SPX) createIndexCard(container, 'SPX', indices.SPX);
+    if (indices.DJI) createIndexCard(container, 'DJI', indices.DJI);
+    if (indices.IXIC) createIndexCard(container, 'IXIC', indices.IXIC);
+    if (indices.VIX) createIndexCard(container, 'VIX', indices.VIX);
+    if (indices.TNX) createIndexCard(container, 'TNX', indices.TNX);
+    
+    // Update last updated timestamp
+    const lastUpdated = document.getElementById('market-last-updated');
+    if (lastUpdated) {
+        const timestamp = new Date().toLocaleString();
+        lastUpdated.textContent = `Last updated: ${timestamp}`;
+    }
+}
+
+/**
+ * Creates a card for a market index
+ * @param {HTMLElement} container - The container to add the card to
+ * @param {string} symbol - The index symbol
+ * @param {Object} data - The index data
+ */
+function createIndexCard(container, symbol, data) {
+    debugLog('createIndexCard', `Creating card for ${symbol}`, data);
+    
+    try {
+        // Make sure we have valid data
+        if (!data || typeof data !== 'object') {
+            debugLog('createIndexCard', `Invalid data for ${symbol}`, data);
+            return;
+        }
+        
+        // Create card elements
+        const card = document.createElement('div');
+        card.className = 'card index-card';
+        
+        // Format the card content
+        let symbolName = symbol;
+        switch(symbol) {
+            case 'SPX': symbolName = 'S&P 500'; break;
+            case 'DJI': symbolName = 'Dow Jones'; break;
+            case 'IXIC': symbolName = 'NASDAQ'; break;
+            case 'VIX': symbolName = 'Volatility Index'; break;
+            case 'TNX': symbolName = '10-Year Treasury'; break;
+        }
+        
+        // Safely parse the values with fallbacks
+        let price = data.price || '0.00';
+        let change = 0;
+        let percentChange = 0;
+        
+        try {
+            // Handle different formats of the change data
+            if (typeof data.change === 'string') {
+                change = parseFloat(data.change.replace(/[+$,]/g, '')) || 0;
+            } else if (typeof data.change === 'number') {
+                change = data.change;
+            }
+            
+            if (typeof data.percent_change === 'string') {
+                percentChange = parseFloat(data.percent_change.replace(/[+%,]/g, '')) || 0;
+            } else if (typeof data.percent_change === 'number') {
+                percentChange = data.percent_change;
+            }
+        } catch (parseError) {
+            debugLog('createIndexCard', `Error parsing values for ${symbol}`, parseError);
+            // Use default values
+            change = 0;
+            percentChange = 0;
+        }
+        
+        const changeClass = getChangeClass(change);
+        const source = data.source || 'live';
+        
+        // Set the card content with proper formatting
+        card.innerHTML = `
+            <div class="card-header">
+                <h3 class="card-title">${symbolName}</h3>
+                <span class="source-tag">${source === 'demo' ? 'DEMO' : 'LIVE'}</span>
+            </div>
+            <div class="card-body">
+                <div class="price">${price}</div>
+                <div class="change ${changeClass}">
+                    ${change >= 0 ? '+' : ''}${change.toFixed(2)} (${percentChange >= 0 ? '+' : ''}${percentChange.toFixed(2)}%)
+                </div>
+            </div>
+        `;
+        
+        // Add the card to the container
+        container.appendChild(card);
+        
+        // Log success
+        debugLog('createIndexCard', `Successfully created card for ${symbol}`);
+        
+    } catch (error) {
+        debugLog('createIndexCard', `Error creating card for ${symbol}`, error);
+        
+        // Create a simple fallback card
+        try {
+            const fallbackCard = document.createElement('div');
+            fallbackCard.className = 'card index-card';
+            fallbackCard.innerHTML = `
+                <div class="card-header">
+                    <h3 class="card-title">${symbol}</h3>
+                </div>
+                <div class="card-body">
+                    <div class="price">Data Unavailable</div>
+                </div>
+            `;
+            container.appendChild(fallbackCard);
+        } catch (fallbackError) {
+            console.error(`Complete failure creating card for ${symbol}`, fallbackError);
+        }
+    }
 }
 
 /**
@@ -752,5 +984,8 @@ function displayReturnPredictions(data) {
   }
 }
 
-// Initialize dashboard when DOM is loaded
-document.addEventListener('DOMContentLoaded', initDashboard); 
+// Make sure to call initDashboard when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+  debugLog('GLOBAL', 'DOM content loaded, initializing dashboard');
+  initDashboard();
+}); 
