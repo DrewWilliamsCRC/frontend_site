@@ -36,7 +36,8 @@ fi
 
 # Build and start the services
 echo "Building and starting services..."
-docker compose build
+export TARGETARCH=amd64
+docker compose build --build-arg TARGETPLATFORM=linux/amd64 --build-arg BUILDPLATFORM=linux/amd64
 docker compose up -d
 
 # Function to check container status
@@ -154,7 +155,7 @@ timeout=60
 elapsed=0
 while [ $elapsed -lt $timeout ]; do
     echo "Attempting to connect to frontend service... ($elapsed seconds)"
-    if curl -s -f http://localhost:5001/health > /dev/null 2>&1; then
+    if wget -q -O- http://localhost:5001/health > /dev/null 2>&1; then
         echo "Frontend service is ready!"
         break
     fi
@@ -182,7 +183,7 @@ fi
 
 # Final health check
 echo "Performing final health check..."
-if ! curl -v http://localhost:5001/health; then
+if ! wget -q -O- http://localhost:5001/health; then
     echo "Error: Frontend health check failed"
     docker compose logs
     exit 1

@@ -103,11 +103,15 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./dockerfile
           platforms: linux/amd64
           push: true
           tags: dawttu00/dawttu_private:frontend
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          build-args: |
+            BUILDPLATFORM=linux/amd64
+            TARGETPLATFORM=linux/amd64
 
       # Move cache
       - name: Move cache

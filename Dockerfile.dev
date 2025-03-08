@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.10-alpine
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -11,15 +11,24 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
     gcc \
+    g++ \
+    make \
     postgresql-client \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+    postgresql-dev \
+    musl-dev \
+    linux-headers \
+    build-base \
+    python3-dev \
+    openblas-dev \
+    pkgconfig \
+    curl
 
 # Install Python dependencies
 COPY requirements.txt requirements-dev.txt ./
-RUN pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
 
 # Create log directory
 RUN mkdir -p /app/logs && \

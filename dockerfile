@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.10-alpine
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -9,22 +9,24 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apk add --no-cache \
     gcc \
     g++ \
     make \
     postgresql-client \
-    libpq-dev \
-    build-essential \
+    postgresql-dev \
+    musl-dev \
+    linux-headers \
+    build-base \
     python3-dev \
-    pkg-config \
-    libhdf5-dev \
-    libopenblas-dev \
-    && rm -rf /var/lib/apt/lists/*
+    openblas-dev \
+    pkgconfig \
+    curl
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
@@ -34,7 +36,7 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Create non-root user
-RUN useradd -m appuser && chown -R appuser:appuser /app
+RUN adduser -D appuser && chown -R appuser:appuser /app
 USER appuser
 
 # Set entrypoint and default command
