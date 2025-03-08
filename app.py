@@ -3392,8 +3392,7 @@ def get_alerts():
     except ImportError as e:
         app.logger.error(f"Import error: {str(e)}")
         return jsonify({
-            "error": "Failed to import alert system module",
-            "details": str(e)
+            "error": "Failed to import alert system module"
         }), 500
     
     # Get user_id from session
@@ -3437,8 +3436,7 @@ def get_alerts():
         app.logger.error(traceback.format_exc())
         
         return jsonify({
-            "error": "Failed to retrieve alert rules",
-            "details": str(e)
+            "error": "Failed to retrieve alert rules"
         }), 500
 
 
@@ -3547,8 +3545,7 @@ def create_alert():
         app.logger.error(traceback.format_exc())
         
         return jsonify({
-            "error": "Failed to create alert rule",
-            "details": str(e)
+            "error": "Failed to create alert rule"
         }), 500
 
 
@@ -3595,8 +3592,7 @@ def delete_alert(rule_id):
         app.logger.error(traceback.format_exc())
         
         return jsonify({
-            "error": "Failed to delete alert rule",
-            "details": str(e)
+            "error": "Failed to delete alert rule"
         }), 500
 
 @app.route('/ai-dashboard')
@@ -3650,10 +3646,11 @@ def ai_status():
             "timestamp": datetime.now().isoformat()
         })
     except Exception as e:
-        # Some component is not working
+        # Log the detailed exception message
+        app.logger.error(f"Exception occurred in AI status check: {str(e)}")
         return jsonify({
             "status": "inactive",
-            "message": f"AI systems experiencing issues: {str(e)}",
+            "message": "AI systems are currently experiencing issues. Please try again later.",
             "last_checked": datetime.now().isoformat(),
             "services": {
                 "prediction_engine": "offline",
@@ -3793,8 +3790,10 @@ def economic_indicators():
         })
         
     except Exception as e:
+        # Log the detailed exception message
+        app.logger.error(f"Exception occurred while retrieving economic indicators: {str(e)}")
         return jsonify({
-            "error": f"Failed to retrieve economic indicators: {str(e)}"
+            "error": "Failed to retrieve economic indicators. Please try again later."
         }), 500
 
 @app.route('/api/news-sentiment')
@@ -3917,8 +3916,9 @@ def news_sentiment():
         })
         
     except Exception as e:
+        app.logger.error(f"Failed to retrieve news sentiment: {str(e)}")
         return jsonify({
-            "error": f"Failed to retrieve news sentiment: {str(e)}"
+            "error": "An internal error has occurred. Please try again later."
         }), 500
 
 if __name__ == '__main__':
