@@ -32,6 +32,7 @@ import json
 from functools import lru_cache
 import sys
 import pandas as pd # type: ignore
+import numpy as np # type: ignore
 
 # Database related imports
 import psycopg2
@@ -3920,6 +3921,158 @@ def news_sentiment():
         return jsonify({
             "error": "An internal error has occurred. Please try again later."
         }), 500
+
+@app.route('/api/analyze')
+def analyze_news_data():
+    """
+    Analyzes news data using pandas to provide statistics and insights.
+    This endpoint demonstrates pandas functionality in the container.
+    
+    Returns:
+        JSON response with news analysis data
+    """
+    try:
+        # Create sample data instead of fetching from API (to avoid rate limiting)
+        sample_data = [
+            {"title": "AI breakthrough in medical research", "section": "technology", "date": "2025-03-01", "author": "Jane Smith"},
+            {"title": "New climate policy announced", "section": "environment", "date": "2025-03-02", "author": "John Doe"},
+            {"title": "Quantum computing reaches milestone", "section": "science", "date": "2025-03-03", "author": "Alice Johnson"},
+            {"title": "Tech giants face new regulations", "section": "technology", "date": "2025-03-04", "author": "Bob Brown"},
+            {"title": "Renewable energy surpasses coal", "section": "environment", "date": "2025-03-05", "author": "Carol White"},
+            {"title": "Mars rover discovers water evidence", "section": "science", "date": "2025-03-06", "author": "David Green"},
+            {"title": "AI ethics guidelines published", "section": "technology", "date": "2025-03-07", "author": "Eve Black"},
+            {"title": "Endangered species recovery plan", "section": "environment", "date": "2025-03-08", "author": "Frank Blue"},
+            {"title": "New particle discovered at CERN", "section": "science", "date": "2025-03-09", "author": "Grace Gray"},
+            {"title": "Cybersecurity threats increasing", "section": "technology", "date": "2025-03-10", "author": "Henry Red"},
+            {"title": "Ocean plastic reduction initiative", "section": "environment", "date": "2025-03-11", "author": "Irene Yellow"},
+            {"title": "Space telescope reveals distant galaxies", "section": "science", "date": "2025-03-12", "author": "Jack Purple"},
+            {"title": "AI generated content guidelines", "section": "technology", "date": "2025-03-13", "author": "Kate Orange"},
+            {"title": "Climate summit reaches agreement", "section": "environment", "date": "2025-03-14", "author": "Leo Brown"},
+            {"title": "Breakthrough in fusion energy", "section": "science", "date": "2025-03-15", "author": "Mia Silver"}
+        ]
+        
+        # Convert to pandas dataframe for analysis
+        df = pd.DataFrame(sample_data)
+        
+        # Extract publication year and month
+        df['publication_date'] = pd.to_datetime(df['date'])
+        df['year'] = df['publication_date'].dt.year
+        df['month'] = df['publication_date'].dt.month
+        
+        # Perform basic analysis
+        total_articles = len(df)
+        articles_by_section = df.groupby('section').size().to_dict()
+        
+        # Convert tuple keys to strings for JSON serialization
+        articles_by_month_data = df.groupby(['year', 'month']).size()
+        articles_by_month = {f"{year}-{month:02d}": count for (year, month), count in articles_by_month_data.items()}
+        
+        # Calculate average title length
+        df['title_length'] = df['title'].apply(len)
+        avg_title_length = df['title_length'].mean()
+        
+        # Find most common words in titles
+        all_title_words = ' '.join(df['title']).lower()
+        word_counts = {}
+        for word in all_title_words.split():
+            # Remove punctuation
+            word = ''.join(c for c in word if c.isalnum())
+            if len(word) > 3:  # Skip short words
+                word_counts[word] = word_counts.get(word, 0) + 1
+        
+        # Get top 10 most common words
+        common_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        
+        # Author analysis
+        articles_by_author = df.groupby('author').size().to_dict()
+        
+        # Create a simple time series analysis
+        df['day'] = df['publication_date'].dt.day
+        time_series = df.groupby('day').size().to_dict()
+        
+        # Demonstrate some pandas operations
+        # Calculate rolling average of title length
+        df = df.sort_values('publication_date')
+        df['rolling_avg_length'] = df['title_length'].rolling(window=3, min_periods=1).mean()
+        
+        # Create a correlation matrix of numeric columns
+        correlation = df[['title_length', 'day', 'month']].corr().to_dict()
+        
+        # Demonstrate pandas capabilities with a simple DataFrame description
+        description = df.describe().to_dict()
+        
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'total_articles': total_articles,
+                'articles_by_section': articles_by_section,
+                'articles_by_month': articles_by_month,
+                'average_title_length': avg_title_length,
+                'common_title_words': common_words,
+                'articles_by_author': articles_by_author,
+                'time_series': time_series,
+                'correlation_matrix': correlation,
+                'dataframe_description': description,
+                'pandas_version': pd.__version__,
+                'numpy_version': np.__version__,
+                'analysis_timestamp': datetime.now().isoformat()
+            }
+        })
+    except Exception as e:
+        print(f"Error in analyze_news_data: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error analyzing news data: {str(e)}'
+        }), 500
+
+
+def fetch_news_for_section(section, page_size=50):
+    """
+    Fetches news articles for a specific section from the Guardian API.
+    
+    Args:
+        section (str): The section to fetch articles for
+        page_size (int): Number of articles to retrieve
+        
+    Returns:
+        list: List of article dictionaries, or empty list on error
+    """
+    api_key = os.environ.get("GUARDIAN_API_KEY")
+    if not api_key:
+        print("Guardian API key not found")
+        return []
+    
+    try:
+        print(f"Fetching articles for section: {section}")
+        url = "https://content.guardianapis.com/search"
+        params = {
+            'api-key': api_key,
+            'section': section,
+            'show-fields': 'headline,shortUrl',
+            'page-size': page_size,
+            'order-by': 'newest'
+        }
+        
+        print(f"Making API request to: {url}")
+        print(f"With parameters: {params}")
+        
+        response = requests.get(url, params=params)
+        print(f"API response status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'response' in data and 'results' in data['response']:
+                print(f"Found {len(data['response']['results'])} articles in section {section}")
+                return data['response']['results']
+            else:
+                print(f"Unexpected response structure: {data}")
+        else:
+            print(f"Error response for section {section}: {response.text}")
+        
+        return []
+    except Exception as e:
+        print(f"Exception while fetching news for section {section}: {str(e)}")
+        return []
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.

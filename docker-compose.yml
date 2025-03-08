@@ -45,7 +45,11 @@ services:
       - app_network
 
   frontend:
-    image: frontend:test
+    build:
+      context: .
+      dockerfile: dockerfile
+      args:
+        - PYTHON_VERSION=${PYTHON_VERSION:-3.10-alpine}
     platform: linux/amd64
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
