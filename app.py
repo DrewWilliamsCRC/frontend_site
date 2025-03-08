@@ -3646,10 +3646,11 @@ def ai_status():
             "timestamp": datetime.now().isoformat()
         })
     except Exception as e:
-        # Some component is not working
+        # Log the detailed exception message
+        app.logger.error(f"Exception occurred in AI status check: {str(e)}")
         return jsonify({
             "status": "inactive",
-            "message": f"AI systems experiencing issues: {str(e)}",
+            "message": "AI systems are currently experiencing issues. Please try again later.",
             "last_checked": datetime.now().isoformat(),
             "services": {
                 "prediction_engine": "offline",
@@ -3789,8 +3790,10 @@ def economic_indicators():
         })
         
     except Exception as e:
+        # Log the detailed exception message
+        app.logger.error(f"Exception occurred while retrieving economic indicators: {str(e)}")
         return jsonify({
-            "error": f"Failed to retrieve economic indicators: {str(e)}"
+            "error": "Failed to retrieve economic indicators. Please try again later."
         }), 500
 
 @app.route('/api/news-sentiment')
