@@ -32,3 +32,4 @@ Thumbs.db
 deploy.sh
 *.pyc
 *.hintrc*
+.vscode/settings.json
