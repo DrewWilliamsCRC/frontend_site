@@ -28,6 +28,118 @@
         --text-secondary: #bdc3c7;
     }
 
+    /* Additional dark mode overrides for better text visibility */
+    body.dark-mode {
+        background-color: #1a2433;
+        color: #ecf0f1;
+    }
+
+    body.dark-mode h1 {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode h1, 
+    body.dark-mode h2, 
+    body.dark-mode h3, 
+    body.dark-mode h4, 
+    body.dark-mode h5, 
+    body.dark-mode h6 {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .card {
+        background-color: #34495e;
+        border-color: #2c3e50;
+    }
+
+    body.dark-mode .card-header {
+        border-bottom-color: #2c3e50;
+    }
+
+    body.dark-mode .card-header h3 {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .trend-title {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .trend-description {
+        color: #bdc3c7;
+    }
+
+    body.dark-mode .news-title {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .news-source, 
+    body.dark-mode .news-time {
+        color: #bdc3c7;
+    }
+
+    body.dark-mode .recommendation-title {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .recommendation-name {
+        color: #bdc3c7;
+    }
+
+    body.dark-mode .recommendation-rationale {
+        color: #bdc3c7;
+    }
+
+    body.dark-mode .correlation-matrix th {
+        background-color: rgba(52, 152, 219, 0.2);
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .correlation-matrix td {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .toolbar-left .filter-badge {
+        background-color: rgba(52, 152, 219, 0.2);
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .toolbar-left .filter-badge:hover, 
+    body.dark-mode .toolbar-left .filter-badge.active {
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+    body.dark-mode #stockSearchInput,
+    body.dark-mode #dateRangeSelector {
+        background-color: #2c3e50;
+        color: #ecf0f1;
+        border-color: #1a2433;
+    }
+
+    body.dark-mode .table {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .table thead th {
+        border-color: #2c3e50;
+        color: #ecf0f1;
+        background-color: #2c3e50; /* Darker background for headers in dark mode */
+        font-weight: bold;
+    }
+
+    body.dark-mode .table td {
+        border-color: #2c3e50;
+    }
+
+    body.dark-mode .badge.bg-light.text-dark {
+        background-color: #34495e !important;
+        color: #ecf0f1 !important;
+    }
+
+    body.dark-mode .text-muted {
+        color: #bdc3c7 !important;
+    }
+
     .dashboard-container {
         display: grid;
         grid-template-columns: repeat(12, 1fr);
@@ -430,6 +542,13 @@
         background-color: var(--card-bg);
         color: var(--text-primary);
     }
+
+    /* Add styles for light mode table headers too */
+    .table thead th {
+        background-color: #e9ecef; /* Light gray background for headers in light mode */
+        font-weight: bold;
+        border-bottom: 2px solid #dee2e6;
+    }
 </style>
 {% endblock %}
 
@@ -679,6 +798,64 @@
             </div>
         </div>
 
+        <!-- Insider Transactions -->
+        <div class="card span-12">
+            <div class="card-header">
+                <h3>Insider Transactions</h3>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-outline-secondary refresh-btn" data-target="insider-transactions" title="Refresh insider transactions">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0" id="insider-transactions">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Name</th>
+                                <th>Position</th>
+                                <th>Transaction</th>
+                                <th>Quantity</th>
+                                <th>Value</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge bg-light text-dark">AAPL</span></td>
+                                <td>John Smith</td>
+                                <td>Director</td>
+                                <td><span class="badge bg-success">BUY</span></td>
+                                <td>2,000</td>
+                                <td>$356,000</td>
+                                <td>2025-02-15</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-light text-dark">MSFT</span></td>
+                                <td>Jane Doe</td>
+                                <td>CFO</td>
+                                <td><span class="badge bg-danger">SELL</span></td>
+                                <td>5,000</td>
+                                <td>$1,875,000</td>
+                                <td>2025-02-14</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-light text-dark">TSLA</span></td>
+                                <td>Elon Musk</td>
+                                <td>CEO</td>
+                                <td><span class="badge bg-success">BUY</span></td>
+                                <td>10,000</td>
+                                <td>$2,134,500</td>
+                                <td>2025-02-13</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- Cross-Asset Correlation Matrix -->
         <div class="card span-12">
             <div class="card-header">
@@ -826,6 +1003,7 @@ function initializeTrendInsight() {
     loadMarketSentiment();
     loadAIRecommendations();
     loadUnusualPatterns();
+    loadInsiderTransactions();
     loadCorrelationMatrix();
 }
 
@@ -870,6 +1048,7 @@ function refreshAllSections() {
     loadMarketSentiment();
     loadAIRecommendations();
     loadUnusualPatterns();
+    loadInsiderTransactions();
     loadCorrelationMatrix();
 }
 
@@ -1180,6 +1359,102 @@ function updateUnusualPatterns(patterns) {
     if (patterns.length === 0) {
         container.innerHTML = '<div class="p-3 text-center text-muted">No unusual patterns detected.</div>';
     }
+}
+
+function loadInsiderTransactions() {
+    // Show loading state
+    document.getElementById('insider-transactions').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    // Get active sector filter
+    const activeSector = document.querySelector('.filter-badge.active').textContent;
+    
+    // Make API call with sector parameter
+    let apiUrl = '/api/trend-insight/insider-transactions';
+    
+    // Add sector parameter if not "All Sectors"
+    if (activeSector !== 'All Sectors') {
+        apiUrl += `?sector=${activeSector.toLowerCase()}`;
+    }
+    
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            updateInsiderTransactions(data);
+        })
+        .catch(error => {
+            console.error('Error fetching insider transactions:', error);
+            document.getElementById('insider-transactions').innerHTML = '<div class="alert alert-danger p-3">Failed to load insider transactions. Please try again later.</div>';
+        });
+}
+
+function updateInsiderTransactions(transactions) {
+    // Get the container
+    const container = document.getElementById('insider-transactions');
+    
+    if (!transactions || transactions.length === 0) {
+        container.innerHTML = '<div class="p-3 text-center text-muted">No insider transactions found for the selected criteria.</div>';
+        return;
+    }
+    
+    // Create the table
+    let tableHtml = `
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Name</th>
+                    <th>Position</th>
+                    <th>Transaction</th>
+                    <th>Quantity</th>
+                    <th>Value</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    // Add rows for each transaction
+    transactions.forEach(transaction => {
+        // Format the value with commas and $ sign
+        const formattedValue = new Intl.NumberFormat('en-US', { 
+            style: 'currency', 
+            currency: 'USD',
+            maximumFractionDigits: 0
+        }).format(transaction.value);
+        
+        // Format the quantity with commas
+        const formattedQuantity = new Intl.NumberFormat('en-US').format(transaction.quantity);
+        
+        // Determine the badge class based on transaction type
+        const badgeClass = transaction.transaction_type === 'BUY' ? 'bg-success' : 'bg-danger';
+        
+        tableHtml += `
+        <tr>
+            <td><span class="badge bg-light text-dark">${transaction.symbol}</span></td>
+            <td>${transaction.name}</td>
+            <td>${transaction.position}</td>
+            <td><span class="badge ${badgeClass}">${transaction.transaction_type}</span></td>
+            <td>${formattedQuantity}</td>
+            <td>${formattedValue}</td>
+            <td>${transaction.date}</td>
+        </tr>
+        `;
+    });
+    
+    tableHtml += `
+            </tbody>
+        </table>
+    </div>
+    <div class="text-muted text-end mt-2 small">Data source: Alpha Vantage Insider Transactions API</div>
+    `;
+    
+    container.innerHTML = tableHtml;
 }
 
 function loadCorrelationMatrix() {

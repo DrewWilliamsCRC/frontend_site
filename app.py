@@ -1876,6 +1876,218 @@ def get_asset_correlations():
         app.logger.error(f"Error calculating asset correlations: {str(e)}")
         return jsonify({"error": "Failed to calculate asset correlations"}), 500
 
+@app.route('/api/trend-insight/insider-transactions')
+def get_insider_transactions():
+    """Get insider transactions data for TrendInsight dashboard."""
+    if 'user' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+
+    try:
+        # Track API call
+        track_api_call('alpha_vantage', 'insider_transactions')
+        
+        # Get symbol parameter if provided (don't default to any specific symbol)
+        symbol = request.args.get('symbol', None)
+        
+        # Get sector parameter if provided
+        sector = request.args.get('sector', None)
+        
+        # In a production environment, this would fetch real data from Alpha Vantage
+        # Alpha Vantage API endpoint for insider transactions is:
+        # https://www.alphavantage.co/query?function=INSIDER_TRANSACTIONS&symbol=IBM&apikey=demo
+        
+        # For demo purposes, we'll create simulated data with more entries
+        all_transactions = [
+            # Technology sector
+            {
+                'symbol': 'AAPL',
+                'name': 'Timothy Cook',
+                'position': 'CEO',
+                'transaction_type': 'BUY',
+                'quantity': 12500,
+                'value': 2187500,
+                'date': '2025-02-15',
+                'sector': 'technology'
+            },
+            {
+                'symbol': 'MSFT',
+                'name': 'Satya Nadella',
+                'position': 'CEO',
+                'transaction_type': 'SELL',
+                'quantity': 8000,
+                'value': 3120000,
+                'date': '2025-02-14',
+                'sector': 'technology'
+            },
+            {
+                'symbol': 'GOOGL',
+                'name': 'Sundar Pichai',
+                'position': 'CEO',
+                'transaction_type': 'BUY',
+                'quantity': 5000,
+                'value': 7250000,
+                'date': '2025-02-12',
+                'sector': 'technology'
+            },
+            {
+                'symbol': 'NVDA',
+                'name': 'Jensen Huang',
+                'position': 'CEO',
+                'transaction_type': 'SELL',
+                'quantity': 10000,
+                'value': 8500000, 
+                'date': '2025-02-10',
+                'sector': 'technology'
+            },
+            # Healthcare sector
+            {
+                'symbol': 'JNJ',
+                'name': 'Joaquin Duato',
+                'position': 'CEO',
+                'transaction_type': 'BUY',
+                'quantity': 3500,
+                'value': 577500,
+                'date': '2025-02-10',
+                'sector': 'healthcare'
+            },
+            {
+                'symbol': 'PFE',
+                'name': 'Albert Bourla',
+                'position': 'CEO',
+                'transaction_type': 'SELL',
+                'quantity': 15000,
+                'value': 525000,
+                'date': '2025-02-09',
+                'sector': 'healthcare'
+            },
+            {
+                'symbol': 'UNH',
+                'name': 'Andrew Witty',
+                'position': 'CEO',
+                'transaction_type': 'BUY',
+                'quantity': 2500,
+                'value': 1225000,
+                'date': '2025-02-07',
+                'sector': 'healthcare'
+            },
+            {
+                'symbol': 'MRK',
+                'name': 'Robert Davis',
+                'position': 'CEO',
+                'transaction_type': 'SELL',
+                'quantity': 8000,
+                'value': 720000,
+                'date': '2025-02-05',
+                'sector': 'healthcare'
+            },
+            # Finance sector
+            {
+                'symbol': 'JPM',
+                'name': 'Jamie Dimon',
+                'position': 'CEO',
+                'transaction_type': 'BUY',
+                'quantity': 10000,
+                'value': 1875000,
+                'date': '2025-02-08',
+                'sector': 'finance'
+            },
+            {
+                'symbol': 'BAC',
+                'name': 'Brian Moynihan',
+                'position': 'CEO',
+                'transaction_type': 'SELL',
+                'quantity': 25000,
+                'value': 950000,
+                'date': '2025-02-07',
+                'sector': 'finance'
+            },
+            {
+                'symbol': 'GS',
+                'name': 'David Solomon',
+                'position': 'CEO',
+                'transaction_type': 'BUY', 
+                'quantity': 5000,
+                'value': 2150000,
+                'date': '2025-02-06',
+                'sector': 'finance'
+            },
+            {
+                'symbol': 'MS',
+                'name': 'James Gorman',
+                'position': 'CEO',
+                'transaction_type': 'SELL',
+                'quantity': 12000,
+                'value': 1140000,
+                'date': '2025-02-04',
+                'sector': 'finance'
+            },
+            # Energy sector
+            {
+                'symbol': 'XOM',
+                'name': 'Darren Woods',
+                'position': 'CEO',
+                'transaction_type': 'BUY',
+                'quantity': 7500,
+                'value': 825000,
+                'date': '2025-02-06',
+                'sector': 'energy'
+            },
+            {
+                'symbol': 'CVX',
+                'name': 'Michael Wirth',
+                'position': 'CEO',
+                'transaction_type': 'SELL',
+                'quantity': 6000,
+                'value': 978000,
+                'date': '2025-02-05',
+                'sector': 'energy'
+            },
+            {
+                'symbol': 'COP',
+                'name': 'Ryan Lance',
+                'position': 'CEO',
+                'transaction_type': 'BUY',
+                'quantity': 8000,
+                'value': 960000,
+                'date': '2025-02-03',
+                'sector': 'energy'
+            },
+            {
+                'symbol': 'SLB',
+                'name': 'Olivier Le Peuch',
+                'position': 'CEO',
+                'transaction_type': 'SELL',
+                'quantity': 9000,
+                'value': 540000,
+                'date': '2025-02-01',
+                'sector': 'energy'
+            }
+        ]
+        
+        # Start with all transactions
+        transactions = all_transactions
+        
+        # Filter by sector if specified
+        if sector and sector.lower() != 'all sectors':
+            transactions = [t for t in transactions if t['sector'] == sector.lower()]
+            
+        # Filter by symbol only if explicitly provided
+        if symbol:
+            transactions = [t for t in transactions if t['symbol'] == symbol.upper()]
+            
+        # Sort by date (newest first)
+        transactions.sort(key=lambda x: x['date'], reverse=True)
+        
+        # Limit to 15 most recent transactions (increased from 10)
+        transactions = transactions[:15]
+        
+        return jsonify(transactions)
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching insider transactions: {str(e)}")
+        # Return empty list in case of error
+        return jsonify([])
+
 @app.route('/health')
 def health_check():
     """Health check endpoint that verifies database connectivity."""
