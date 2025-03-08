@@ -74,6 +74,10 @@
           <i class="fas fa-chart-line"></i>
           <span>Stock Tracker</span>
         </a>
+        <a href="{{ url_for('trend_insight') }}" class="nav-item {% if request.endpoint == 'trend_insight' %}active{% endif %}">
+          <i class="fas fa-lightbulb"></i>
+          <span>TrendInsight</span>
+        </a>
         <a href="{{ url_for('user_manager.index') }}" class="nav-item {% if request.endpoint == 'user_manager.index' %}active{% endif %}">
           <i class="fas fa-users"></i>
           <span>Users</span>

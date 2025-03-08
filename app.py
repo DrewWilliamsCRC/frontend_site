@@ -1421,32 +1421,393 @@ def get_news():
 
 @app.route('/api/news/usage')
 def news_api_usage():
-    """View Gnews API usage statistics."""
+    """API usage statistics for news endpoints."""
     if 'user' not in session:
-        return redirect(url_for('login'))
+        return jsonify({"error": "Authentication required"}), 401
+
+    try:
+        period = request.args.get('period', 'day')
+        usage_data = get_api_usage('guardian', period)
+        return jsonify(usage_data)
+    except Exception as e:
+        app.logger.error(f"Error getting news API usage: {str(e)}")
+        return jsonify({"error": "Failed to retrieve API usage data"}), 500
+
+# TrendInsight API Routes
+
+@app.route('/api/trend-insight/sentiment')
+def get_market_sentiment():
+    """Get market sentiment data for TrendInsight dashboard."""
+    if 'username' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+
+    try:
+        # Track API call
+        track_api_call('alpha_vantage', 'news_sentiment')
         
-    now = datetime.now()
-    
-    # Get current day's API calls
-    current_day = now.strftime('%Y-%m-%d')
-    day_calls = cache.get('gnews_api_calls_day_' + current_day) or []
-    
-    # Calculate statistics
-    day_limit = 100  # Gnews free tier limit
-    
-    # Format timestamp
-    day_time = datetime.strptime(current_day, '%Y-%m-%d')
-    
-    stats = {
-        'day': {
-            'used': len(day_calls),
-            'limit': day_limit,
-            'remaining': day_limit - len(day_calls),
-            'period': day_time.strftime('%H:%M:%S %m/%d/%Y')
+        # Get the time range parameter
+        time_range = request.args.get('time_range', '1w')
+        
+        # Call Alpha Vantage API for news sentiment
+        url = "https://www.alphavantage.co/query"
+        params = {
+            "function": "NEWS_SENTIMENT",
+            "sort": "RELEVANCE",
+            "limit": "50", # Adjust as needed
+            "apikey": alpha_vantage_key
         }
-    }
-    
-    return render_template('news_api_usage.html', stats=stats)
+        
+        if 'tickers' in request.args:
+            params['tickers'] = request.args.get('tickers')
+            
+        if 'topics' in request.args:
+            params['topics'] = request.args.get('topics')
+            
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        # Process the sentiment data
+        sentiment_data = {
+            'overall_sentiment': {
+                'bullish': 0,
+                'neutral': 0,
+                'bearish': 0
+            },
+            'sentiment_timeline': [],
+            'news_items': []
+        }
+        
+        if 'feed' in data:
+            # Group by date for timeline
+            date_sentiment = {}
+            
+            for article in data['feed']:
+                # Extract sentiment
+                sentiment_score = article.get('overall_sentiment_score', 0)
+                
+                # Categorize sentiment
+                sentiment_label = 'neutral'
+                if sentiment_score >= 0.25:
+                    sentiment_label = 'bullish'
+                    sentiment_data['overall_sentiment']['bullish'] += 1
+                elif sentiment_score <= -0.25:
+                    sentiment_label = 'bearish'
+                    sentiment_data['overall_sentiment']['bearish'] += 1
+                else:
+                    sentiment_data['overall_sentiment']['neutral'] += 1
+                
+                # Add to news items
+                time_published = article.get('time_published', '')
+                date_published = time_published.split('T')[0] if 'T' in time_published else time_published[:8]
+                
+                # Format date from YYYYMMDD to YYYY-MM-DD if needed
+                if len(date_published) == 8 and '-' not in date_published:
+                    date_published = f"{date_published[:4]}-{date_published[4:6]}-{date_published[6:8]}"
+                
+                # Add to date sentiment for timeline
+                if date_published not in date_sentiment:
+                    date_sentiment[date_published] = {
+                        'bullish': 0,
+                        'neutral': 0,
+                        'bearish': 0,
+                        'count': 0
+                    }
+                
+                date_sentiment[date_published][sentiment_label] += 1
+                date_sentiment[date_published]['count'] += 1
+                
+                # Add to news items
+                sentiment_data['news_items'].append({
+                    'title': article.get('title', ''),
+                    'summary': article.get('summary', ''),
+                    'source': article.get('source', ''),
+                    'url': article.get('url', ''),
+                    'time_published': time_published,
+                    'sentiment': sentiment_label,
+                    'sentiment_score': sentiment_score,
+                    'tickers': [ticker.get('ticker') for ticker in article.get('ticker_sentiment', [])]
+                })
+            
+            # Create timeline data
+            for date, values in date_sentiment.items():
+                total = values['count'] if values['count'] > 0 else 1
+                sentiment_data['sentiment_timeline'].append({
+                    'date': date,
+                    'bullish_percentage': (values['bullish'] / total) * 100,
+                    'neutral_percentage': (values['neutral'] / total) * 100,
+                    'bearish_percentage': (values['bearish'] / total) * 100,
+                    'count': values['count']
+                })
+            
+            # Sort timeline by date
+            sentiment_data['sentiment_timeline'].sort(key=lambda x: x['date'])
+            
+            # Calculate overall percentages
+            total_articles = sum(sentiment_data['overall_sentiment'].values())
+            if total_articles > 0:
+                for key in sentiment_data['overall_sentiment']:
+                    sentiment_data['overall_sentiment'][key] = round((sentiment_data['overall_sentiment'][key] / total_articles) * 100)
+        
+        return jsonify(sentiment_data)
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching market sentiment data: {str(e)}")
+        return jsonify({"error": "Failed to retrieve market sentiment data"}), 500
+
+@app.route('/api/trend-insight/unusual-patterns')
+def get_unusual_patterns():
+    """Get unusual trading patterns for TrendInsight dashboard."""
+    if 'username' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+
+    try:
+        # This would normally analyze multiple data points from Alpha Vantage
+        # For this demo, we'll create simulated patterns based on volume and price
+        
+        # Track API call for any Alpha Vantage calls we make
+        track_api_call('alpha_vantage', 'unusual_patterns')
+        
+        # Get top gainers/losers as a starting point
+        url = "https://www.alphavantage.co/query"
+        params = {
+            "function": "TOP_GAINERS_LOSERS",
+            "apikey": alpha_vantage_key
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        unusual_patterns = []
+        
+        # Process potential unusual patterns
+        if 'top_gainers' in data:
+            for stock in data['top_gainers'][:5]:  # Limit to top 5
+                # Check if volume is significant
+                try:
+                    volume = int(stock.get('volume', '0'))
+                    change_percent = float(stock.get('change_percentage', '0').rstrip('%'))
+                    
+                    if volume > 1000000 and change_percent > 5:  # Significant volume and change
+                        unusual_patterns.append({
+                            'symbol': stock.get('ticker', ''),
+                            'name': stock.get('name', ''),
+                            'pattern_type': 'volume_price_surge',
+                            'description': f"Volume spike {round(volume/1000000, 1)}M with strong price movement",
+                            'change_percentage': change_percent,
+                            'direction': 'up'
+                        })
+                except (ValueError, TypeError):
+                    continue
+        
+        if 'top_losers' in data:
+            for stock in data['top_losers'][:5]:  # Limit to top 5
+                try:
+                    volume = int(stock.get('volume', '0'))
+                    change_percent = float(stock.get('change_percentage', '0').rstrip('%'))
+                    
+                    if volume > 1000000 and abs(change_percent) > 5:  # Significant volume and change
+                        unusual_patterns.append({
+                            'symbol': stock.get('ticker', ''),
+                            'name': stock.get('name', ''),
+                            'pattern_type': 'volume_price_drop',
+                            'description': f"Unusual selling volume with sharp price decline",
+                            'change_percentage': change_percent,
+                            'direction': 'down'
+                        })
+                except (ValueError, TypeError):
+                    continue
+        
+        # For the most active, look for potential breakouts or breakdowns
+        if 'most_actively_traded' in data:
+            for stock in data['most_actively_traded'][:5]:
+                try:
+                    volume = int(stock.get('volume', '0'))
+                    change_percent = float(stock.get('change_percentage', '0').rstrip('%'))
+                    
+                    if volume > 5000000:  # Very high volume
+                        if change_percent > 0:
+                            pattern_type = 'potential_breakout'
+                            description = "High volume indicating potential breakout"
+                            direction = 'up'
+                        else:
+                            pattern_type = 'potential_breakdown'
+                            description = "High volume indicating potential breakdown"
+                            direction = 'down'
+                            
+                        unusual_patterns.append({
+                            'symbol': stock.get('ticker', ''),
+                            'name': stock.get('name', ''),
+                            'pattern_type': pattern_type,
+                            'description': description,
+                            'change_percentage': change_percent,
+                            'direction': direction
+                        })
+                except (ValueError, TypeError):
+                    continue
+        
+        # Return the unusual patterns
+        return jsonify(unusual_patterns)
+        
+    except Exception as e:
+        app.logger.error(f"Error detecting unusual patterns: {str(e)}")
+        return jsonify({"error": "Failed to detect unusual patterns"}), 500
+
+@app.route('/api/trend-insight/recommendations')
+def get_ai_recommendations():
+    """Get AI-powered stock recommendations for TrendInsight dashboard."""
+    if 'username' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+
+    try:
+        username = session['username']
+        
+        # In a real implementation, this would analyze the user's portfolio,
+        # cross-reference with market sentiment, technicals, and fundamentals
+        # For this demo, we'll create simulated recommendations
+        
+        # Track API calls
+        track_api_call('alpha_vantage', 'recommendations')
+        
+        # Get user's tracked stocks
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cursor.execute("""
+            SELECT s.symbol, s.name
+            FROM stocks s
+            JOIN user_stocks us ON s.id = us.stock_id
+            JOIN users u ON us.user_id = u.id
+            WHERE u.username = %s
+        """, (username,))
+        
+        user_stocks = cursor.fetchall()
+        conn.close()
+        
+        # If user doesn't have stocks, use some defaults
+        if not user_stocks:
+            user_stocks = [
+                {'symbol': 'AAPL', 'name': 'Apple Inc.'},
+                {'symbol': 'MSFT', 'name': 'Microsoft Corporation'},
+                {'symbol': 'GOOGL', 'name': 'Alphabet Inc.'},
+                {'symbol': 'AMZN', 'name': 'Amazon.com Inc.'},
+                {'symbol': 'NVDA', 'name': 'NVIDIA Corporation'}
+            ]
+        
+        # Generate recommendations based on user stocks and news sentiment
+        recommendations = []
+        
+        # For each user stock, generate a recommendation based on available data
+        for stock in user_stocks:
+            symbol = stock['symbol']
+            
+            # Call Alpha Vantage API for News Sentiment specific to this stock
+            url = "https://www.alphavantage.co/query"
+            params = {
+                "function": "NEWS_SENTIMENT",
+                "tickers": symbol,
+                "sort": "RELEVANCE",
+                "limit": "10",
+                "apikey": alpha_vantage_key
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
+            
+            # Analyze sentiment for recommendation
+            sentiment_scores = []
+            key_points = []
+            
+            if 'feed' in data:
+                for article in data['feed']:
+                    # Extract ticker-specific sentiment
+                    for ticker_sentiment in article.get('ticker_sentiment', []):
+                        if ticker_sentiment.get('ticker') == symbol:
+                            sentiment_scores.append(float(ticker_sentiment.get('ticker_sentiment_score', 0)))
+                            relevance = float(ticker_sentiment.get('relevance_score', 0))
+                            if relevance > 0.8:  # Only include highly relevant points
+                                key_points.append(article.get('title', ''))
+            
+            # Determine action based on sentiment
+            if sentiment_scores:
+                avg_sentiment = sum(sentiment_scores) / len(sentiment_scores)
+                
+                if avg_sentiment > 0.3:
+                    action = "BUY"
+                    rationale = "Strong positive sentiment"
+                elif avg_sentiment < -0.3:
+                    action = "SELL"
+                    rationale = "Significant negative sentiment"
+                else:
+                    action = "HOLD"
+                    rationale = "Neutral market sentiment"
+                
+                # Get a key point if available
+                if key_points:
+                    rationale = key_points[0][:50] + "..." if len(key_points[0]) > 50 else key_points[0]
+            else:
+                # No sentiment data available
+                action = "HOLD"
+                rationale = "Insufficient data for analysis"
+            
+            recommendations.append({
+                'symbol': symbol,
+                'name': stock['name'],
+                'action': action,
+                'rationale': rationale
+            })
+        
+        # Return the recommendations
+        return jsonify(recommendations)
+        
+    except Exception as e:
+        app.logger.error(f"Error generating AI recommendations: {str(e)}")
+        return jsonify({"error": "Failed to generate AI recommendations"}), 500
+
+@app.route('/api/trend-insight/correlations')
+def get_asset_correlations():
+    """Get cross-asset correlations for TrendInsight dashboard."""
+    if 'username' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+
+    try:
+        # In a real implementation, this would calculate actual correlations
+        # between different asset classes using historical price data.
+        # For this demo, we'll return simulated correlation data
+        
+        # Track API call
+        track_api_call('alpha_vantage', 'correlations')
+        
+        # Define assets for correlation matrix
+        assets = [
+            'S&P 500', 'NASDAQ', 'Russell 2000', 'Gold', 'Silver', 
+            'Oil', '10Y Treasury', 'USD Index', 'Bitcoin', 'Ethereum'
+        ]
+        
+        # Create correlation matrix (simulated data)
+        correlations = {
+            'assets': assets,
+            'matrix': [
+                [1.00, 0.92, 0.85, 0.21, 0.18, 0.45, -0.18, -0.25, 0.38, 0.35],  # S&P 500
+                [0.92, 1.00, 0.80, 0.15, 0.12, 0.32, -0.22, -0.28, 0.47, 0.42],  # NASDAQ
+                [0.85, 0.80, 1.00, 0.25, 0.22, 0.40, -0.15, -0.20, 0.30, 0.28],  # Russell 2000
+                [0.21, 0.15, 0.25, 1.00, 0.85, 0.24, 0.42, -0.54, 0.25, 0.22],   # Gold
+                [0.18, 0.12, 0.22, 0.85, 1.00, 0.28, 0.38, -0.48, 0.20, 0.18],   # Silver
+                [0.45, 0.32, 0.40, 0.24, 0.28, 1.00, -0.12, -0.38, 0.19, 0.15],  # Oil
+                [-0.18, -0.22, -0.15, 0.42, 0.38, -0.12, 1.00, -0.56, -0.11, -0.15], # 10Y Treasury
+                [-0.25, -0.28, -0.20, -0.54, -0.48, -0.38, -0.56, 1.00, -0.29, -0.32], # USD Index
+                [0.38, 0.47, 0.30, 0.25, 0.20, 0.19, -0.11, -0.29, 1.00, 0.82],  # Bitcoin
+                [0.35, 0.42, 0.28, 0.22, 0.18, 0.15, -0.15, -0.32, 0.82, 1.00]   # Ethereum
+            ],
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        return jsonify(correlations)
+        
+    except Exception as e:
+        app.logger.error(f"Error calculating asset correlations: {str(e)}")
+        return jsonify({"error": "Failed to calculate asset correlations"}), 500
 
 @app.route('/health')
 def health_check():
@@ -1476,450 +1837,6 @@ def health_check():
             'error': 'An internal error has occurred. Please try again later.',
             'timestamp': datetime.now().isoformat()
         }), 500
-
-@app.route('/stock-tracker')
-def stock_tracker():
-    """Stock Tracker page showing various market lists and stock data."""
-    if 'user' not in session:
-        return redirect(url_for('login'))
-
-    try:
-        # Get top gainers/losers data
-        url = "https://www.alphavantage.co/query"
-        params = {
-            "function": "TOP_GAINERS_LOSERS",
-            "apikey": ALPHA_VANTAGE_API_KEY
-        }
-
-        # Track API call
-        track_api_call('alpha_vantage', 'top_gainers_losers')
-
-        response = requests.get(url, params=params, timeout=5)
-        response.raise_for_status()
-        data = response.json()
-
-        # Check for API limit messages
-        if "Note" in data:
-            flash("API rate limit reached. Please try again later.", "warning")
-            return render_template('stock_tracker.html', lists={}, selected_list='top_gainers')
-
-        # Process and format the data
-        processed_data = {}
-        for list_type in ['top_gainers', 'top_losers', 'most_actively_traded']:
-            if list_type in data:
-                processed_data[list_type] = []
-                for stock in data[list_type]:
-                    try:
-                        processed_stock = {
-                            'ticker': stock.get('ticker', ''),
-                            'name': stock.get('name', ''),
-                            'price': float(stock.get('price', '0.0')),
-                            'change_amount': float(stock.get('change_amount', '0.0')),
-                            'change_percentage': float(stock.get('change_percentage', '0.0').rstrip('%')),
-                            'volume': int(stock.get('volume', '0'))
-                        }
-                        processed_data[list_type].append(processed_stock)
-                    except (ValueError, TypeError) as e:
-                        app.logger.error(f"Error processing stock data: {e}")
-                        continue
-
-        selected_list = request.args.get('list', 'top_gainers')
-        
-        return render_template('stock_tracker.html', 
-                             lists=processed_data,
-                             selected_list=selected_list)
-
-    except Exception as e:
-        app.logger.error(f"Error fetching stock data: {str(e)}")
-        flash("Error fetching stock data. Please try again later.", "danger")
-        return render_template('stock_tracker.html', lists={}, selected_list='top_gainers')
-
-@app.route('/api/market-data/<endpoint>/<option>')
-def get_market_data(endpoint, option):
-    """API endpoint to get various market data based on the endpoint and option selected."""
-    if 'user' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    if not ALPHA_VANTAGE_API_KEY:
-        return jsonify({
-            'error': 'API key not configured',
-            'data': []
-        })
-
-    try:
-        url = "https://www.alphavantage.co/query"
-        app.logger.debug(f"Processing request for endpoint: {endpoint}, option: {option}")
-        
-        # Track API call with detailed information
-        track_details = {
-            'endpoint': endpoint,
-            'option': option,
-            'user': session['user']
-        }
-
-        # Configure request based on endpoint
-        params = {
-            "apikey": ALPHA_VANTAGE_API_KEY
-        }
-
-        if endpoint == 'TOP_GAINERS_LOSERS':
-            params["function"] = "TOP_GAINERS_LOSERS"
-            track_api_call('alpha_vantage', 'top_gainers_losers', track_details)
-            
-        elif endpoint == 'SECTOR':
-            params["function"] = "SECTOR"
-            app.logger.debug("Making SECTOR request with params: %s", params)
-            track_api_call('alpha_vantage', 'sector_performance', track_details)
-            
-        elif endpoint == 'MARKET_STATUS':
-            params["function"] = "MARKET_STATUS"
-            track_api_call('alpha_vantage', 'market_status', track_details)
-            
-        elif endpoint == 'IPO_CALENDAR':
-            params["function"] = "IPO_CALENDAR"
-            track_api_call('alpha_vantage', 'ipo_calendar', track_details)
-            
-        elif endpoint == 'EARNINGS_CALENDAR':
-            params["function"] = "EARNINGS_CALENDAR"
-            track_api_call('alpha_vantage', 'earnings_calendar', track_details)
-            
-        elif endpoint == 'CRYPTO_INTRADAY':
-            params.update({
-                "function": "CRYPTO_INTRADAY",
-                "symbol": option,
-                "market": "USD",
-                "interval": "5min"
-            })
-            track_details['crypto_symbol'] = option
-            track_api_call('alpha_vantage', 'crypto_intraday', track_details)
-            
-        else:
-            return jsonify({
-                'error': 'Invalid endpoint specified',
-                'data': []
-            })
-
-        app.logger.debug(f"Making API request to: {url}")
-        app.logger.debug(f"With parameters: {params}")
-        
-        response = requests.get(url, params=params, timeout=5)
-        response.raise_for_status()
-        
-        app.logger.debug(f"Response status code: {response.status_code}")
-        app.logger.debug(f"Response content type: {response.headers.get('content-type', 'unknown')}")
-        
-        # For SECTOR endpoint, log the raw response
-        if endpoint == 'SECTOR':
-            app.logger.debug(f"SECTOR raw response: {response.text[:1000]}...")  # First 1000 chars
-
-        # Add the request option to the response object for use in process_response
-        response.request_option = option
-        
-        # Process response based on endpoint type
-        if endpoint in ['IPO_CALENDAR', 'EARNINGS_CALENDAR']:
-            result = process_response(response, endpoint)
-        else:
-            # Check for rate limit messages in JSON response
-            try:
-                data = response.json()
-                if "Note" in data:
-                    error_msg = data.get("Note", "Rate limit reached")
-                    app.logger.debug(f"Rate limit hit: {error_msg}")
-                    track_details['error'] = error_msg
-                    track_api_call('alpha_vantage', f'{endpoint.lower()}_rate_limit', track_details)
-                    return jsonify({
-                        'error': 'API rate limit reached - Please try again later',
-                        'data': []
-                    })
-            except ValueError as e:
-                app.logger.error(f"JSON parsing error: {str(e)}")
-                app.logger.error(f"Response content: {response.text[:500]}...")
-                return jsonify({
-                    'error': 'Invalid response format from API',
-                    'data': []
-                })
-                
-            result = process_response(response, endpoint)
-            
-        return jsonify(result)
-
-    except requests.exceptions.RequestException as e:
-        error_msg = str(e)
-        app.logger.error(f"Request error: {error_msg}")
-        track_details['error'] = error_msg
-        track_api_call('alpha_vantage', f'{endpoint.lower()}_request_error', track_details)
-        return jsonify({
-            'error': 'Failed to fetch market data',
-            'data': []
-        })
-    except Exception as e:
-        error_msg = str(e)
-        app.logger.error(f"Unexpected error: {error_msg}")
-        track_details['error'] = error_msg
-        track_api_call('alpha_vantage', f'{endpoint.lower()}_error', track_details)
-        return jsonify({
-            'error': 'An unexpected error occurred',
-            'data': []
-        })
-
-@cache.memoize(timeout=300)  # Cache for 5 minutes
-def fetch_sector_data():
-    """Fetch and cache sector performance data."""
-    url = "https://www.alphavantage.co/query"
-    params = {
-        "function": "SECTOR",
-        "apikey": ALPHA_VANTAGE_API_KEY
-    }
-    
-    try:
-        response = requests.get(url, params=params, timeout=5)
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        app.logger.error(f"Error fetching sector data: {str(e)}")
-        return None
-
-def process_response(response, endpoint):
-    app.logger.debug(f"Processing {endpoint} response")
-    try:
-        json_data = response.json()
-        
-        if endpoint == 'TOP_GAINERS_LOSERS':
-            if response.request_option in json_data:
-                return {'data': json_data[response.request_option]}
-            return {
-                'error': 'No data available for the selected option',
-                'details': f'No data found for {response.request_option}'
-            }
-            
-        elif endpoint == 'SECTOR':
-            # Try to get cached data first
-            cached_data = fetch_sector_data()
-            if cached_data:
-                json_data = cached_data
-            
-            # Debug log the entire response for SECTOR endpoint
-            app.logger.debug(f"Full SECTOR response: {json_data}")
-            
-            if not json_data:
-                return {
-                    'error': 'No sector performance data available',
-                    'details': 'The sector performance API is currently unavailable'
-                }
-            
-            time_period_map = {
-                'real_time': 'Rank A: Real-Time Performance',
-                '1day': 'Rank B: 1 Day Performance',
-                '5day': 'Rank C: 5 Day Performance',
-                '1month': 'Rank D: 1 Month Performance',
-                '3month': 'Rank E: 3 Month Performance',
-                'ytd': 'Rank F: Year-to-Date (YTD) Performance',
-                '1year': 'Rank G: 1 Year Performance',
-                '3year': 'Rank H: 3 Year Performance',
-                '5year': 'Rank I: 5 Year Performance',
-                '10year': 'Rank J: 10 Year Performance'
-            }
-            
-            period_key = time_period_map.get(response.request_option)
-            app.logger.debug(f"Looking for sector data with key: {period_key}")
-            app.logger.debug(f"Available keys in response: {list(json_data.keys())}")
-            
-            if not period_key:
-                return {
-                    'error': 'Invalid time period selected',
-                    'details': f'The time period "{response.request_option}" is not supported'
-                }
-            
-            if period_key not in json_data:
-                return {
-                    'error': 'No sector performance data available for the selected time period',
-                    'details': f'No data found for period: {response.request_option}'
-                }
-            
-            sector_data = []
-            for sector, performance in json_data[period_key].items():
-                try:
-                    # Remove any '%' symbol and convert to float
-                    perf_value = float(performance.rstrip('%') if isinstance(performance, str) else performance)
-                    sector_data.append({
-                        'sector': sector,
-                        'performance': perf_value
-                    })
-                except (ValueError, AttributeError) as e:
-                    app.logger.error(f"Error processing sector {sector} data: {e}")
-                    continue
-            
-            if sector_data:
-                app.logger.debug(f"Processed {len(sector_data)} sectors")
-                return {'data': sector_data}
-            else:
-                return {
-                    'error': 'No valid sector performance data available',
-                    'details': 'Could not process any sector performance values'
-                }
-            
-        elif endpoint == 'MARKET_STATUS':
-            if 'markets' in json_data:
-                return {'data': json_data['markets']}
-            return {
-                'error': 'No market status data available',
-                'details': 'The market status data is not available in the API response'
-            }
-            
-        elif endpoint == 'IPO_CALENDAR':
-            if 'IPO_CALENDAR' in json_data:
-                return {'data': json_data['IPO_CALENDAR']}
-            return {
-                'error': 'No IPO data available',
-                'details': 'No IPO data found for the selected symbol'
-            }
-            
-        elif endpoint == 'EARNINGS_CALENDAR':
-            if 'EARNINGS_CALENDAR' in json_data:
-                return {'data': json_data['EARNINGS_CALENDAR']}
-            return {
-                'error': 'No earnings data available',
-                'details': 'No earnings data found for the selected symbol'
-            }
-            
-        elif endpoint == 'CRYPTO_INTRADAY':
-            if 'Time Series Crypto (5min)' in json_data:
-                time_series = json_data['Time Series Crypto (5min)']
-                formatted_data = [
-                    {
-                        'timestamp': timestamp,
-                        'price': float(values['1. open']),
-                        'volume': float(values['5. volume'])
-                    }
-                    for timestamp, values in list(time_series.items())[:12]  # Last hour of data
-                ]
-                return {'data': formatted_data}
-            return {
-                'error': 'No cryptocurrency data available',
-                'details': 'No recent trading data found for the selected cryptocurrency'
-            }
-            
-        elif endpoint == 'INSIDER_TRANSACTIONS':
-            if 'insiderTransactions' in json_data:
-                transactions = json_data['insiderTransactions']
-                formatted_data = []
-                
-                for transaction in transactions:
-                    formatted_transaction = {
-                        'filing_date': transaction.get('filingDate', ''),
-                        'transaction_date': transaction.get('transactionDate', ''),
-                        'insider_name': transaction.get('insiderName', ''),
-                        'insider_title': transaction.get('insiderTitle', ''),
-                        'transaction_type': transaction.get('transactionType', ''),
-                        'price': transaction.get('price', ''),
-                        'shares': transaction.get('shares', ''),
-                        'security_type': transaction.get('securityType', ''),
-                        'ticker': transaction.get('ticker', '')
-                    }
-                    formatted_data.append(formatted_transaction)
-                
-                return {'data': formatted_data}
-            return {
-                'error': 'No insider transactions data available',
-                'details': 'No transactions found for the selected symbol'
-            }
-            
-        return {
-            'error': 'Unsupported endpoint type',
-            'details': f'The endpoint "{endpoint}" is not properly configured'
-        }
-            
-    except Exception as e:
-        app.logger.error(f"Error processing {endpoint} response: {str(e)}")
-        app.logger.error(f"Response content: {response.text[:500]}...")  # Log first 500 chars of response
-        return {
-            'error': 'An error occurred while processing the data',
-            'details': 'Please contact support if the issue persists'
-        }
-
-@app.route('/api/insider-transactions/<symbol>')
-def get_insider_transactions(symbol):
-    """API endpoint to get insider transactions for a given symbol."""
-    app.logger.debug(f"Received insider transactions request for symbol: {symbol}")
-
-    if not ALPHA_VANTAGE_API_KEY:
-        app.logger.debug("Alpha Vantage API key not configured")
-        return jsonify({
-            'error': 'API key not configured',
-            'data': []
-        })
-
-    try:
-        url = "https://www.alphavantage.co/query"
-        params = {
-            "function": "INSIDER_TRANSACTIONS",
-            "symbol": symbol,
-            "apikey": ALPHA_VANTAGE_API_KEY
-        }
-
-        app.logger.debug(f"Making API request to Alpha Vantage for insider transactions. URL: {url}, Symbol: {symbol}")
-
-        response = requests.get(url, params=params, timeout=5)
-        response.raise_for_status()
-        data = response.json()
-
-        app.logger.debug(f"Received response from Alpha Vantage: {str(data)[:500]}...")  # Log first 500 chars
-
-        # Check for rate limit messages
-        if "Note" in data:
-            error_msg = data.get("Note", "Rate limit reached")
-            app.logger.debug(f"Rate limit hit: {error_msg}")
-            return jsonify({
-                'error': 'API rate limit reached - Please try again later',
-                'data': []
-            })
-
-        # Process the insider transactions data
-        if "insiderTransactions" in data:
-            transactions = data["insiderTransactions"]
-            app.logger.debug(f"Found {len(transactions)} insider transactions")
-            formatted_data = []
-            
-            for transaction in transactions:
-                formatted_transaction = {
-                    'filing_date': transaction.get('filingDate', ''),
-                    'transaction_date': transaction.get('transactionDate', ''),
-                    'insider_name': transaction.get('insiderName', ''),
-                    'insider_title': transaction.get('insiderTitle', ''),
-                    'transaction_type': transaction.get('transactionType', ''),
-                    'price': transaction.get('price', ''),
-                    'shares': transaction.get('shares', ''),
-                    'security_type': transaction.get('securityType', ''),
-                    'ticker': symbol
-                }
-                formatted_data.append(formatted_transaction)
-
-            app.logger.debug(f"Returning {len(formatted_data)} formatted transactions")
-            return jsonify({
-                'data': formatted_data,
-                'error': None
-            })
-
-        app.logger.debug("No insider transactions found in response")
-        return jsonify({
-            'error': 'No insider transactions data available',
-            'data': []
-        })
-
-    except requests.exceptions.RequestException as e:
-        error_msg = str(e)
-        app.logger.error(f"Request error: {error_msg}")
-        return jsonify({
-            'error': 'Failed to fetch insider transactions data',
-            'data': []
-        })
-    except Exception as e:
-        error_msg = str(e)
-        app.logger.error(f"Unexpected error: {error_msg}")
-        return jsonify({
-            'error': 'An unexpected error occurred',
-            'data': []
-        })
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.
