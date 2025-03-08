@@ -77,102 +77,175 @@ class AlphaVantageAPI:
         self.last_call_time = datetime.now()
     
     def call_api(self, function, **params):
-        """Make a request to Alpha Vantage API.
+        """
+        Make a call to the Alpha Vantage API.
         
         Args:
-            function (str): API function name
-            **params: Additional parameters for the API
+            function (str): The Alpha Vantage function to call.
+            **params: Additional parameters for the API call.
             
         Returns:
-            dict: JSON response from the API
+            dict: API response data, or None if an error occurred.
         """
-        self._wait_for_rate_limit()
-        
-        api_params = {
-            "function": function,
-            "apikey": self.api_key,
-            **params
-        }
-        
-        logger.info(f"Calling Alpha Vantage API with function {function}")
-        response = self.session.get(BASE_URL, params=api_params)
-        
-        if response.status_code != 200:
-            logger.error(f"API request failed with status code {response.status_code}")
-            return None
-        
         try:
+            # Build query parameters
+            query_params = {
+                'apikey': self.api_key,
+            }
+            
+            if function:
+                query_params['function'] = function
+                
+            # Add additional parameters
+            for key, value in params.items():
+                query_params[key] = value
+            
+            # Make the request
+            logger.info(f"Calling Alpha Vantage API: {function}")
+            response = requests.get(BASE_URL, params=query_params)
+            
+            # Check if request was successful
+            if response.status_code != 200:
+                logger.error(f"API request failed with status code {response.status_code}: {response.text}")
+                return None
+            
+            # Parse JSON response
             data = response.json()
             
             # Check for API errors
-            if "Error Message" in data:
+            if 'Error Message' in data:
                 logger.error(f"API error: {data['Error Message']}")
-                return None
+                return data
             
-            if "Note" in data and "call frequency" in data["Note"]:
+            if 'Note' in data and 'call frequency' in data['Note']:
                 logger.warning(f"API rate limit warning: {data['Note']}")
             
+            logger.info(f"API call to {function} successful")
             return data
-        except json.JSONDecodeError:
-            logger.error("Failed to decode JSON response")
+            
+        except Exception as e:
+            logger.error(f"Error calling API {function}: {str(e)}")
             return None
     
     def get_daily_time_series(self, symbol, outputsize="full"):
-        """Fetch daily time series data for a given symbol.
+        """
+        Get daily time series data for a symbol.
         
         Args:
-            symbol (str): Stock or index symbol
-            outputsize (str): 'compact' for latest 100 datapoints, 'full' for all available data
+            symbol (str): Stock symbol to fetch.
+            outputsize (str): 'compact' (last 100 points) or 'full' (20+ years)
             
         Returns:
-            pd.DataFrame: Daily time series data
+            pd.DataFrame: DataFrame with OHLCV data or None if an error occurs.
         """
-        data = self.call_api(
-            "TIME_SERIES_DAILY", 
-            symbol=symbol,
-            outputsize=outputsize
-        )
-        
-        if not data or "Time Series (Daily)" not in data:
-            logger.error(f"No time series data for {symbol}")
+        try:
+            logger.info(f"Fetching daily time series for {symbol}")
+            data = self.call_api('TIME_SERIES_DAILY', symbol=symbol, outputsize=outputsize)
+            
+            if data is None:
+                logger.error(f"Call API returned None for {symbol}")
+                return None
+                
+            if "Error Message" in data:
+                logger.error(f"API error for {symbol}: {data['Error Message']}")
+                return None
+                
+            if "Time Series (Daily)" not in data:
+                logger.error(f"No time series data for {symbol}. Got: {list(data.keys())}")
+                return None
+                
+            if not data["Time Series (Daily)"]:
+                logger.error(f"Empty time series data for {symbol}")
+                return None
+            
+            logger.info(f"Successfully fetched daily data for {symbol}")
+            df = pd.DataFrame.from_dict(data["Time Series (Daily)"], orient="index")
+            df.index = pd.to_datetime(df.index)
+            df.sort_index(inplace=True)
+            
+            # Rename columns
+            df.rename(columns={
+                "1. open": "open",
+                "2. high": "high",
+                "3. low": "low",
+                "4. close": "close",
+                "5. volume": "volume"
+            }, inplace=True)
+            
+            # Convert to numeric
+            for col in df.columns:
+                df[col] = pd.to_numeric(df[col])
+            
+            return df
+            
+        except Exception as e:
+            logger.error(f"Error fetching daily time series for {symbol}: {str(e)}")
             return None
-        
-        # Convert to DataFrame
-        df = pd.DataFrame.from_dict(data["Time Series (Daily)"], orient="index")
-        df.index = pd.to_datetime(df.index)
-        df.sort_index(inplace=True)
-        
-        # Rename columns
-        df.rename(columns={
-            "1. open": "open",
-            "2. high": "high",
-            "3. low": "low",
-            "4. close": "close",
-            "5. volume": "volume"
-        }, inplace=True)
-        
-        # Convert to numeric
-        for col in df.columns:
-            df[col] = pd.to_numeric(df[col])
-        
-        return df
     
     def get_quote(self, symbol):
-        """Get current quote for a symbol.
+        """
+        Get real-time quote data for a symbol.
         
         Args:
-            symbol (str): Stock or index symbol
+            symbol (str): The stock symbol to fetch.
             
         Returns:
-            dict: Quote data
+            dict: Quote data for the symbol, or None if not available.
         """
-        data = self.call_api("GLOBAL_QUOTE", symbol=symbol)
-        
-        if not data or "Global Quote" not in data:
-            logger.error(f"No quote data for {symbol}")
+        try:
+            response = self.call_api('GLOBAL_QUOTE', symbol=symbol)
+            
+            if 'Global Quote' in response and response['Global Quote']:
+                return response['Global Quote']
             return None
+        except Exception as e:
+            logger.error(f"Error fetching quote for {symbol}: {str(e)}")
+            return None
+    
+    def get_market_news(self, tickers=None, topics=None, limit=10):
+        """
+        Get market news and sentiment data from Alpha Vantage.
         
-        return data["Global Quote"]
+        Args:
+            tickers (str, optional): Comma-separated stock symbols to filter by.
+            topics (str, optional): Comma-separated topics to filter by.
+            limit (int, optional): Maximum number of news items to return.
+            
+        Returns:
+            dict: Market news and sentiment data.
+        """
+        try:
+            params = {'function': 'NEWS_SENTIMENT'}
+            
+            if tickers:
+                params['tickers'] = tickers
+            
+            if topics:
+                params['topics'] = topics
+                
+            if limit:
+                params['limit'] = limit
+                
+            response = self.call_api(None, **params)
+            
+            if 'feed' in response:
+                # Process sentiment scores
+                for item in response.get('feed', []):
+                    if 'overall_sentiment_score' in item:
+                        # Round sentiment scores to 2 decimal places
+                        item['overall_sentiment_score'] = round(float(item['overall_sentiment_score']), 2)
+                    
+                    # Process ticker sentiment
+                    for ticker in item.get('ticker_sentiment', []):
+                        if 'sentiment_score' in ticker:
+                            ticker['sentiment_score'] = round(float(ticker['sentiment_score']), 2)
+                
+                return response
+            
+            return {'feed': []}
+        except Exception as e:
+            logger.error(f"Error fetching market news: {str(e)}")
+            return {'feed': []}
     
     def get_sector_performance(self):
         """Get sector performance data.
