@@ -2564,6 +2564,10 @@ def get_ai_insights():
     if 'user' not in session:
         return jsonify({"error": "Authentication required"}), 401
     
+    # Get time period from request parameters (default to '1d')
+    period = request.args.get('period', '1d')
+    app.logger.info(f"Requested period: {period}")
+    
     try:
         # Path to AI experiments directory
         ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
@@ -2609,6 +2613,21 @@ def get_ai_insights():
                 time.sleep(0.5)  # Rate limit protection
             except Exception as e:
                 app.logger.error(f"Error fetching data for {symbol}: {str(e)}")
+        
+        # If we only need to return market metrics for a different time period,
+        # and we already have data cached in the session, use that instead of fetching everything
+        if period != '1d' and request.args.get('metrics_only') == 'true' and 'processed_data' in session:
+            app.logger.info(f"Using cached data for period {period}")
+            processed_data = session['processed_data']
+            
+            # Calculate market metrics for the requested period
+            market_metrics = calculate_market_metrics(processed_data, period)
+            
+            return jsonify({
+                "marketMetrics": market_metrics,
+                "lastUpdated": datetime.now().strftime('%Y-%m-%d %H:%M:%S EST'),
+                "status": "Real data (metrics only)"
+            })
         
         if not market_data:
             app.logger.error("Failed to fetch any market data")
@@ -2688,6 +2707,9 @@ def get_ai_insights():
                 "status": "Demo data (processing error)"
             })
         
+        # Store processed data in session for potential reuse
+        session['processed_data'] = processed_data
+        
         # Use the rest of the original function with better error handling
         try:
             # Continue with the original implementation
@@ -2723,8 +2745,8 @@ def get_ai_insights():
                 "IXIC": {"predicted": 2.14, "confidence": 0.71, "rmse": 2.7, "r2": 0.52}
             }
             
-            # Calculate market metrics from the fetched data
-            market_metrics = calculate_market_metrics(processed_data)
+            # Calculate market metrics from the fetched data with the specified period
+            market_metrics = calculate_market_metrics(processed_data, period)
             
             # Create prediction history
             prediction_history = {
@@ -2774,7 +2796,7 @@ def get_ai_insights():
         app.logger.error(f"Error getting AI insights: {str(e)}")
         return jsonify({"error": "Failed to get AI insights", "details": str(e)}), 500
 
-def calculate_market_metrics(processed_data):
+def calculate_market_metrics(processed_data, period='1d'):
     """Calculate market metrics based on processed data."""
     try:
         metrics = {
@@ -2812,150 +2834,286 @@ def calculate_market_metrics(processed_data):
                 # Convert to 0-100 scale (Alpha Vantage sentiment is approximately -1 to 1)
                 news_sentiment_score = (avg_sentiment + 1) * 50
         
+        # Map period to the appropriate timeframe for calculations
+        period_map = {
+            '1d': 1,      # 1 day look-back
+            '1w': 5,      # 5 trading days (1 week)
+            '1m': 21,     # 21 trading days (1 month)
+            '3m': 63,     # 63 trading days (3 months)
+            '1y': 252     # 252 trading days (1 year)
+        }
+        
+        # Get the number of days for calculations based on the selected period
+        days = period_map.get(period, 1)
+        
         # Calculate technical indicators if data is available
         if 'SPX' in processed_data:
             df = processed_data['SPX']
             
-            # Calculate momentum (based on recent returns)
-            if len(df) >= 10:
-                recent_returns = df['close'].pct_change(5).dropna()
+            # Calculate momentum (based on recent returns for the selected period)
+            if len(df) >= days:
+                recent_returns = df['close'].pct_change(days).dropna()
                 if len(recent_returns) > 0:
                     momentum_value = recent_returns.iloc[-1] * 100
                     
-                    if momentum_value > 1.5:
+                    # Adjust thresholds based on the period (longer periods have naturally larger returns)
+                    period_adjustments = {
+                        '1d': {'strong': 1.5, 'positive': 0.5, 'negative': -0.5, 'strong_negative': -1.5},
+                        '1w': {'strong': 2.5, 'positive': 1.0, 'negative': -1.0, 'strong_negative': -2.5},
+                        '1m': {'strong': 5.0, 'positive': 2.0, 'negative': -2.0, 'strong_negative': -5.0},
+                        '3m': {'strong': 8.0, 'positive': 3.0, 'negative': -3.0, 'strong_negative': -8.0},
+                        '1y': {'strong': 15.0, 'positive': 8.0, 'negative': -8.0, 'strong_negative': -15.0}
+                    }
+                    
+                    thresholds = period_adjustments.get(period, period_adjustments['1d'])
+                    
+                    period_desc = {
+                        '1d': 'day',
+                        '1w': 'week',
+                        '1m': 'month',
+                        '3m': '3 months',
+                        '1y': 'year'
+                    }.get(period, 'period')
+                    
+                    if momentum_value > thresholds['strong']:
                         metrics["momentum"] = {"value": "Strong", "score": 8.0, "status": "positive", 
-                                               "description": f"Strong upward momentum: {momentum_value:.1f}% in 5 days"}
-                    elif momentum_value > 0.5:
+                                              "description": f"Strong upward momentum: {momentum_value:.1f}% over the past {period_desc}"}
+                    elif momentum_value > thresholds['positive']:
                         metrics["momentum"] = {"value": "Positive", "score": 7.0, "status": "positive", 
-                                               "description": f"Positive momentum: {momentum_value:.1f}% in 5 days"}
+                                              "description": f"Positive momentum: {momentum_value:.1f}% over the past {period_desc}"}
                     elif momentum_value > 0:
                         metrics["momentum"] = {"value": "Mild", "score": 6.0, "status": "positive", 
-                                               "description": f"Mild upward momentum: {momentum_value:.1f}% in 5 days"}
-                    elif momentum_value > -0.5:
+                                              "description": f"Mild upward momentum: {momentum_value:.1f}% over the past {period_desc}"}
+                    elif momentum_value > thresholds['negative']:
                         metrics["momentum"] = {"value": "Weak", "score": 4.0, "status": "neutral", 
-                                               "description": f"Weak momentum: {momentum_value:.1f}% in 5 days"}
-                    elif momentum_value > -1.5:
+                                              "description": f"Weak momentum: {momentum_value:.1f}% over the past {period_desc}"}
+                    elif momentum_value > thresholds['strong_negative']:
                         metrics["momentum"] = {"value": "Negative", "score": 3.0, "status": "negative", 
-                                               "description": f"Negative momentum: {momentum_value:.1f}% in 5 days"}
+                                              "description": f"Negative momentum: {momentum_value:.1f}% over the past {period_desc}"}
                     else:
                         metrics["momentum"] = {"value": "Strong Negative", "score": 2.0, "status": "negative", 
-                                               "description": f"Strong downward momentum: {momentum_value:.1f}% in 5 days"}
+                                              "description": f"Strong downward momentum: {momentum_value:.1f}% over the past {period_desc}"}
             
-            # Calculate volatility
-            if len(df) >= 21:
-                recent_volatility = df['close'].pct_change().rolling(21).std().dropna() * 100 * np.sqrt(252)
-                if len(recent_volatility) > 0:
-                    vol_value = recent_volatility.iloc[-1]
+            # Calculate volatility for the given period
+            volatility_window = min(days, 21)  # Use days for shorter periods, cap at 21 for longer ones
+            if len(df) >= volatility_window:
+                # For longer periods, calculate realized volatility over the period
+                if period in ['3m', '1y']:
+                    recent_volatility = df['close'].pct_change().rolling(volatility_window).std().dropna() * 100 * np.sqrt(252) # type: ignore
+                    if len(recent_volatility) > 0:
+                        # For longer periods, calculate average volatility over the period
+                        recent_window = min(days, len(recent_volatility))
+                        vol_value = recent_volatility.iloc[-recent_window:].mean()
+                else:
+                    # For shorter periods, use the most recent volatility calculation
+                    recent_volatility = df['close'].pct_change().rolling(volatility_window).std().dropna() * 100 * np.sqrt(252) # type: ignore
+                    if len(recent_volatility) > 0:
+                        vol_value = recent_volatility.iloc[-1]
+                
+                if 'vol_value' in locals():
+                    period_desc = {
+                        '1d': 'current',
+                        '1w': 'weekly',
+                        '1m': 'monthly',
+                        '3m': 'quarterly',
+                        '1y': 'yearly'
+                    }.get(period, '')
                     
                     if vol_value < 10:
                         metrics["volatility"] = {"value": "Low", "score": vol_value, "status": "positive", 
-                                                "description": f"Low volatility: {vol_value:.1f}% annualized"}
+                                                "description": f"Low {period_desc} volatility: {vol_value:.1f}% annualized"}
                     elif vol_value < 15:
                         metrics["volatility"] = {"value": "Moderate", "score": vol_value, "status": "neutral", 
-                                                "description": f"Moderate volatility: {vol_value:.1f}% annualized"}
+                                                "description": f"Moderate {period_desc} volatility: {vol_value:.1f}% annualized"}
                     elif vol_value < 25:
                         metrics["volatility"] = {"value": "Elevated", "score": vol_value, "status": "neutral", 
-                                                "description": f"Elevated volatility: {vol_value:.1f}% annualized"}
+                                                "description": f"Elevated {period_desc} volatility: {vol_value:.1f}% annualized"}
                     else:
                         metrics["volatility"] = {"value": "High", "score": vol_value, "status": "negative", 
-                                                "description": f"High volatility: {vol_value:.1f}% annualized"}
+                                                "description": f"High {period_desc} volatility: {vol_value:.1f}% annualized"}
             
-            # Calculate technical score
+            # Calculate technical score based on the selected period
             if 'rsi_14' in df.columns and 'macd_hist' in df.columns:
-                last_row = df.iloc[-1]
+                # Use lookback for different periods
+                lookback = min(days, len(df) - 1)  # Ensure we don't go beyond data length
                 
-                # Count bullish signals
-                bullish_count = 0
-                total_signals = 0
-                
-                # RSI
-                if 'rsi_14' in last_row:
-                    total_signals += 1
-                    if last_row['rsi_14'] > 50:
-                        bullish_count += 1
-                
-                # MACD
-                if 'macd_hist' in last_row:
-                    total_signals += 1
-                    if last_row['macd_hist'] > 0:
-                        bullish_count += 1
-                
-                # Moving Averages
-                if 'sma_50' in last_row and 'close' in last_row:
-                    total_signals += 1
-                    if last_row['close'] > last_row['sma_50']:
-                        bullish_count += 1
-                
-                if 'sma_200' in last_row and 'close' in last_row:
-                    total_signals += 1
-                    if last_row['close'] > last_row['sma_200']:
-                        bullish_count += 1
-                
-                # Bollinger Bands
-                if 'bb_upper' in last_row and 'bb_lower' in last_row and 'close' in last_row:
-                    total_signals += 1
-                    bb_position = (last_row['close'] - last_row['bb_lower']) / (last_row['bb_upper'] - last_row['bb_lower'])
-                    if bb_position > 0.5:
-                        bullish_count += 1
-                
-                if total_signals > 0:
-                    tech_score = (bullish_count / total_signals) * 10
+                # For different periods, we'll check technical indicators over time
+                if period in ['3m', '1y']:
+                    # For longer periods, check how often indicators were bullish
+                    bullish_days = 0
+                    total_days = 0
                     
-                    if tech_score >= 7.5:
-                        metrics["technical"] = {"value": "Bullish", "score": tech_score, "status": "positive", 
-                                               "description": f"{bullish_count} of {total_signals} indicators are bullish"}
-                    elif tech_score >= 6:
-                        metrics["technical"] = {"value": "Mildly Bullish", "score": tech_score, "status": "positive", 
-                                               "description": f"{bullish_count} of {total_signals} indicators are bullish"}
-                    elif tech_score > 4:
-                        metrics["technical"] = {"value": "Neutral", "score": tech_score, "status": "neutral", 
-                                               "description": f"{bullish_count} of {total_signals} indicators are bullish"}
-                    elif tech_score >= 2.5:
-                        metrics["technical"] = {"value": "Mildly Bearish", "score": tech_score, "status": "negative", 
-                                               "description": f"{bullish_count} of {total_signals} indicators are bullish"}
-                    else:
-                        metrics["technical"] = {"value": "Bearish", "score": tech_score, "status": "negative", 
-                                               "description": f"{bullish_count} of {total_signals} indicators are bullish"}
+                    for i in range(min(lookback, len(df) - 1)):
+                        row = df.iloc[-(i+1)]
+                        day_bullish = 0
+                        day_signals = 0
+                        
+                        # RSI
+                        if 'rsi_14' in row:
+                            day_signals += 1
+                            if row['rsi_14'] > 50:
+                                day_bullish += 1
+                        
+                        # MACD
+                        if 'macd_hist' in row:
+                            day_signals += 1
+                            if row['macd_hist'] > 0:
+                                day_bullish += 1
+                        
+                        # Moving Averages
+                        if 'sma_50' in row and 'close' in row:
+                            day_signals += 1
+                            if row['close'] > row['sma_50']:
+                                day_bullish += 1
+                        
+                        if 'sma_200' in row and 'close' in row:
+                            day_signals += 1
+                            if row['close'] > row['sma_200']:
+                                day_bullish += 1
+                        
+                        # Bollinger Bands
+                        if 'bb_upper' in row and 'bb_lower' in row and 'close' in row:
+                            day_signals += 1
+                            bb_position = (row['close'] - row['bb_lower']) / (row['bb_upper'] - row['bb_lower'])
+                            if bb_position > 0.5:
+                                day_bullish += 1
+                        
+                        if day_signals > 0:
+                            bullish_days += (day_bullish / day_signals) > 0.5
+                            total_days += 1
+                    
+                    if total_days > 0:
+                        tech_score = (bullish_days / total_days) * 10
+                        period_desc = '3 months' if period == '3m' else 'year'
+                        
+                        if tech_score >= 7.5:
+                            metrics["technical"] = {"value": "Bullish", "score": tech_score, "status": "positive", 
+                                                   "description": f"Bullish technical indicators for {bullish_days} of {total_days} days over the past {period_desc}"}
+                        elif tech_score >= 6:
+                            metrics["technical"] = {"value": "Mildly Bullish", "score": tech_score, "status": "positive", 
+                                                   "description": f"Mildly bullish technical indicators over the past {period_desc}"}
+                        elif tech_score > 4:
+                            metrics["technical"] = {"value": "Neutral", "score": tech_score, "status": "neutral", 
+                                                   "description": f"Mixed technical indicators over the past {period_desc}"}
+                        elif tech_score >= 2.5:
+                            metrics["technical"] = {"value": "Mildly Bearish", "score": tech_score, "status": "negative", 
+                                                   "description": f"Mildly bearish technical indicators over the past {period_desc}"}
+                        else:
+                            metrics["technical"] = {"value": "Bearish", "score": tech_score, "status": "negative", 
+                                                   "description": f"Bearish technical indicators for {total_days - bullish_days} of {total_days} days over the past {period_desc}"}
+                else:
+                    # For shorter periods, use the most recent data
+                    last_row = df.iloc[-1]
+                    
+                    # Count bullish signals
+                    bullish_count = 0
+                    total_signals = 0
+                    
+                    # RSI
+                    if 'rsi_14' in last_row:
+                        total_signals += 1
+                        if last_row['rsi_14'] > 50:
+                            bullish_count += 1
+                    
+                    # MACD
+                    if 'macd_hist' in last_row:
+                        total_signals += 1
+                        if last_row['macd_hist'] > 0:
+                            bullish_count += 1
+                    
+                    # Moving Averages
+                    if 'sma_50' in last_row and 'close' in last_row:
+                        total_signals += 1
+                        if last_row['close'] > last_row['sma_50']:
+                            bullish_count += 1
+                    
+                    if 'sma_200' in last_row and 'close' in last_row:
+                        total_signals += 1
+                        if last_row['close'] > last_row['sma_200']:
+                            bullish_count += 1
+                    
+                    # Bollinger Bands
+                    if 'bb_upper' in last_row and 'bb_lower' in last_row and 'close' in last_row:
+                        total_signals += 1
+                        bb_position = (last_row['close'] - last_row['bb_lower']) / (last_row['bb_upper'] - last_row['bb_lower'])
+                        if bb_position > 0.5:
+                            bullish_count += 1
+                    
+                    if total_signals > 0:
+                        tech_score = (bullish_count / total_signals) * 10
+                        period_desc = {
+                            '1d': 'current',
+                            '1w': 'recent',
+                            '1m': 'monthly'
+                        }.get(period, '')
+                        
+                        if tech_score >= 7.5:
+                            metrics["technical"] = {"value": "Bullish", "score": tech_score, "status": "positive", 
+                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
+                        elif tech_score >= 6:
+                            metrics["technical"] = {"value": "Mildly Bullish", "score": tech_score, "status": "positive", 
+                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
+                        elif tech_score > 4:
+                            metrics["technical"] = {"value": "Neutral", "score": tech_score, "status": "neutral", 
+                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
+                        elif tech_score >= 2.5:
+                            metrics["technical"] = {"value": "Mildly Bearish", "score": tech_score, "status": "negative", 
+                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
+                        else:
+                            metrics["technical"] = {"value": "Bearish", "score": tech_score, "status": "negative", 
+                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
         
         # Use S&P, VIX relationship and news sentiment for combined sentiment calculation
         if 'SPX' in processed_data and 'VIX' in processed_data:
             spx_df = processed_data['SPX']
             vix_df = processed_data['VIX']
             
-            if len(spx_df) > 5 and len(vix_df) > 5:
-                # Recent S&P 500 return
-                spx_return = spx_df['close'].pct_change(5).iloc[-1] * 100
-                
-                # Recent VIX change
-                vix_change = vix_df['close'].pct_change(5).iloc[-1] * 100
+            lookback_days = period_map.get(period, 5)
+            
+            if len(spx_df) > lookback_days and len(vix_df) > lookback_days:
+                # Calculate returns for the selected period
+                spx_return = spx_df['close'].pct_change(lookback_days).iloc[-1] * 100
+                vix_change = vix_df['close'].pct_change(lookback_days).iloc[-1] * 100
                 
                 # Calculate sentiment score (negative correlation expected)
                 sentiment_score = 50  # Neutral baseline
                 
+                # Adjust thresholds based on the period
+                period_adjustments = {
+                    '1d': {'strong': 1.5, 'positive': 0.5, 'negative': -0.5, 'strong_negative': -1.5, 'vix_thresholds': [-5, -2, 0, 2, 5]},
+                    '1w': {'strong': 2.5, 'positive': 1.0, 'negative': -1.0, 'strong_negative': -2.5, 'vix_thresholds': [-10, -5, 0, 5, 10]},
+                    '1m': {'strong': 5.0, 'positive': 2.0, 'negative': -2.0, 'strong_negative': -5.0, 'vix_thresholds': [-15, -8, 0, 8, 15]},
+                    '3m': {'strong': 8.0, 'positive': 3.0, 'negative': -3.0, 'strong_negative': -8.0, 'vix_thresholds': [-20, -10, 0, 10, 20]},
+                    '1y': {'strong': 15.0, 'positive': 8.0, 'negative': -8.0, 'strong_negative': -15.0, 'vix_thresholds': [-30, -15, 0, 15, 30]}
+                }
+                
+                thresholds = period_adjustments.get(period, period_adjustments['1d'])
+                
                 # Adjust based on SPX return
-                if spx_return > 2:
+                if spx_return > thresholds['strong']:
                     sentiment_score += 15
-                elif spx_return > 1:
+                elif spx_return > thresholds['positive']:
                     sentiment_score += 10
                 elif spx_return > 0:
                     sentiment_score += 5
-                elif spx_return > -1:
+                elif spx_return > thresholds['negative']:
                     sentiment_score -= 5
-                elif spx_return > -2:
+                elif spx_return > thresholds['strong_negative']:
                     sentiment_score -= 10
                 else:
                     sentiment_score -= 15
                 
                 # Adjust based on VIX change (inversely)
-                if vix_change < -10:
+                vix_thresholds = thresholds['vix_thresholds']
+                if vix_change < vix_thresholds[0]:
                     sentiment_score += 15
-                elif vix_change < -5:
+                elif vix_change < vix_thresholds[1]:
                     sentiment_score += 10
-                elif vix_change < 0:
+                elif vix_change < vix_thresholds[2]:
                     sentiment_score += 5
-                elif vix_change < 5:
+                elif vix_change < vix_thresholds[3]:
                     sentiment_score -= 5
-                elif vix_change < 10:
+                elif vix_change < vix_thresholds[4]:
                     sentiment_score -= 10
                 else:
                     sentiment_score -= 15

@@ -1022,14 +1022,69 @@
             // Time period buttons
             const timeButtons = document.querySelectorAll('.time-btn');
             timeButtons.forEach(button => {
-                button.addEventListener('click', function() {
+                button.addEventListener('click', async function() {
                     // Remove active class from all buttons
                     timeButtons.forEach(btn => btn.classList.remove('active'));
                     // Add active class to clicked button
                     this.classList.add('active');
                     
-                    // In a real implementation, this would fetch data for the selected period
-                    console.log(`Selected period: ${this.dataset.period}`);
+                    // Get the selected time period
+                    const period = this.dataset.period;
+                    
+                    // Show loading indicators
+                    document.getElementById('momentum-value').textContent = 'Loading...';
+                    document.getElementById('volatility-value').textContent = 'Loading...';
+                    document.getElementById('breadth-value').textContent = 'Loading...';
+                    document.getElementById('sentiment-value').textContent = 'Loading...';
+                    document.getElementById('technical-value').textContent = 'Loading...';
+                    document.getElementById('ai-confidence-value').textContent = 'Loading...';
+                    
+                    // Fetch data for the selected period
+                    try {
+                        const response = await fetch(`/api/ai-insights?period=${period}&metrics_only=true`);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        
+                        const data = await response.json();
+                        
+                        // Check if we received a full response or just market metrics
+                        if (data.marketMetrics) {
+                            // If we have a full response, update API_DATA
+                            if (data.predictionConfidence) {
+                                API_DATA = data;
+                                // Update last updated time
+                                document.getElementById('last-updated-time').textContent = data.lastUpdated;
+                            } else {
+                                // If we only have market metrics, update just those
+                                API_DATA.marketMetrics = data.marketMetrics;
+                                document.getElementById('last-updated-time').textContent = data.lastUpdated || API_DATA.lastUpdated;
+                            }
+                            
+                            // Update the market metrics UI
+                            updateMarketMetrics();
+                        } else {
+                            console.error('No market metrics found in response');
+                        }
+                    } catch (error) {
+                        console.error(`Error fetching data for period ${period}:`, error);
+                        
+                        // Show error indicators
+                        document.getElementById('momentum-value').textContent = 'Error';
+                        document.getElementById('volatility-value').textContent = 'Error';
+                        document.getElementById('breadth-value').textContent = 'Error';
+                        document.getElementById('sentiment-value').textContent = 'Error';
+                        document.getElementById('technical-value').textContent = 'Error';
+                        document.getElementById('ai-confidence-value').textContent = 'Error';
+                        
+                        // Show error descriptions
+                        document.getElementById('momentum-description').textContent = 'Failed to load data';
+                        document.getElementById('volatility-description').textContent = 'Failed to load data';
+                        document.getElementById('breadth-description').textContent = 'Failed to load data';
+                        document.getElementById('sentiment-description').textContent = 'Failed to load data';
+                        document.getElementById('technical-description').textContent = 'Failed to load data';
+                        document.getElementById('ai-confidence-description').textContent = 'Failed to load data';
+                    }
                 });
             });
         }
