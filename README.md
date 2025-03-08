@@ -1,6 +1,7 @@
 # Frontend Site with User Auth (Flask) - last updated 2-23-2024
 
-![Docker Build and Test](https://github.com/dawttu00/frontend_site/actions/workflows/docker-publish.yml/badge.svg)
+![Docker Build Status](https://github.com/dawttu00/frontend_site/actions/workflows/docker-publish.yml/badge.svg)
+![CodeQL Status](https://github.com/dawttu00/frontend_site/actions/workflows/codeql.yml/badge.svg)
 
 A modern web application built with Flask that provides secure user authentication, dynamic content, and an interactive dashboard. Features weather forecasts, random pet images, and quick access to various services.
 
@@ -539,3 +540,4 @@ Before deploying to production, ensure the following:
 * Bootstrap and Font Awesome for UI components
 * The security community for best practices
 * Alpha Vantage API for stock market data
+
