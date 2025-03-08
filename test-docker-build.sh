@@ -39,6 +39,15 @@ echo "TARGETARCH=${TARGETARCH}"
 echo "Current Dockerfile content:"
 cat dockerfile
 
+# Ensure architecture is set to amd64
+export TARGETARCH=amd64
+export BUILDPLATFORM=linux/amd64
+export TARGETPLATFORM=linux/amd64
+echo "Architecture settings:"
+echo "TARGETARCH=${TARGETARCH}"
+echo "BUILDPLATFORM=${BUILDPLATFORM}"
+echo "TARGETPLATFORM=${TARGETPLATFORM}"
+
 # Clean up any existing containers and volumes
 echo "Cleaning up existing containers and volumes..."
 docker compose down -v
@@ -48,7 +57,6 @@ fi
 
 # Build and start the services
 echo "Building and starting services..."
-export TARGETARCH=amd64
 export PYTHON_VERSION=3.10-alpine
 # We'll use an explicit command instead of docker compose to have more control
 docker build -t frontend:test -f dockerfile --build-arg TARGETPLATFORM=linux/amd64 --build-arg BUILDPLATFORM=linux/amd64 .

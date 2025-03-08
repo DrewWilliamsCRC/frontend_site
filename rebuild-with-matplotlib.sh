@@ -8,6 +8,11 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# Explicitly set architecture to amd64
+export TARGETARCH=amd64
+export BUILDPLATFORM=linux/amd64
+export TARGETPLATFORM=linux/amd64
+
 echo -e "${YELLOW}Stopping existing containers...${NC}"
 ./dev.sh down
 

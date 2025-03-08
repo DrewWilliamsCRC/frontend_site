@@ -50,6 +50,8 @@ services:
       dockerfile: dockerfile
       args:
         - PYTHON_VERSION=${PYTHON_VERSION:-3.10-alpine}
+        - TARGETPLATFORM=linux/amd64
+        - BUILDPLATFORM=linux/amd64
     platform: linux/amd64
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
