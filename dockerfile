@@ -1,5 +1,4 @@
-ARG PYTHON_VERSION=3.10-alpine
-FROM python:${PYTHON_VERSION}
+
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
