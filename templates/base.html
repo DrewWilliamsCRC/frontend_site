@@ -94,6 +94,10 @@
           <i class="fas fa-chart-line"></i>
           <span>API Browser</span>
         </a>
+        <a href="{{ url_for('ai_insights') }}" class="nav-item {% if request.endpoint == 'ai_insights' %}active{% endif %}">
+          <i class="fas fa-robot"></i>
+          <span>AI Insights</span>
+        </a>
         <a href="{{ url_for('logout') }}" class="nav-item">
           <i class="fas fa-sign-out-alt"></i>
           <span>Logout</span>
