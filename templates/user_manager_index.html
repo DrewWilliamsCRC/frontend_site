@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}User Manager{% endblock %}
+{% block content %}
+<div class="settings-container" data-aos="fade-up">
+  <div class="settings-card">
+    <div class="settings-header">
+      <h1>
+        <i class="fas fa-users"></i>
+        User Management
+      </h1>
+      <p class="text-muted">Manage user accounts and permissions</p>
+    </div>
+
+    <div class="table-actions">
+      <a href="{{ url_for('user_manager.add_user') }}" class="btn-save">
+        <i class="fas fa-user-plus"></i>
+        Add New User
+      </a>
+    </div>
+
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>City Name</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr data-aos="fade-up" data-aos-delay="{{ loop.index * 50 }}">
+            <td class="text-muted">#{{ user.id }}</td>
+            <td>
+              <div class="table-cell-content">
+                <i class="fas fa-user-circle text-primary"></i>
+                <span>{{ user.username }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="table-cell-content">
+                <i class="fas fa-envelope text-primary"></i>
+                <span>{{ user.email }}</span>
+              </div>
+            </td>
+            <td>
+              {% if user.city_name %}
+                <div class="table-cell-content">
+                  <i class="fas fa-map-marker-alt text-primary"></i>
+                  <span>{{ user.city_name }}</span>
+                </div>
+              {% else %}
+                <span class="text-muted">Not set</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="table-actions">
+                <a href="{{ url_for('user_manager.edit_user', user_id=user.id) }}" 
+                   class="btn-icon" title="Edit user">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <form method="post" action="{{ url_for('user_manager.delete_user', user_id=user.id) }}"
+                      class="delete-form" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn-icon btn-icon-danger" title="Delete user">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

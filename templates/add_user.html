@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Add User{% endblock %}
+{% block content %}
+<div class="settings-container" data-aos="fade-up">
+  <div class="settings-card">
+    <div class="settings-header">
+      <h1>
+        <i class="fas fa-user-plus"></i>
+        Add New User
+      </h1>
+      <p class="text-muted">Create a new user account</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('user_manager.add_user') }}" class="settings-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      
+      <div class="form-group">
+        <label for="username">
+          <i class="fas fa-user"></i>
+          Username
+        </label>
+        <input type="text" id="username" name="username" required 
+               class="form-control" autocomplete="username"
+               placeholder="Enter username">
+        <p class="help-text">Choose a unique login name</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="email">
+          <i class="fas fa-envelope"></i>
+          Email
+        </label>
+        <input type="email" id="email" name="email" required 
+               class="form-control" autocomplete="email"
+               placeholder="Enter email address">
+        <p class="help-text">Enter a valid email address</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="password">
+          <i class="fas fa-lock"></i>
+          Password
+        </label>
+        <input type="password" id="password" name="password" required 
+               class="form-control" autocomplete="new-password"
+               placeholder="Enter password">
+        <p class="help-text">Choose a strong password</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="city_name">
+          <i class="fas fa-map-marker-alt"></i>
+          Default City
+        </label>
+        <input type="text" id="city_name" name="city_name" 
+               class="form-control" placeholder="Enter city name">
+        <p class="help-text">This city will be used for weather forecasts</p>
+      </div>
+      
+      <div class="form-actions">
+        <button type="submit" class="btn-save">
+          <i class="fas fa-user-plus"></i>
+          Create User
+        </button>
+        <a href="{{ url_for('user_manager.index') }}" class="btn-cancel">
+          <i class="fas fa-times"></i>
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

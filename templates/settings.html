@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="settings-container" data-aos="fade-up">
+  <div class="settings-card">
+    <div class="settings-header">
+      <h1>
+        <i class="fas fa-cog"></i>
+        User Settings
+      </h1>
+      <p class="text-muted">Customize your experience</p>
+    </div>
+
+    <form method="POST" action="" class="settings-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      
+      <div class="form-group">
+        <label for="city_name">
+          <i class="fas fa-map-marker-alt"></i>
+          Default City
+        </label>
+        <input type="text" id="city_name" name="city_name" 
+               value="{{ city_name }}" class="form-control"
+               placeholder="Enter your city name">
+        <p class="help-text">This city will be used for weather forecasts</p>
+      </div>
+
+      <div class="form-group">
+        <label>
+          <i class="fas fa-newspaper"></i>
+          News Sections
+        </label>
+        <div class="checkbox-group">
+          <div class="checkbox-item">
+            <input type="checkbox" id="news" name="news_categories" value="news" {% if 'news' in news_categories %}checked{% endif %}>
+            <label for="news">Top News</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="world" name="news_categories" value="world" {% if 'world' in news_categories %}checked{% endif %}>
+            <label for="world">World News</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="uk-news" name="news_categories" value="uk-news" {% if 'uk-news' in news_categories %}checked{% endif %}>
+            <label for="uk-news">UK News</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="business" name="news_categories" value="business" {% if 'business' in news_categories %}checked{% endif %}>
+            <label for="business">Business</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="technology" name="news_categories" value="technology" {% if 'technology' in news_categories %}checked{% endif %}>
+            <label for="technology">Technology</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="sport" name="news_categories" value="sport" {% if 'sport' in news_categories %}checked{% endif %}>
+            <label for="sport">Sport</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="culture" name="news_categories" value="culture" {% if 'culture' in news_categories %}checked{% endif %}>
+            <label for="culture">Culture</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="environment" name="news_categories" value="environment" {% if 'environment' in news_categories %}checked{% endif %}>
+            <label for="environment">Environment</label>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="science" name="news_categories" value="science" {% if 'science' in news_categories %}checked{% endif %}>
+            <label for="science">Science</label>
+          </div>
+        </div>
+        <p class="help-text">Select sections to show in the news ticker (powered by The Guardian)</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="button_size">
+          <i class="fas fa-arrows-alt"></i>
+          Button Size
+        </label>
+        <div class="slider-container">
+          <div class="slider-group">
+            <label class="sub-label" for="button_width">Width:</label>
+            <input type="range" id="button_width" name="button_width" 
+                   min="50" max="300" step="10"
+                   value="{{ button_width }}" class="form-control slider"
+                   oninput="updateSliderValues()"
+                   title="Adjust button width">
+            <span class="slider-value">{{ button_width }}px</span>
+          </div>
+          <div class="slider-group">
+            <label class="sub-label" for="button_height">Height:</label>
+            <input type="range" id="button_height" name="button_height" 
+                   min="50" max="300" step="10"
+                   value="{{ button_height }}" class="form-control slider"
+                   oninput="updateSliderValues()"
+                   title="Adjust button height">
+            <span class="slider-value">{{ button_height }}px</span>
+          </div>
+        </div>
+        <p class="help-text">Adjust the size of dashboard buttons</p>
+      </div>
+      
+      <button type="submit" class="btn-save">
+        <i class="fas fa-save"></i>
+        Save Settings
+      </button>
+    </form>
+  </div>
+</div>
+
+<style>
+.checkbox-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
+
+.checkbox-item label {
+  font-size: 14px;
+  color: var(--text-color);
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+}
+
+.dark-mode .checkbox-group {
+  background: var(--bg-color);
+  border-color: var(--border-color);
+}
+
+.dark-mode .checkbox-item label {
+  color: var(--text-color);
+}
+
+@media (max-width: 768px) {
+  .checkbox-group {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}
+</style>
+
+<script>
+function updateSliderValues() {
+  const widthSlider = document.getElementById('button_width');
+  const heightSlider = document.getElementById('button_height');
+  const values = document.querySelectorAll('.slider-value');
+  
+  // Update the display values
+  values[0].textContent = widthSlider.value + 'px';
+  values[1].textContent = heightSlider.value + 'px';
+  
+  // Update CSS variables
+  document.documentElement.style.setProperty('--button-width', widthSlider.value + 'px');
+  document.documentElement.style.setProperty('--button-height', heightSlider.value + 'px');
+}
+
+// Initialize values on page load
+document.addEventListener('DOMContentLoaded', function() {
+  updateSliderValues();
+});
+</script>
+
+{% endblock %}

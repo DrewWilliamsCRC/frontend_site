@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Edit User{% endblock %}
+{% block content %}
+<div class="settings-container" data-aos="fade-up">
+  <div class="settings-card">
+    <div class="settings-header">
+      <h1>
+        <i class="fas fa-user-edit"></i>
+        Edit User
+      </h1>
+      <p class="text-muted">Modify user settings for {{ user.username }}</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('user_manager.edit_user', user_id=user.id) }}" class="settings-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      
+      <div class="form-group">
+        <label for="username">
+          <i class="fas fa-user"></i>
+          Username
+        </label>
+        <input type="text" id="username" name="username" 
+               value="{{ user.username }}" required 
+               class="form-control" autocomplete="username">
+        <p class="help-text">The user's login name</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="email">
+          <i class="fas fa-envelope"></i>
+          Email
+        </label>
+        <input type="email" id="email" name="email" 
+               value="{{ user.email }}" required 
+               class="form-control" autocomplete="email">
+        <p class="help-text">The user's email address</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="password">
+          <i class="fas fa-lock"></i>
+          New Password
+        </label>
+        <input type="password" id="password" name="password" 
+               class="form-control" autocomplete="new-password">
+        <p class="help-text">Leave blank to keep current password</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="city_name">
+          <i class="fas fa-map-marker-alt"></i>
+          Default City
+        </label>
+        <input type="text" id="city_name" name="city_name" 
+               value="{{ user.city_name }}" 
+               class="form-control" placeholder="Enter city name">
+        <p class="help-text">This city will be used for weather forecasts</p>
+      </div>
+      
+      <div class="form-actions">
+        <button type="submit" class="btn-save">
+          <i class="fas fa-save"></i>
+          Save Changes
+        </button>
+        <a href="{{ url_for('user_manager.index') }}" class="btn-cancel">
+          <i class="fas fa-times"></i>
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

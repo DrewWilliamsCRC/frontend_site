@@ -1,0 +1,1874 @@
+{% extends "base.html" %}
+
+{% block title %}TrendInsight - Market Intelligence Dashboard{% endblock %}
+
+{% block styles %}
+<style>
+    :root {
+        --primary-color: #3498db;
+        --secondary-color: #2ecc71;
+        --warning-color: #f39c12;
+        --danger-color: #e74c3c;
+        --light-bg: #f5f7fa;
+        --card-bg: #ffffff;
+        --card-border: #e0e6ed;
+        --text-primary: #2c3e50;
+        --text-secondary: #7f8c8d;
+    }
+
+    [data-theme="dark"] {
+        --primary-color: #2980b9;
+        --secondary-color: #27ae60;
+        --warning-color: #f39c12;
+        --danger-color: #c0392b;
+        --light-bg: #2c3e50;
+        --card-bg: #34495e;
+        --card-border: #2c3e50;
+        --text-primary: #ecf0f1;
+        --text-secondary: #bdc3c7;
+    }
+
+    /* Additional dark mode overrides for better text visibility */
+    body.dark-mode {
+        background-color: #1a2433;
+        color: #ecf0f1;
+    }
+
+    body.dark-mode h1 {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode h1, 
+    body.dark-mode h2, 
+    body.dark-mode h3, 
+    body.dark-mode h4, 
+    body.dark-mode h5, 
+    body.dark-mode h6 {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .card {
+        background-color: #34495e;
+        border-color: #2c3e50;
+    }
+
+    body.dark-mode .card-header {
+        border-bottom-color: #2c3e50;
+    }
+
+    body.dark-mode .card-header h3 {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .trend-title {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .trend-description {
+        color: #bdc3c7;
+    }
+
+    body.dark-mode .news-title {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .news-source, 
+    body.dark-mode .news-time {
+        color: #bdc3c7;
+    }
+
+    body.dark-mode .recommendation-title {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .recommendation-name {
+        color: #bdc3c7;
+    }
+
+    body.dark-mode .recommendation-rationale {
+        color: #bdc3c7;
+    }
+
+    body.dark-mode .correlation-matrix th {
+        background-color: rgba(52, 152, 219, 0.2);
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .correlation-matrix td {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .toolbar-left .filter-badge {
+        background-color: rgba(52, 152, 219, 0.2);
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .toolbar-left .filter-badge:hover, 
+    body.dark-mode .toolbar-left .filter-badge.active {
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+    body.dark-mode #stockSearchInput,
+    body.dark-mode #dateRangeSelector {
+        background-color: #2c3e50;
+        color: #ecf0f1;
+        border-color: #1a2433;
+    }
+
+    body.dark-mode .table {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .table thead th {
+        border-color: #2c3e50;
+        color: #ecf0f1;
+        background-color: #2c3e50; /* Darker background for headers in dark mode */
+        font-weight: bold;
+    }
+
+    body.dark-mode .table td {
+        border-color: #2c3e50;
+    }
+
+    body.dark-mode .badge.bg-light.text-dark {
+        background-color: #34495e !important;
+        color: #ecf0f1 !important;
+    }
+
+    body.dark-mode .text-muted {
+        color: #bdc3c7 !important;
+    }
+
+    .dashboard-container {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        grid-gap: 20px;
+        margin-top: 20px;
+    }
+
+    .card {
+        background-color: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--card-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .card-header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .card-body {
+        padding: 20px;
+    }
+
+    .span-6 {
+        grid-column: span 6;
+    }
+
+    .span-4 {
+        grid-column: span 4;
+    }
+
+    .span-3 {
+        grid-column: span 3;
+    }
+
+    .span-8 {
+        grid-column: span 8;
+    }
+
+    .span-12 {
+        grid-column: span 12;
+    }
+
+    .sentiment-indicator {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .sentiment-indicator .icon {
+        margin-right: 10px;
+        font-size: 24px;
+    }
+
+    .sentiment-indicator .positive {
+        color: var(--secondary-color);
+    }
+
+    .sentiment-indicator .negative {
+        color: var(--danger-color);
+    }
+
+    .sentiment-indicator .neutral {
+        color: var(--warning-color);
+    }
+
+    .sentiment-meter {
+        height: 6px;
+        width: 100%;
+        background-color: #e0e6ed;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 5px;
+    }
+
+    .sentiment-fill {
+        height: 100%;
+        border-radius: 3px;
+    }
+
+    .sentiment-positive {
+        background-color: var(--secondary-color);
+    }
+
+    .sentiment-negative {
+        background-color: var(--danger-color);
+    }
+
+    .sentiment-neutral {
+        background-color: var(--warning-color);
+    }
+
+    .trend-card {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        border-bottom: 1px solid var(--card-border);
+    }
+
+    .trend-card:last-child {
+        border-bottom: none;
+    }
+
+    .trend-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        flex-shrink: 0;
+    }
+
+    .trend-up {
+        background-color: rgba(46, 204, 113, 0.1);
+        color: var(--secondary-color);
+    }
+
+    .trend-down {
+        background-color: rgba(231, 76, 60, 0.1);
+        color: var(--danger-color);
+    }
+
+    .trend-neutral {
+        background-color: rgba(243, 156, 18, 0.1);
+        color: var(--warning-color);
+    }
+
+    .trend-details {
+        flex-grow: 1;
+    }
+
+    .trend-title {
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: var(--text-primary);
+    }
+
+    .trend-description {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .trend-value {
+        font-weight: 700;
+        font-size: 18px;
+        margin-left: 15px;
+    }
+
+    .trend-up .trend-value {
+        color: var(--secondary-color);
+    }
+
+    .trend-down .trend-value {
+        color: var(--danger-color);
+    }
+
+    .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .toolbar-left, .toolbar-right {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .correlation-matrix {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .correlation-matrix th, .correlation-matrix td {
+        padding: 10px;
+        text-align: center;
+        border: 1px solid var(--card-border);
+    }
+
+    .correlation-matrix th {
+        background-color: rgba(52, 152, 219, 0.1);
+    }
+
+    .correlation-high {
+        background-color: rgba(46, 204, 113, 0.2);
+    }
+
+    .correlation-medium {
+        background-color: rgba(243, 156, 18, 0.2);
+    }
+
+    .correlation-low {
+        background-color: rgba(231, 76, 60, 0.2);
+    }
+
+    .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+
+    .spinner {
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border-left-color: var(--primary-color);
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .chart-container {
+        width: 100%;
+        height: 300px;
+    }
+
+    .news-item {
+        padding: 12px;
+        border-bottom: 1px solid var(--card-border);
+    }
+
+    .news-item:last-child {
+        border-bottom: none;
+    }
+
+    .news-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .news-source {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+
+    .news-time {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+
+    .news-title {
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+    }
+
+    .news-sentiment {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-top: 5px;
+    }
+
+    .sentiment-positive-tag {
+        background-color: rgba(46, 204, 113, 0.1);
+        color: var(--secondary-color);
+    }
+
+    .sentiment-negative-tag {
+        background-color: rgba(231, 76, 60, 0.1);
+        color: var(--danger-color);
+    }
+
+    .sentiment-neutral-tag {
+        background-color: rgba(243, 156, 18, 0.1);
+        color: var(--warning-color);
+    }
+
+    .recommendation-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        border-bottom: 1px solid var(--card-border);
+    }
+
+    .recommendation-item:last-child {
+        border-bottom: none;
+    }
+
+    .recommendation-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        flex-shrink: 0;
+        background-color: rgba(52, 152, 219, 0.1);
+        color: var(--primary-color);
+    }
+
+    .recommendation-details {
+        flex-grow: 1;
+    }
+
+    .recommendation-title {
+        font-weight: 600;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+    }
+
+    .recommendation-symbol {
+        margin-right: 8px;
+    }
+
+    .recommendation-name {
+        color: var(--text-secondary);
+        font-weight: normal;
+    }
+
+    .recommendation-rationale {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .recommendation-action {
+        margin-left: 15px;
+        padding: 5px 12px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .action-buy {
+        background-color: rgba(46, 204, 113, 0.1);
+        color: var(--secondary-color);
+    }
+
+    .action-sell {
+        background-color: rgba(231, 76, 60, 0.1);
+        color: var(--danger-color);
+    }
+
+    .action-hold {
+        background-color: rgba(243, 156, 18, 0.1);
+        color: var(--warning-color);
+    }
+
+    .filter-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 20px;
+        background-color: rgba(52, 152, 219, 0.1);
+        color: var(--primary-color);
+        margin-right: 10px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s ease;
+    }
+
+    .filter-badge:hover, .filter-badge.active {
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+    #stockSearchInput {
+        padding: 8px 15px;
+        border-radius: 20px;
+        border: 1px solid var(--card-border);
+        width: 100%;
+        max-width: 250px;
+        background-color: var(--card-bg);
+        color: var(--text-primary);
+    }
+
+    #dateRangeSelector {
+        padding: 8px 15px;
+        border-radius: 20px;
+        border: 1px solid var(--card-border);
+        background-color: var(--card-bg);
+        color: var(--text-primary);
+    }
+
+    /* Add styles for light mode table headers too */
+    .table thead th {
+        background-color: #e9ecef; /* Light gray background for headers in light mode */
+        font-weight: bold;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    /* Weather Impact Card Styles */
+    .weather-impact-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+
+    .weather-card {
+        flex: 1;
+        min-width: 250px;
+        background-color: var(--card-bg);
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--card-border);
+    }
+
+    .weather-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .weather-city {
+        font-weight: 600;
+        font-size: 18px;
+        color: var(--text-primary);
+    }
+
+    .weather-icon {
+        font-size: 24px;
+    }
+
+    .clear-sky {
+        color: #f39c12;
+    }
+
+    .clouds {
+        color: #7f8c8d;
+    }
+
+    .rain {
+        color: #3498db;
+    }
+
+    .snow {
+        color: #ecf0f1;
+    }
+
+    .thunderstorm {
+        color: #9b59b6;
+    }
+
+    .weather-details {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .temperature {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .weather-type {
+        color: var(--text-secondary);
+    }
+
+    .market-impact {
+        padding-top: 10px;
+        border-top: 1px solid var(--card-border);
+    }
+
+    .impact-title {
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: var(--text-primary);
+    }
+
+    .impact-description {
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+
+    .affected-sectors {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-top: 8px;
+    }
+
+    .sector-tag {
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 12px;
+        background-color: rgba(52, 152, 219, 0.1);
+        color: var(--primary-color);
+    }
+
+    .impact-neutral {
+        border-left: 4px solid #7f8c8d;
+    }
+
+    .impact-slightly-negative {
+        border-left: 4px solid #f39c12;
+    }
+
+    .impact-negative {
+        border-left: 4px solid #e67e22;
+    }
+    
+    .impact-very-negative {
+        border-left: 4px solid #e74c3c;
+    }
+
+    /* Dark mode enhancements for weather impact cards */
+    body.dark-mode .weather-card {
+        background-color: #2c3e50;
+        border-color: #1a2433;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    }
+
+    body.dark-mode .weather-city {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .temperature {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .weather-type {
+        color: #bdc3c7;
+    }
+
+    body.dark-mode .impact-title {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .impact-description {
+        color: #bdc3c7;
+    }
+
+    body.dark-mode .sector-tag {
+        background-color: rgba(52, 152, 219, 0.3);
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .impact-neutral {
+        border-left: 4px solid #95a5a6;
+    }
+
+    body.dark-mode .impact-slightly-negative {
+        border-left: 4px solid #f39c12;
+    }
+
+    body.dark-mode .impact-negative {
+        border-left: 4px solid #e67e22;
+    }
+    
+    body.dark-mode .impact-very-negative {
+        border-left: 4px solid #e74c3c;
+    }
+
+    /* Weather icon colors in dark mode */
+    body.dark-mode .clear-sky {
+        color: #f1c40f;
+    }
+
+    body.dark-mode .clouds {
+        color: #95a5a6;
+    }
+
+    body.dark-mode .rain {
+        color: #3498db;
+    }
+
+    body.dark-mode .snow {
+        color: #ecf0f1;
+    }
+
+    body.dark-mode .thunderstorm {
+        color: #9b59b6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">TrendInsight Dashboard</h1>
+    
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <div class="filter-badge active">All Sectors</div>
+            <div class="filter-badge">Technology</div>
+            <div class="filter-badge">Healthcare</div>
+            <div class="filter-badge">Finance</div>
+            <div class="filter-badge">Energy</div>
+        </div>
+        <div class="toolbar-right">
+            <input type="text" id="stockSearchInput" placeholder="Search stocks...">
+            <select id="dateRangeSelector" title="Select date range">
+                <option value="1d">1 Day</option>
+                <option value="1w" selected>1 Week</option>
+                <option value="1m">1 Month</option>
+                <option value="3m">3 Months</option>
+                <option value="1y">1 Year</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="dashboard-container">
+        <!-- Market Sentiment Overview -->
+        <div class="card span-8">
+            <div class="card-header">
+                <h3>Market Sentiment Analysis</h3>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-outline-secondary refresh-btn" data-target="sentiment-chart" title="Refresh sentiment chart">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" id="sentiment-chart">
+                    <!-- Chart will be rendered here -->
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="sentiment-indicator">
+                            <div class="icon positive"><i class="fas fa-arrow-up"></i></div>
+                            <div class="details">
+                                <div class="title">Bullish Sentiment</div>
+                                <div class="sentiment-meter">
+                                    <div class="sentiment-fill sentiment-positive" style="width: 65%;"></div>
+                                </div>
+                                <div class="value">65%</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="sentiment-indicator">
+                            <div class="icon neutral"><i class="fas fa-minus"></i></div>
+                            <div class="details">
+                                <div class="title">Neutral Sentiment</div>
+                                <div class="sentiment-meter">
+                                    <div class="sentiment-fill sentiment-neutral" style="width: 20%;"></div>
+                                </div>
+                                <div class="value">20%</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="sentiment-indicator">
+                            <div class="icon negative"><i class="fas fa-arrow-down"></i></div>
+                            <div class="details">
+                                <div class="title">Bearish Sentiment</div>
+                                <div class="sentiment-meter">
+                                    <div class="sentiment-fill sentiment-negative" style="width: 15%;"></div>
+                                </div>
+                                <div class="value">15%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Powered Recommendations -->
+        <div class="card span-4">
+            <div class="card-header">
+                <h3>AI Recommendations</h3>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-outline-secondary refresh-btn" data-target="recommendations" title="Refresh recommendations">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0" id="recommendations">
+                <div class="recommendation-item">
+                    <div class="recommendation-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="recommendation-details">
+                        <div class="recommendation-title">
+                            <span class="recommendation-symbol">AAPL</span>
+                            <span class="recommendation-name">Apple Inc.</span>
+                        </div>
+                        <div class="recommendation-rationale">Strong Q2 earnings, positive news sentiment</div>
+                    </div>
+                    <div class="recommendation-action action-buy">BUY</div>
+                </div>
+                <div class="recommendation-item">
+                    <div class="recommendation-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="recommendation-details">
+                        <div class="recommendation-title">
+                            <span class="recommendation-symbol">MSFT</span>
+                            <span class="recommendation-name">Microsoft Corp.</span>
+                        </div>
+                        <div class="recommendation-rationale">Cloud growth, AI integration momentum</div>
+                    </div>
+                    <div class="recommendation-action action-buy">BUY</div>
+                </div>
+                <div class="recommendation-item">
+                    <div class="recommendation-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="recommendation-details">
+                        <div class="recommendation-title">
+                            <span class="recommendation-symbol">NFLX</span>
+                            <span class="recommendation-name">Netflix Inc.</span>
+                        </div>
+                        <div class="recommendation-rationale">Subscriber growth slowing, competition</div>
+                    </div>
+                    <div class="recommendation-action action-hold">HOLD</div>
+                </div>
+                <div class="recommendation-item">
+                    <div class="recommendation-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="recommendation-details">
+                        <div class="recommendation-title">
+                            <span class="recommendation-symbol">TSLA</span>
+                            <span class="recommendation-name">Tesla Inc.</span>
+                        </div>
+                        <div class="recommendation-rationale">Production issues, negative news trend</div>
+                    </div>
+                    <div class="recommendation-action action-sell">SELL</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Unusual Trading Patterns -->
+        <div class="card span-6">
+            <div class="card-header">
+                <h3>Unusual Trading Patterns</h3>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-outline-secondary refresh-btn" data-target="unusual-patterns" title="Refresh unusual patterns">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0" id="unusual-patterns">
+                <div class="trend-card">
+                    <div class="trend-icon trend-up">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <div class="trend-details">
+                        <div class="trend-title">AMD - Advanced Micro Devices</div>
+                        <div class="trend-description">Volume spike 3.5x daily average</div>
+                    </div>
+                    <div class="trend-value">+8.2%</div>
+                </div>
+                <div class="trend-card">
+                    <div class="trend-icon trend-down">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <div class="trend-details">
+                        <div class="trend-title">JPM - JPMorgan Chase</div>
+                        <div class="trend-description">Unusual options activity - 3x put volume</div>
+                    </div>
+                    <div class="trend-value">-4.7%</div>
+                </div>
+                <div class="trend-card">
+                    <div class="trend-icon trend-up">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <div class="trend-details">
+                        <div class="trend-title">NVDA - NVIDIA Corporation</div>
+                        <div class="trend-description">Breaking resistance level with volume</div>
+                    </div>
+                    <div class="trend-value">+6.5%</div>
+                </div>
+                <div class="trend-card">
+                    <div class="trend-icon trend-down">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <div class="trend-details">
+                        <div class="trend-title">DIS - Walt Disney Company</div>
+                        <div class="trend-description">Gap down on earnings miss</div>
+                    </div>
+                    <div class="trend-value">-7.3%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- News Sentiment Analysis -->
+        <div class="card span-6">
+            <div class="card-header">
+                <h3>News & Market Impact</h3>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-outline-secondary refresh-btn" data-target="news-sentiment" title="Refresh news sentiment">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0" id="news-sentiment">
+                <div class="news-item">
+                    <div class="news-header">
+                        <div class="news-source">Financial Times</div>
+                        <div class="news-time">2 hours ago</div>
+                    </div>
+                    <div class="news-title">Apple announces new chip development strategy</div>
+                    <span class="news-sentiment sentiment-positive-tag">Bullish</span>
+                </div>
+                <div class="news-item">
+                    <div class="news-header">
+                        <div class="news-source">Bloomberg</div>
+                        <div class="news-time">4 hours ago</div>
+                    </div>
+                    <div class="news-title">Fed hints at rate pause in next meeting</div>
+                    <span class="news-sentiment sentiment-positive-tag">Bullish</span>
+                </div>
+                <div class="news-item">
+                    <div class="news-header">
+                        <div class="news-source">Wall Street Journal</div>
+                        <div class="news-time">6 hours ago</div>
+                    </div>
+                    <div class="news-title">Oil prices drop amid concerns of oversupply</div>
+                    <span class="news-sentiment sentiment-negative-tag">Bearish</span>
+                </div>
+                <div class="news-item">
+                    <div class="news-header">
+                        <div class="news-source">CNBC</div>
+                        <div class="news-time">8 hours ago</div>
+                    </div>
+                    <div class="news-title">Retail sales data shows mixed results for holiday shopping</div>
+                    <span class="news-sentiment sentiment-neutral-tag">Neutral</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Insider Transactions -->
+        <div class="card span-12">
+            <div class="card-header">
+                <h3>Insider Transactions</h3>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-outline-secondary refresh-btn" data-target="insider-transactions" title="Refresh insider transactions">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0" id="insider-transactions">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Name</th>
+                                <th>Position</th>
+                                <th>Transaction</th>
+                                <th>Quantity</th>
+                                <th>Value</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge bg-light text-dark">AAPL</span></td>
+                                <td>John Smith</td>
+                                <td>Director</td>
+                                <td><span class="badge bg-success">BUY</span></td>
+                                <td>2,000</td>
+                                <td>$356,000</td>
+                                <td>2025-02-15</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-light text-dark">MSFT</span></td>
+                                <td>Jane Doe</td>
+                                <td>CFO</td>
+                                <td><span class="badge bg-danger">SELL</span></td>
+                                <td>5,000</td>
+                                <td>$1,875,000</td>
+                                <td>2025-02-14</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-light text-dark">TSLA</span></td>
+                                <td>Elon Musk</td>
+                                <td>CEO</td>
+                                <td><span class="badge bg-success">BUY</span></td>
+                                <td>10,000</td>
+                                <td>$2,134,500</td>
+                                <td>2025-02-13</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weather Market Impact -->
+        <div class="card span-12">
+            <div class="card-header">
+                <h3>Weather Impact on Markets</h3>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-outline-secondary refresh-btn" data-target="weather-impact" title="Refresh weather data">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" id="weather-impact">
+                <div class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cross-Asset Correlation Matrix -->
+        <div class="card span-12">
+            <div class="card-header">
+                <h3>Cross-Asset Correlation Matrix</h3>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-outline-secondary refresh-btn" data-target="correlation-matrix" title="Refresh correlation matrix">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" id="correlation-matrix">
+                <table class="correlation-matrix">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>S&P 500</th>
+                            <th>NASDAQ</th>
+                            <th>Gold</th>
+                            <th>Oil</th>
+                            <th>10Y Treasury</th>
+                            <th>USD Index</th>
+                            <th>Bitcoin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th>S&P 500</th>
+                            <td>1.00</td>
+                            <td class="correlation-high">0.92</td>
+                            <td class="correlation-low">0.21</td>
+                            <td class="correlation-medium">0.45</td>
+                            <td class="correlation-low">-0.18</td>
+                            <td class="correlation-low">-0.25</td>
+                            <td class="correlation-medium">0.38</td>
+                        </tr>
+                        <tr>
+                            <th>NASDAQ</th>
+                            <td class="correlation-high">0.92</td>
+                            <td>1.00</td>
+                            <td class="correlation-low">0.15</td>
+                            <td class="correlation-medium">0.32</td>
+                            <td class="correlation-low">-0.22</td>
+                            <td class="correlation-low">-0.28</td>
+                            <td class="correlation-medium">0.47</td>
+                        </tr>
+                        <tr>
+                            <th>Gold</th>
+                            <td class="correlation-low">0.21</td>
+                            <td class="correlation-low">0.15</td>
+                            <td>1.00</td>
+                            <td class="correlation-low">0.24</td>
+                            <td class="correlation-medium">0.42</td>
+                            <td class="correlation-medium">-0.54</td>
+                            <td class="correlation-low">0.25</td>
+                        </tr>
+                        <tr>
+                            <th>Oil</th>
+                            <td class="correlation-medium">0.45</td>
+                            <td class="correlation-medium">0.32</td>
+                            <td class="correlation-low">0.24</td>
+                            <td>1.00</td>
+                            <td class="correlation-low">-0.12</td>
+                            <td class="correlation-medium">-0.38</td>
+                            <td class="correlation-low">0.19</td>
+                        </tr>
+                        <tr>
+                            <th>10Y Treasury</th>
+                            <td class="correlation-low">-0.18</td>
+                            <td class="correlation-low">-0.22</td>
+                            <td class="correlation-medium">0.42</td>
+                            <td class="correlation-low">-0.12</td>
+                            <td>1.00</td>
+                            <td class="correlation-medium">-0.56</td>
+                            <td class="correlation-low">-0.11</td>
+                        </tr>
+                        <tr>
+                            <th>USD Index</th>
+                            <td class="correlation-low">-0.25</td>
+                            <td class="correlation-low">-0.28</td>
+                            <td class="correlation-medium">-0.54</td>
+                            <td class="correlation-medium">-0.38</td>
+                            <td class="correlation-medium">-0.56</td>
+                            <td>1.00</td>
+                            <td class="correlation-low">-0.29</td>
+                        </tr>
+                        <tr>
+                            <th>Bitcoin</th>
+                            <td class="correlation-medium">0.38</td>
+                            <td class="correlation-medium">0.47</td>
+                            <td class="correlation-low">0.25</td>
+                            <td class="correlation-low">0.19</td>
+                            <td class="correlation-low">-0.11</td>
+                            <td class="correlation-low">-0.29</td>
+                            <td>1.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the charts and data 
+    initializeTrendInsight();
+    
+    // Add event listeners for refresh buttons
+    document.querySelectorAll('.refresh-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            refreshSection(targetId);
+        });
+    });
+    
+    // Filter badges click event
+    document.querySelectorAll('.filter-badge').forEach(badge => {
+        badge.addEventListener('click', function() {
+            document.querySelectorAll('.filter-badge').forEach(b => {
+                b.classList.remove('active');
+            });
+            this.classList.add('active');
+            refreshAllSections();
+        });
+    });
+    
+    // Date range selector change event
+    document.getElementById('dateRangeSelector').addEventListener('change', function() {
+        refreshAllSections();
+    });
+    
+    // Stock search input events
+    document.getElementById('stockSearchInput').addEventListener('input', debounce(function() {
+        if (this.value.length > 2) {
+            searchStocks(this.value);
+        }
+    }, 500));
+});
+
+function initializeTrendInsight() {
+    // Initialize sentiment chart
+    initializeSentimentChart();
+    
+    // Load initial data
+    loadMarketSentiment();
+    loadAIRecommendations();
+    loadUnusualPatterns();
+    loadInsiderTransactions();
+    loadCorrelationMatrix();
+    loadWeatherImpact();
+}
+
+function initializeSentimentChart() {
+    // This is a placeholder for chart initialization
+    console.log('Sentiment chart initialized');
+    
+    // Show loading state until data is loaded
+    const chartElement = document.getElementById('sentiment-chart');
+    chartElement.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+}
+
+function refreshSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    
+    // Show loading state
+    section.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    // Call the appropriate function based on the section ID
+    switch(sectionId) {
+        case 'sentiment-chart':
+            loadMarketSentiment();
+            break;
+        case 'recommendations':
+            loadAIRecommendations();
+            break;
+        case 'unusual-patterns':
+            loadUnusualPatterns();
+            break;
+        case 'news-sentiment':
+            loadMarketSentiment(); // This will also update the news section
+            break;
+        case 'correlation-matrix':
+            loadCorrelationMatrix();
+            break;
+        case 'weather-impact':
+            loadWeatherImpact();
+            break;
+        case 'insider-transactions':
+            loadInsiderTransactions();
+            break;
+        default:
+            console.error('Unknown section ID:', sectionId);
+    }
+}
+
+function refreshAllSections() {
+    loadMarketSentiment();
+    loadAIRecommendations();
+    loadUnusualPatterns();
+    loadInsiderTransactions();
+    loadCorrelationMatrix();
+    loadWeatherImpact();
+}
+
+function loadMarketSentiment() {
+    // Get selected date range
+    const dateRange = document.getElementById('dateRangeSelector').value;
+    
+    // Get active sector filter
+    const activeSector = document.querySelector('.filter-badge.active').textContent;
+    
+    // Show loading states
+    document.getElementById('sentiment-chart').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    document.getElementById('news-sentiment').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    // Make API call with sector parameter
+    let apiUrl = `/api/trend-insight/sentiment?time_range=${dateRange}`;
+    
+    // Add sector parameter if not "All Sectors"
+    if (activeSector !== 'All Sectors') {
+        apiUrl += `&topics=${activeSector.toLowerCase()}`;
+    }
+    
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Update sentiment meters
+            updateSentimentMeters(data.overall_sentiment);
+            
+            // Update news items
+            updateNewsItems(data.news_items);
+            
+            // Update sentiment chart (in a real implementation, this would use a chart library)
+            updateSentimentChart(data.sentiment_timeline);
+        })
+        .catch(error => {
+            console.error('Error fetching market sentiment data:', error);
+            document.getElementById('sentiment-chart').innerHTML = '<div class="alert alert-danger">Failed to load sentiment data. Please try again later.</div>';
+            document.getElementById('news-sentiment').innerHTML = '<div class="alert alert-danger">Failed to load news data. Please try again later.</div>';
+        });
+}
+
+function updateSentimentMeters(sentimentData) {
+    // Update bullish meter
+    document.querySelector('.sentiment-positive').style.width = `${sentimentData.bullish}%`;
+    document.querySelector('.col-md-4:nth-child(1) .value').textContent = `${sentimentData.bullish}%`;
+    
+    // Update neutral meter
+    document.querySelector('.sentiment-neutral').style.width = `${sentimentData.neutral}%`;
+    document.querySelector('.col-md-4:nth-child(2) .value').textContent = `${sentimentData.neutral}%`;
+    
+    // Update bearish meter
+    document.querySelector('.sentiment-negative').style.width = `${sentimentData.bearish}%`;
+    document.querySelector('.col-md-4:nth-child(3) .value').textContent = `${sentimentData.bearish}%`;
+}
+
+function updateNewsItems(newsItems) {
+    // Get the news container
+    const newsContainer = document.getElementById('news-sentiment');
+    newsContainer.innerHTML = '';
+    
+    // Take the top 4 news items
+    const topNews = newsItems.slice(0, 4);
+    
+    // Create news items
+    topNews.forEach(item => {
+        // Format time
+        let displayTime;
+        const pubTime = new Date(item.time_published);
+        const now = new Date();
+        const diffHours = Math.floor((now - pubTime) / (1000 * 60 * 60));
+        
+        if (diffHours < 24) {
+            displayTime = `${diffHours} hours ago`;
+        } else {
+            displayTime = pubTime.toLocaleDateString();
+        }
+        
+        // Create sentiment class
+        const sentimentClass = `sentiment-${item.sentiment}-tag`;
+        
+        // Create news element
+        const newsElement = document.createElement('div');
+        newsElement.className = 'news-item';
+        newsElement.innerHTML = `
+            <div class="news-header">
+                <div class="news-source">${item.source}</div>
+                <div class="news-time">${displayTime}</div>
+            </div>
+            <div class="news-title">${item.title}</div>
+            <span class="news-sentiment ${sentimentClass}">${item.sentiment.charAt(0).toUpperCase() + item.sentiment.slice(1)}</span>
+        `;
+        
+        newsContainer.appendChild(newsElement);
+    });
+    
+    // If no news items
+    if (topNews.length === 0) {
+        newsContainer.innerHTML = '<div class="p-3 text-center text-muted">No relevant news found.</div>';
+    }
+}
+
+function updateSentimentChart(timelineData) {
+    // In a real implementation, this would use a chart library like Chart.js
+    // For now, we'll just create a simple visualization
+    const chartElement = document.getElementById('sentiment-chart');
+    
+    if (!timelineData || timelineData.length === 0) {
+        chartElement.innerHTML = '<div class="d-flex justify-content-center align-items-center h-100"><div class="text-muted">No sentiment data available for the selected time period</div></div>';
+        return;
+    }
+    
+    // Create a simple bar representation
+    let chartHtml = '<div class="d-flex flex-column h-100 justify-content-between">';
+    chartHtml += '<div class="d-flex justify-content-between mb-2">';
+    
+    // Add date labels
+    timelineData.forEach(day => {
+        // Format date
+        const date = new Date(day.date);
+        const formattedDate = `${date.getMonth() + 1}/${date.getDate()}`;
+        
+        chartHtml += `<div class="text-center" style="flex: 1;">${formattedDate}</div>`;
+    });
+    
+    chartHtml += '</div><div class="d-flex h-75">';
+    
+    // Add bars
+    timelineData.forEach(day => {
+        chartHtml += `
+        <div class="d-flex flex-column justify-content-end" style="flex: 1; height: 100%;">
+            <div class="bg-danger" style="height: ${day.bearish_percentage}%; opacity: 0.7;"></div>
+            <div class="bg-warning" style="height: ${day.neutral_percentage}%; opacity: 0.7;"></div>
+            <div class="bg-success" style="height: ${day.bullish_percentage}%; opacity: 0.7;"></div>
+        </div>`;
+    });
+    
+    chartHtml += '</div>';
+    
+    // Add legend
+    chartHtml += `
+    <div class="d-flex justify-content-center mt-3">
+        <div class="d-flex align-items-center me-3">
+            <div class="bg-success" style="width: 15px; height: 15px; margin-right: 5px;"></div>
+            <span>Bullish</span>
+        </div>
+        <div class="d-flex align-items-center me-3">
+            <div class="bg-warning" style="width: 15px; height: 15px; margin-right: 5px;"></div>
+            <span>Neutral</span>
+        </div>
+        <div class="d-flex align-items-center">
+            <div class="bg-danger" style="width: 15px; height: 15px; margin-right: 5px;"></div>
+            <span>Bearish</span>
+        </div>
+    </div>`;
+    
+    chartHtml += '</div>';
+    
+    chartElement.innerHTML = chartHtml;
+}
+
+function loadAIRecommendations() {
+    // Show loading state
+    document.getElementById('recommendations').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    // Get active sector filter
+    const activeSector = document.querySelector('.filter-badge.active').textContent;
+    
+    // Make API call with sector parameter
+    let apiUrl = '/api/trend-insight/recommendations';
+    
+    // Add sector parameter if not "All Sectors"
+    if (activeSector !== 'All Sectors') {
+        apiUrl += `?sector=${activeSector.toLowerCase()}`;
+    }
+    
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            updateRecommendations(data);
+        })
+        .catch(error => {
+            console.error('Error fetching AI recommendations:', error);
+            document.getElementById('recommendations').innerHTML = '<div class="alert alert-danger p-3">Failed to load recommendations. Please try again later.</div>';
+        });
+}
+
+function updateRecommendations(recommendations) {
+    // Get the recommendations container
+    const container = document.getElementById('recommendations');
+    container.innerHTML = '';
+    
+    // Create recommendation items
+    recommendations.forEach(item => {
+        // Determine action class
+        let actionClass = '';
+        switch(item.action) {
+            case 'BUY':
+                actionClass = 'action-buy';
+                break;
+            case 'SELL':
+                actionClass = 'action-sell';
+                break;
+            default:
+                actionClass = 'action-hold';
+        }
+        
+        // Create recommendation element
+        const element = document.createElement('div');
+        element.className = 'recommendation-item';
+        element.innerHTML = `
+            <div class="recommendation-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="recommendation-details">
+                <div class="recommendation-title">
+                    <span class="recommendation-symbol">${item.symbol}</span>
+                    <span class="recommendation-name">${item.name}</span>
+                </div>
+                <div class="recommendation-rationale">${item.rationale}</div>
+            </div>
+            <div class="recommendation-action ${actionClass}">${item.action}</div>
+        `;
+        
+        container.appendChild(element);
+    });
+    
+    // If no recommendations
+    if (recommendations.length === 0) {
+        container.innerHTML = '<div class="p-3 text-center text-muted">No recommendations available.</div>';
+    }
+}
+
+function loadUnusualPatterns() {
+    // Show loading state
+    document.getElementById('unusual-patterns').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    // Get active sector filter
+    const activeSector = document.querySelector('.filter-badge.active').textContent;
+    
+    // Make API call with sector parameter
+    let apiUrl = '/api/trend-insight/unusual-patterns';
+    
+    // Add sector parameter if not "All Sectors"
+    if (activeSector !== 'All Sectors') {
+        apiUrl += `?sector=${activeSector.toLowerCase()}`;
+    }
+    
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            updateUnusualPatterns(data);
+        })
+        .catch(error => {
+            console.error('Error fetching unusual patterns:', error);
+            document.getElementById('unusual-patterns').innerHTML = '<div class="alert alert-danger p-3">Failed to load unusual patterns. Please try again later.</div>';
+        });
+}
+
+function updateUnusualPatterns(patterns) {
+    // Get the patterns container
+    const container = document.getElementById('unusual-patterns');
+    container.innerHTML = '';
+    
+    // Create pattern items
+    patterns.forEach(item => {
+        // Create pattern element
+        const element = document.createElement('div');
+        element.className = 'trend-card';
+        
+        // Determine trend direction class
+        const directionClass = item.direction === 'up' ? 'trend-up' : 'trend-down';
+        
+        // Format change percentage
+        const changeText = item.direction === 'up' ? 
+            `+${item.change_percentage.toFixed(1)}%` : 
+            `${item.change_percentage.toFixed(1)}%`;
+        
+        element.innerHTML = `
+            <div class="trend-icon ${directionClass}">
+                <i class="fas fa-bolt"></i>
+            </div>
+            <div class="trend-details">
+                <div class="trend-title">${item.symbol} - ${item.name}</div>
+                <div class="trend-description">${item.description}</div>
+            </div>
+            <div class="trend-value">${changeText}</div>
+        `;
+        
+        container.appendChild(element);
+    });
+    
+    // If no patterns
+    if (patterns.length === 0) {
+        container.innerHTML = '<div class="p-3 text-center text-muted">No unusual patterns detected.</div>';
+    }
+}
+
+function loadInsiderTransactions() {
+    // Show loading state
+    document.getElementById('insider-transactions').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    // Get active sector filter
+    const activeSector = document.querySelector('.filter-badge.active').textContent;
+    
+    // Make API call with sector parameter
+    let apiUrl = '/api/trend-insight/insider-transactions';
+    
+    // Add sector parameter if not "All Sectors"
+    if (activeSector !== 'All Sectors') {
+        apiUrl += `?sector=${activeSector.toLowerCase()}`;
+    }
+    
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            updateInsiderTransactions(data);
+        })
+        .catch(error => {
+            console.error('Error fetching insider transactions:', error);
+            document.getElementById('insider-transactions').innerHTML = '<div class="alert alert-danger p-3">Failed to load insider transactions. Please try again later.</div>';
+        });
+}
+
+function updateInsiderTransactions(transactions) {
+    // Get the container
+    const container = document.getElementById('insider-transactions');
+    
+    if (!transactions || transactions.length === 0) {
+        container.innerHTML = '<div class="p-3 text-center text-muted">No insider transactions found for the selected criteria.</div>';
+        return;
+    }
+    
+    // Create the table
+    let tableHtml = `
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Name</th>
+                    <th>Position</th>
+                    <th>Transaction</th>
+                    <th>Quantity</th>
+                    <th>Value</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    // Add rows for each transaction
+    transactions.forEach(transaction => {
+        // Format the value with commas and $ sign
+        const formattedValue = new Intl.NumberFormat('en-US', { 
+            style: 'currency', 
+            currency: 'USD',
+            maximumFractionDigits: 0
+        }).format(transaction.value);
+        
+        // Format the quantity with commas
+        const formattedQuantity = new Intl.NumberFormat('en-US').format(transaction.quantity);
+        
+        // Determine the badge class based on transaction type
+        const badgeClass = transaction.transaction_type === 'BUY' ? 'bg-success' : 'bg-danger';
+        
+        tableHtml += `
+        <tr>
+            <td><span class="badge bg-light text-dark">${transaction.symbol}</span></td>
+            <td>${transaction.name}</td>
+            <td>${transaction.position}</td>
+            <td><span class="badge ${badgeClass}">${transaction.transaction_type}</span></td>
+            <td>${formattedQuantity}</td>
+            <td>${formattedValue}</td>
+            <td>${transaction.date}</td>
+        </tr>
+        `;
+    });
+    
+    tableHtml += `
+            </tbody>
+        </table>
+    </div>
+    <div class="text-muted text-end mt-2 small">Data source: Alpha Vantage Insider Transactions API</div>
+    `;
+    
+    container.innerHTML = tableHtml;
+}
+
+function loadCorrelationMatrix() {
+    // Show loading state
+    document.getElementById('correlation-matrix').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    // Make API call
+    fetch('/api/trend-insight/correlations')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            updateCorrelationMatrix(data);
+        })
+        .catch(error => {
+            console.error('Error fetching correlation data:', error);
+            document.getElementById('correlation-matrix').innerHTML = '<div class="alert alert-danger">Failed to load correlation data. Please try again later.</div>';
+        });
+}
+
+function updateCorrelationMatrix(correlationData) {
+    // Get the correlation container
+    const container = document.getElementById('correlation-matrix');
+    
+    // Create the table
+    let tableHtml = '<table class="correlation-matrix">';
+    
+    // Add header row
+    tableHtml += '<thead><tr><th></th>';
+    correlationData.assets.forEach(asset => {
+        tableHtml += `<th>${asset}</th>`;
+    });
+    tableHtml += '</tr></thead>';
+    
+    // Add body rows
+    tableHtml += '<tbody>';
+    correlationData.assets.forEach((asset, rowIndex) => {
+        tableHtml += `<tr><th>${asset}</th>`;
+        
+        correlationData.matrix[rowIndex].forEach(value => {
+            // Determine correlation class
+            let correlationClass = '';
+            if (value !== 1.0) {  // Skip the diagonal (self-correlation)
+                if (Math.abs(value) > 0.7) {
+                    correlationClass = 'correlation-high';
+                } else if (Math.abs(value) > 0.3) {
+                    correlationClass = 'correlation-medium';
+                } else {
+                    correlationClass = 'correlation-low';
+                }
+            }
+            
+            tableHtml += `<td class="${correlationClass}">${value.toFixed(2)}</td>`;
+        });
+        
+        tableHtml += '</tr>';
+    });
+    tableHtml += '</tbody></table>';
+    
+    // Add timestamp
+    tableHtml += `<div class="text-muted text-end mt-2 small">Last updated: ${correlationData.timestamp}</div>`;
+    
+    container.innerHTML = tableHtml;
+}
+
+function loadWeatherImpact() {
+    // Show loading state
+    document.getElementById('weather-impact').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    // Get active sector filter
+    const activeSector = document.querySelector('.filter-badge.active').textContent;
+    
+    // Make API call with sector parameter
+    let apiUrl = '/api/trend-insight/weather-impact';
+    
+    // Add sector parameter if not "All Sectors"
+    if (activeSector !== 'All Sectors') {
+        apiUrl += `?sector=${activeSector.toLowerCase()}`;
+    }
+    
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            updateWeatherImpact(data);
+        })
+        .catch(error => {
+            console.error('Error fetching weather impact data:', error);
+            document.getElementById('weather-impact').innerHTML = '<div class="alert alert-danger p-3">Failed to load weather impact data. Please try again later.</div>';
+        });
+}
+
+function updateWeatherImpact(weatherData) {
+    // Get the container
+    const container = document.getElementById('weather-impact');
+    
+    if (!weatherData || weatherData.length === 0) {
+        container.innerHTML = '<div class="p-3 text-center text-muted">No weather impact data available.</div>';
+        return;
+    }
+    
+    // Create the weather impact rows
+    let rowsHtml = '<div class="weather-impact-row">';
+    
+    // Add weather cards for each city
+    weatherData.forEach((cityData, index) => {
+        // Get weather icon class
+        let weatherIconClass = '';
+        let weatherIcon = '';
+        
+        switch(cityData.weather) {
+            case 'Clear':
+                weatherIconClass = 'clear-sky';
+                weatherIcon = 'fas fa-sun';
+                break;
+            case 'Clouds':
+                weatherIconClass = 'clouds';
+                weatherIcon = 'fas fa-cloud';
+                break;
+            case 'Rain':
+                weatherIconClass = 'rain';
+                weatherIcon = 'fas fa-cloud-rain';
+                break;
+            case 'Snow':
+                weatherIconClass = 'snow';
+                weatherIcon = 'fas fa-snowflake';
+                break;
+            case 'Thunderstorm':
+                weatherIconClass = 'thunderstorm';
+                weatherIcon = 'fas fa-bolt';
+                break;
+            default:
+                weatherIconClass = '';
+                weatherIcon = 'fas fa-cloud';
+        }
+        
+        // Create impact class based on sentiment
+        let impactClass = `impact-${cityData.impact.sentiment}`;
+        
+        // Create card HTML
+        rowsHtml += `
+        <div class="weather-card ${impactClass}">
+            <div class="weather-header">
+                <div class="weather-city">${cityData.city}</div>
+                <div class="weather-icon ${weatherIconClass}">
+                    <i class="${weatherIcon}"></i>
+                </div>
+            </div>
+            <div class="weather-details">
+                <div class="temperature">${cityData.temperature}°C</div>
+                <div class="weather-type">${cityData.weather}</div>
+            </div>
+            <div class="market-impact">
+                <div class="impact-title">Market Impact</div>
+                <div class="impact-description">${cityData.impact.description}</div>
+                ${cityData.affected_sectors.length > 0 ? 
+                    `<div class="affected-sectors">
+                        ${cityData.affected_sectors.map(sector => 
+                            `<div class="sector-tag">${sector}</div>`
+                        ).join('')}
+                    </div>` : 
+                    ''}
+            </div>
+        </div>`;
+        
+        // Create a new row every 3 cards
+        if ((index + 1) % 3 === 0 && index < weatherData.length - 1) {
+            rowsHtml += '</div><div class="weather-impact-row">';
+        }
+    });
+    
+    rowsHtml += '</div>';
+    
+    // Add note about data source
+    rowsHtml += '<div class="text-muted text-end mt-3 small">Data source: OpenWeatherMap API</div>';
+    
+    container.innerHTML = rowsHtml;
+}
+
+function searchStocks(query) {
+    console.log(`Searching for stocks matching: ${query}`);
+    // In a real implementation, this would call an API endpoint to search for stocks
+    // For now, we'll just log the query
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+</script>
+{% endblock %} 
