@@ -17,10 +17,10 @@ dnspython==2.6.1
 feedparser>=6.0.10  # Explicitly set to avoid use_2to3 error
 
 # AI Experiments Dependencies
-pandas==2.2.2
-numpy==1.26.4
-matplotlib==3.8.4
-seaborn==0.13.2
+pandas>=2.0.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
 scikit-learn==1.5.0
 
 # New AI Enhancement Dependencies

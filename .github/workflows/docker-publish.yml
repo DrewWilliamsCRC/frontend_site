@@ -178,6 +178,8 @@ jobs:
           if ! grep -q "pandas" requirements.txt; then
             echo "pandas>=2.0.0" >> requirements.txt
             echo "numpy>=1.24.0" >> requirements.txt
+            echo "matplotlib>=3.7.0" >> requirements.txt
+            echo "seaborn>=0.12.0" >> requirements.txt
           fi
 
       - name: Run Docker tests

@@ -175,9 +175,11 @@ fi
 
 # Check if pandas is installed, if not, install it for testing
 echo "Checking for required Python packages..."
-if ! docker compose exec -T frontend pip show pandas >/dev/null 2>&1; then
-    echo "Pandas not found, installing required packages for testing..."
-    docker compose exec -T frontend pip install pandas numpy
+if ! docker compose exec -T frontend pip show pandas >/dev/null 2>&1 || \
+   ! docker compose exec -T frontend pip show matplotlib >/dev/null 2>&1 || \
+   ! docker compose exec -T frontend pip show seaborn >/dev/null 2>&1; then
+    echo "Required packages not found, installing scientific packages for testing..."
+    docker compose exec -T frontend pip install pandas numpy matplotlib seaborn
 fi
 
 # Verify tmpfs is writable

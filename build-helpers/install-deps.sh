@@ -14,6 +14,10 @@ if [ -f /etc/alpine-release ]; then
 
     echo "Installing Alpine requirements from build-helpers/requirements-alpine.txt"
     
+    # Install critical scientific packages first
+    echo "Installing critical scientific packages first..."
+    pip install --no-cache-dir pandas numpy matplotlib seaborn || true
+    
     # Installation strategy: 
     # 1. Try batch installation first for most packages (much faster)
     # 2. If that fails, fall back to one-by-one installation for problematic packages
@@ -55,7 +59,7 @@ fi
 
 # Verify critical packages are installed
 echo "Verifying critical packages..."
-for pkg in Flask gunicorn psycopg2 pandas numpy; do
+for pkg in Flask gunicorn psycopg2 pandas numpy matplotlib seaborn; do
     if pip show $pkg > /dev/null 2>&1; then
         echo "✓ $pkg is installed"
     else
