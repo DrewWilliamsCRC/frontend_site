@@ -2,6 +2,7 @@
 from dotenv import load_dotenv
 import os
 import random
+import time
 
 # Load environment variables before any other configuration
 print("Loading environment variables from .env file...")
@@ -2202,6 +2203,350 @@ def trend_insight():
         page_title="TrendInsight Dashboard",
         user_settings=settings
     )
+
+@app.route('/api/trend-insight/weather-impact')
+def get_weather_market_impact():
+    """Get weather data for major financial centers and potential market impacts."""
+    if 'user' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+
+    try:
+        # Track API call
+        track_api_call('openweathermap', 'weather_impact')
+        
+        # Get sector parameter if provided
+        sector = request.args.get('sector', None)
+        
+        # Major financial centers with their coordinates
+        financial_centers = {
+            'New York': {'lat': 40.7128, 'lon': -74.0060},
+            'London': {'lat': 51.5074, 'lon': -0.1278},
+            'Tokyo': {'lat': 35.6762, 'lon': 139.6503},
+            'Shanghai': {'lat': 31.2304, 'lon': 121.4737},
+            'Hong Kong': {'lat': 22.3193, 'lon': 114.1694}
+        }
+        
+        # Define sector-specific cities based on industry concentration
+        energy_cities = ['Houston', 'Dallas', 'Calgary']
+        agriculture_cities = ['Chicago', 'Kansas City', 'Minneapolis']
+        technology_cities = ['San Francisco', 'Seattle', 'Boston']
+        healthcare_cities = ['Boston', 'San Diego', 'Basel']
+        finance_cities = ['New York', 'London', 'Hong Kong']
+        
+        # Filter cities by sector if specified
+        if sector and sector.lower() != 'all sectors':
+            if sector.lower() == 'energy':
+                extra_cities = energy_cities
+            elif sector.lower() == 'healthcare':
+                extra_cities = healthcare_cities
+            elif sector.lower() == 'technology':
+                extra_cities = technology_cities
+            elif sector.lower() == 'finance':
+                extra_cities = finance_cities
+            else:
+                extra_cities = []
+        else:
+            # Default to showing all major financial centers
+            extra_cities = []
+        
+        # For this demo, we'll return mock weather data
+        # In production, you would call the OpenWeatherMap API for each city
+        # API endpoint: https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={API_key}
+        
+        weather_data = []
+        
+        # Generate mock data for financial centers
+        for city, coords in financial_centers.items():
+            # Only include New York, London, and Hong Kong by default
+            if city not in ['New York', 'London', 'Hong Kong'] and city not in extra_cities:
+                continue
+                
+            # Generate mock weather data
+            weather_type = random.choice(['Clear', 'Clouds', 'Rain', 'Snow', 'Thunderstorm'])
+            temperature = round(random.uniform(0, 35), 1)  # Celsius
+            
+            # Determine market impact based on weather and city
+            impact = {
+                'Clear': {
+                    'sentiment': 'neutral',
+                    'description': 'Normal trading conditions expected.'
+                },
+                'Clouds': {
+                    'sentiment': 'neutral',
+                    'description': 'No significant weather impact on markets.'
+                },
+                'Rain': {
+                    'sentiment': 'slightly_negative',
+                    'description': 'Minor disruptions possible in local operations.'
+                },
+                'Snow': {
+                    'sentiment': 'negative',
+                    'description': 'Potential transportation delays and reduced trading volume.'
+                },
+                'Thunderstorm': {
+                    'sentiment': 'very_negative',
+                    'description': 'Significant disruptions possible; energy markets may see volatility.'
+                }
+            }
+            
+            # Sectors most affected by weather in this city
+            affected_sectors = []
+            if weather_type in ['Snow', 'Thunderstorm', 'Rain']:
+                if city in ['New York', 'London', 'Hong Kong']:
+                    affected_sectors.append('Finance')
+                if city in ['Houston', 'Dallas', 'Calgary']:
+                    affected_sectors.append('Energy')
+                if city in ['Chicago', 'Kansas City', 'Minneapolis']:
+                    affected_sectors.append('Agriculture')
+            
+            weather_data.append({
+                'city': city,
+                'weather': weather_type,
+                'temperature': temperature,
+                'impact': impact[weather_type],
+                'affected_sectors': affected_sectors
+            })
+            
+        # If we have sector-specific cities to include
+        for city in extra_cities:
+            if city not in [c['city'] for c in weather_data]:
+                # Mock coordinates
+                coords = {'lat': 0, 'lon': 0}
+                
+                # Generate mock weather data
+                weather_type = random.choice(['Clear', 'Clouds', 'Rain', 'Snow', 'Thunderstorm'])
+                temperature = round(random.uniform(0, 35), 1)  # Celsius
+                
+                # Determine market impact based on weather and city
+                impact = {
+                    'Clear': {
+                        'sentiment': 'neutral',
+                        'description': 'Normal trading conditions expected.'
+                    },
+                    'Clouds': {
+                        'sentiment': 'neutral',
+                        'description': 'No significant weather impact on markets.'
+                    },
+                    'Rain': {
+                        'sentiment': 'slightly_negative',
+                        'description': 'Minor disruptions possible in local operations.'
+                    },
+                    'Snow': {
+                        'sentiment': 'negative',
+                        'description': 'Potential transportation delays and reduced trading volume.'
+                    },
+                    'Thunderstorm': {
+                        'sentiment': 'very_negative',
+                        'description': 'Significant disruptions possible; energy markets may see volatility.'
+                    }
+                }
+                
+                # Sectors most affected by weather in this city
+                affected_sectors = []
+                if weather_type in ['Snow', 'Thunderstorm', 'Rain']:
+                    if city in energy_cities:
+                        affected_sectors.append('Energy')
+                    if city in agriculture_cities:
+                        affected_sectors.append('Agriculture')
+                    if city in technology_cities:
+                        affected_sectors.append('Technology')
+                    if city in healthcare_cities:
+                        affected_sectors.append('Healthcare')
+                    if city in finance_cities:
+                        affected_sectors.append('Finance')
+                
+                weather_data.append({
+                    'city': city,
+                    'weather': weather_type,
+                    'temperature': temperature,
+                    'impact': impact[weather_type],
+                    'affected_sectors': affected_sectors
+                })
+        
+        return jsonify(weather_data)
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching weather impact data: {str(e)}")
+        return jsonify({"error": "Failed to fetch weather impact data"}), 500
+
+def verify_alpha_vantage_key(api_key):
+    """Verify that the Alpha Vantage API key is valid by making a test request."""
+    if not api_key:
+        app.logger.warning("No Alpha Vantage API key provided")
+        return False
+        
+    # Debug the API key length and format
+    app.logger.info(f"Verifying Alpha Vantage API key - Length: {len(api_key)}, Starts with: {api_key[:4]}...")
+        
+    try:
+        # Make a minimal API call to verify the key
+        url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM&apikey={api_key}"
+        app.logger.info(f"Making test request to Alpha Vantage: {url.replace(api_key, 'XXXXX')}")
+        
+        response = requests.get(url, timeout=10)
+        app.logger.info(f"Alpha Vantage test response status code: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            app.logger.info(f"Alpha Vantage response: {data}")
+            
+            # Check if we got an error message about invalid API key
+            if 'Error Message' in data and 'apikey' in data.get('Error Message', '').lower():
+                app.logger.error(f"Invalid Alpha Vantage API key: {data['Error Message']}")
+                return False
+            # If we get rate limited but the key is valid
+            elif 'Note' in data and 'call frequency' in data.get('Note', '').lower():
+                app.logger.warning(f"Alpha Vantage API rate limit reached: {data['Note']}")
+                return True  # Key is valid, just rate limited
+            # If we got actual data
+            elif 'Global Quote' in data and data['Global Quote']:
+                app.logger.info("Alpha Vantage API key verified successfully with data")
+                return True
+            else:
+                app.logger.warning(f"Unexpected Alpha Vantage API response structure: {data}")
+                # Consider the key valid if we got a 200 response, even if data structure is unexpected
+                return True
+        else:
+            app.logger.error(f"Alpha Vantage API returned status code {response.status_code}")
+            return False
+    except Exception as e:
+        app.logger.error(f"Error verifying Alpha Vantage API key: {str(e)}")
+        return False
+
+@app.route('/api/market-indices')
+def get_market_indices():
+    """Fetch market indices data from Yahoo Finance."""
+    if 'user' not in session:
+        return jsonify({"error": "Authentication required"}), 401
+
+    try:
+        # Track API call
+        track_api_call('yahoo_finance', 'market_indices')
+        
+        # Market symbols to fetch - Yahoo Finance format
+        symbols = {
+            'DJI': '^DJI',    # Dow Jones Industrial Average
+            'SPX': '^GSPC',   # S&P 500
+            'IXIC': '^IXIC',  # NASDAQ Composite
+            'VIX': '^VIX',    # CBOE Volatility Index
+            'TNX': '^TNX'     # 10-Year Treasury Note Yield
+        }
+        
+        requested_symbol = request.args.get('symbol')
+        
+        # If a specific symbol is requested, only fetch that one
+        if requested_symbol and requested_symbol in symbols:
+            symbols_to_fetch = {requested_symbol: symbols[requested_symbol]}
+        else:
+            symbols_to_fetch = symbols
+        
+        # Generate results
+        results = {}
+        
+        for symbol_key, yahoo_symbol in symbols_to_fetch.items():
+            try:
+                # Yahoo Finance API endpoint
+                url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_symbol}?interval=1d&range=1d"
+                app.logger.info(f"Fetching market data for {symbol_key} from Yahoo Finance: {url}")
+                
+                response = requests.get(url, timeout=10, headers={
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36'
+                })
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    # Extract the relevant data from Yahoo Finance response
+                    if 'chart' in data and 'result' in data['chart'] and data['chart']['result']:
+                        chart_data = data['chart']['result'][0]
+                        
+                        # Get the latest quote
+                        meta = chart_data['meta']
+                        quote = chart_data.get('indicators', {}).get('quote', [{}])[0]
+                        
+                        # Get the latest price
+                        # regularMarketPrice is the current price
+                        current_price = meta.get('regularMarketPrice', 0)
+                        
+                        # Previous close
+                        previous_close = meta.get('chartPreviousClose', 0)
+                        
+                        # Calculate change
+                        change = current_price - previous_close
+                        percent_change = (change / previous_close) * 100 if previous_close else 0
+                        
+                        results[symbol_key] = {
+                            'symbol': symbol_key,
+                            'apiSymbol': yahoo_symbol,
+                            'price': str(current_price),
+                            'change': str(change),
+                            'percentChange': str(round(percent_change, 2)),
+                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            'source': 'yahoo_finance'  # Mark as coming from Yahoo Finance
+                        }
+                        app.logger.info(f"Successfully fetched data for {symbol_key} from Yahoo Finance")
+                    else:
+                        # Handle missing data in response
+                        app.logger.warning(f"Invalid data structure from Yahoo Finance for {symbol_key}")
+                        results[symbol_key] = {
+                            'symbol': symbol_key,
+                            'error': 'No data available from Yahoo Finance',
+                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        }
+                else:
+                    # Handle non-200 response
+                    app.logger.error(f"Yahoo Finance API error for {symbol_key}: Status {response.status_code}")
+                    results[symbol_key] = {
+                        'symbol': symbol_key,
+                        'error': f'API returned status code {response.status_code}',
+                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    }
+                
+                # Add delay to avoid rate limiting
+                time.sleep(0.5)
+                
+            except Exception as e:
+                app.logger.error(f"Error fetching data for {symbol_key}: {str(e)}")
+                results[symbol_key] = {
+                    'symbol': symbol_key,
+                    'error': f'Failed to fetch data: {str(e)}',
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                }
+                
+                # Fall back to simulation for this symbol only
+                if symbol_key == 'DJI':  # Dow Jones around 42,000-43,000
+                    base_price = random.uniform(42000, 43000)
+                elif symbol_key == 'SPX':  # S&P 500 around 5,400-5,500
+                    base_price = random.uniform(5400, 5500)
+                elif symbol_key == 'IXIC':  # NASDAQ around 17,600-17,800
+                    base_price = random.uniform(17600, 17800)
+                elif symbol_key == 'VIX':  # VIX usually between 12-18
+                    base_price = random.uniform(12, 18)
+                elif symbol_key == 'TNX':  # 10Y Treasury yield around 4.2-4.5%
+                    base_price = random.uniform(4.2, 4.5)
+                else:
+                    continue  # Skip unknown symbols
+                    
+                # Random change between -1% and +1% of base price
+                change_percent = random.uniform(-1, 1)
+                change_amount = base_price * change_percent / 100
+                
+                results[symbol_key] = {
+                    'symbol': symbol_key,
+                    'apiSymbol': yahoo_symbol,
+                    'price': f"{base_price:.2f}",
+                    'change': f"{change_amount:.2f}",
+                    'percentChange': f"{change_percent:.2f}",
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'source': 'simulation'  # Mark as simulated data
+                }
+                app.logger.warning(f"Using simulated data for {symbol_key} after API error")
+        
+        return jsonify(results)
+        
+    except Exception as e:
+        app.logger.error(f"Error fetching market indices: {str(e)}")
+        return jsonify({"error": "Failed to fetch market indices data"}), 500
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.

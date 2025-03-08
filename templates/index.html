@@ -8,101 +8,131 @@
   <div class="row g-2">
     <div class="col-20">
       <a href="https://www.google.com/finance/quote/.DJI:INDEXDJX" class="index-link" target="_blank" rel="noopener noreferrer">
-        <div class="index-card" data-index="DJI">
+        <div class="index-card" data-symbol="DJI" data-name="DOW JONES">
           <div class="index-header">
             <div class="index-title">
               <i class="fas fa-chart-line"></i>
               <span>DOW JONES</span>
             </div>
-            <div class="trend-icon">▲</div>
+            <div class="trend-icon"></div>
           </div>
           <div class="index-data">
+            <div class="price-display">
+              <div class="price">--.--</div>
+              <div class="change">
+                <span class="change-value">--.--</span>
+                <span class="change-percent">(--.--%))</span>
+              </div>
+            </div>
             <div class="loading-spinner">
               <i class="fas fa-spinner fa-spin"></i>
-              <span>Loading...</span>
             </div>
           </div>
-          <div class="last-update">LAST | 6:33:02 PM EST</div>
+          <div class="last-update">LAST | --:--:-- -- EST</div>
         </div>
       </a>
     </div>
     <div class="col-20">
       <a href="https://www.google.com/finance/quote/.INX:INDEXSP" class="index-link" target="_blank" rel="noopener noreferrer">
-        <div class="index-card" data-index="SPX">
+        <div class="index-card" data-symbol="SPX" data-name="S&P 500">
           <div class="index-header">
             <div class="index-title">
               <i class="fas fa-chart-line"></i>
               <span>S&P 500</span>
             </div>
-            <div class="trend-icon">▲</div>
+            <div class="trend-icon"></div>
           </div>
           <div class="index-data">
+            <div class="price-display">
+              <div class="price">--.--</div>
+              <div class="change">
+                <span class="change-value">--.--</span>
+                <span class="change-percent">(--.--%))</span>
+              </div>
+            </div>
             <div class="loading-spinner">
               <i class="fas fa-spinner fa-spin"></i>
-              <span>Loading...</span>
             </div>
           </div>
-          <div class="last-update">LAST | 6:33:02 PM EST</div>
+          <div class="last-update">LAST | --:--:-- -- EST</div>
         </div>
       </a>
     </div>
     <div class="col-20">
       <a href="https://www.google.com/finance/quote/.IXIC:INDEXNASDAQ" class="index-link" target="_blank" rel="noopener noreferrer">
-        <div class="index-card" data-index="IXIC">
+        <div class="index-card" data-symbol="IXIC" data-name="NASDAQ">
           <div class="index-header">
             <div class="index-title">
               <i class="fas fa-chart-line"></i>
               <span>NASDAQ</span>
             </div>
-            <div class="trend-icon">▲</div>
+            <div class="trend-icon"></div>
           </div>
           <div class="index-data">
+            <div class="price-display">
+              <div class="price">--.--</div>
+              <div class="change">
+                <span class="change-value">--.--</span>
+                <span class="change-percent">(--.--%))</span>
+              </div>
+            </div>
             <div class="loading-spinner">
               <i class="fas fa-spinner fa-spin"></i>
-              <span>Loading...</span>
             </div>
           </div>
-          <div class="last-update">LAST | 6:33:02 PM EST</div>
+          <div class="last-update">LAST | --:--:-- -- EST</div>
         </div>
       </a>
     </div>
     <div class="col-20">
       <a href="https://www.google.com/finance/quote/VIXY:NYSEARCA" class="index-link" target="_blank" rel="noopener noreferrer">
-        <div class="index-card" data-index="VIXY">
+        <div class="index-card" data-symbol="VIX" data-name="VIX">
           <div class="index-header">
             <div class="index-title">
               <i class="fas fa-chart-bar"></i>
               <span>VIX</span>
             </div>
-            <div class="trend-icon">▲</div>
+            <div class="trend-icon"></div>
           </div>
           <div class="index-data">
+            <div class="price-display">
+              <div class="price">--.--</div>
+              <div class="change">
+                <span class="change-value">--.--</span>
+                <span class="change-percent">(--.--%))</span>
+              </div>
+            </div>
             <div class="loading-spinner">
               <i class="fas fa-spinner fa-spin"></i>
-              <span>Loading...</span>
             </div>
           </div>
-          <div class="last-update">LAST | 6:33:02 PM EST</div>
+          <div class="last-update">LAST | --:--:-- -- EST</div>
         </div>
       </a>
     </div>
     <div class="col-20">
       <a href="https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve" class="index-link" target="_blank" rel="noopener noreferrer">
-        <div class="index-card" data-index="UST10Y">
+        <div class="index-card" data-symbol="TNX" data-name="10Y TREASURY">
           <div class="index-header">
             <div class="index-title">
               <i class="fas fa-landmark"></i>
               <span>10Y TREASURY</span>
             </div>
-            <div class="trend-icon">▲</div>
+            <div class="trend-icon"></div>
           </div>
           <div class="index-data">
+            <div class="price-display">
+              <div class="price">--.--</div>
+              <div class="change">
+                <span class="change-value">--.--</span>
+                <span class="change-percent">(--.--%))</span>
+              </div>
+            </div>
             <div class="loading-spinner">
               <i class="fas fa-spinner fa-spin"></i>
-              <span>Loading...</span>
             </div>
           </div>
-          <div class="last-update">LAST | 6:33:02 PM EST</div>
+          <div class="last-update">LAST | --:--:-- -- EST</div>
         </div>
       </a>
     </div>
@@ -261,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
 .market-indices {
     margin-bottom: 0.75rem;
     overflow-x: auto;
-    scroll-behavior: smooth;  /* Modern smooth scrolling */
+    scroll-behavior: smooth;
     width: 100%;
 }
 
@@ -269,172 +299,160 @@ document.addEventListener('DOMContentLoaded', function() {
     margin: 0 -0.2rem;
     display: flex;
     flex-wrap: nowrap;
-    min-width: min-content;  /* Changed from max-content for better behavior */
-    width: 100%;  /* Ensure full width */
+    min-width: min-content;
+    width: 100%;
 }
 
 .market-indices .col-20 {
     flex: 0 0 20%;
     max-width: 20%;
-    min-width: 220px;
+    min-width: 200px;
     padding: 0 0.2rem;
-    box-sizing: border-box;  /* Ensure padding is included in width */
+    box-sizing: border-box;
 }
 
 .market-indices .index-card {
     border: none;
-    border-radius: 3px;
-    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    padding: 0.6rem 0.8rem;
     margin-bottom: 0.4rem;
     transition: all 0.3s ease;
     color: white;
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 0.25rem;
     min-height: 85px;
     position: relative;
     width: 100%;
-    box-sizing: border-box;  /* Ensure padding is included in width */
+    box-sizing: border-box;
 }
 
 .market-indices .index-card.positive {
-    background: #00843D;  /* Green background for positive */
+    background-color: #00843D;  /* CNBC green */
 }
 
 .market-indices .index-card.negative {
-    background: #DC2626;  /* Red background for negative */
+    background-color: #DC2626;  /* CNBC red */
 }
 
-.market-indices .index-card.positive:hover {
-    box-shadow: 0 4px 12px rgba(0, 132, 61, 0.2);  /* Green shadow */
-}
-
-.market-indices .index-card.negative:hover {
-    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);  /* Red shadow */
+.market-indices .index-card.loaded:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .market-indices .index-header {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.15rem;
-}
-
-.market-indices .trend-icon {
-    color: white;
-    font-size: 0.65rem;
-    line-height: 1;
-    margin-left: 0.15rem;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.2rem;
 }
 
 .market-indices .index-title {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
-    color: white;
+    gap: 0.35rem;
     font-weight: 600;
     font-size: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 0.75px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    text-decoration: none;
-    white-space: nowrap;  /* Prevent text wrapping */
+    letter-spacing: 0.5px;
+    color: white;
+    white-space: nowrap;
 }
 
 .market-indices .index-title i {
     font-size: 0.75rem;
-    color: white;
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .market-indices .index-data {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.75rem;
-    text-align: right;
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 0.1rem;
+    gap: 0.15rem;
+}
+
+.market-indices .price-display {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
 }
 
 .market-indices .price {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: white;
+    font-size: 1rem;
+    font-weight: 700;
     line-height: 1;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: white;
 }
 
 .market-indices .change {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 0.2rem;
+    gap: 0.25rem;
     font-weight: 500;
+    font-size: 0.7rem;
     color: white;
-    font-size: 0.75rem;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-.market-indices .change i {
-    display: none;  /* Hide the icon in the change value since we show it next to title */
 }
 
 .market-indices .loading-spinner {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.25rem;
-    color: white;
-    opacity: 0.9;
-    font-size: 0.75rem;
-    height: 100%;
-    width: 100%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.25rem;
 }
 
-/* Last updated text style */
+.market-indices .price-display {
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0s, opacity 0.5s linear;
+}
+
+.market-indices .index-card.loaded .price-display {
+    visibility: visible;
+    opacity: 1;
+}
+
+.market-indices .index-card.loaded .loading-spinner {
+    display: none;
+}
+
 .market-indices .last-update {
     font-size: 0.6rem;
     color: rgba(255, 255, 255, 0.7);
-    letter-spacing: 0.5px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    letter-spacing: 0.3px;
     margin-top: auto;
-    padding-top: 0;
     line-height: 1;
+    padding-top: 0.25rem;
 }
 
-/* Remove hover effect color changes since we want to keep the colored backgrounds */
 .dark-mode .market-indices .index-card.positive {
-    background: #00843D;
+    background-color: #007536;  /* Slightly darker green for dark mode */
 }
 
 .dark-mode .market-indices .index-card.negative {
-    background: #DC2626;
+    background-color: #C52222;  /* Slightly darker red for dark mode */
 }
 
-.index-link:hover .index-card {
-    transform: translateY(-2px);
-}
-
-.market-indices .description {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    margin-top: 0.25rem;
-    margin-bottom: 0.25rem;
-    font-style: italic;
-}
-
-.dark-mode .market-indices .description {
-    color: rgba(255, 255, 255, 0.5);
-}
-
-/* Add styles to remove underline from the link */
 .market-indices .index-link {
     text-decoration: none;
+    color: inherit;
 }
 
 .market-indices .index-link:hover {
     text-decoration: none;
+}
+
+/* Fix for spacing */
+.market-indices .change-value, .market-indices .change-percent {
+    display: inline-block;
+}
+
+.market-indices .trend-icon {
+    color: white;
+    font-size: 0.8rem;
+    margin-left: 0.5rem;
+    font-weight: bold;
 }
 </style>
 {% endblock %}
