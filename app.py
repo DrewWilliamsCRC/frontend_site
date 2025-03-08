@@ -3235,8 +3235,7 @@ def portfolio_optimization():
     except ImportError as e:
         app.logger.error(f"Import error: {str(e)}")
         return jsonify({
-            "error": "Failed to import portfolio optimizer module",
-            "details": str(e)
+            "error": "Failed to import portfolio optimizer module"
         }), 500
     
     try:
@@ -3298,6 +3297,10 @@ def portfolio_optimization():
         return jsonify(result), 200
         
     except Exception as e:
+        app.logger.error(f"An unexpected error occurred: {str(e)}")
+        return jsonify({
+            "error": "An internal error has occurred"
+        }), 500
         app.logger.error(f"Error during portfolio optimization: {str(e)}")
         import traceback
         app.logger.error(traceback.format_exc())
