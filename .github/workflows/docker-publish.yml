@@ -19,6 +19,8 @@ env:
   REGISTRY: docker.io
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
+  # Explicitly set Python version
+  PYTHON_VERSION: 3.10-alpine
 
 jobs:
   # Test job only runs on PRs
@@ -46,6 +48,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
+      # Print Dockerfile content for debugging
+      - name: Print Dockerfile
+        run: cat dockerfile
+
       - name: Create test env file
         run: |
           cat << EOF > .env
@@ -61,6 +67,7 @@ jobs:
           ALPHA_VANTAGE_API_KEY="test-key"
           GNEWS_API_KEY="test-key"
           TARGETARCH=amd64
+          PYTHON_VERSION=3.10-alpine
           POSTGRES_HOST_AUTH_METHOD=scram-sha-256
           POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
           POSTGRES_PASSWORD_ENCRYPTION=scram-sha-256
@@ -99,6 +106,10 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      # Print Dockerfile content for debugging
+      - name: Print Dockerfile
+        run: cat dockerfile
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -112,6 +123,7 @@ jobs:
           build-args: |
             BUILDPLATFORM=linux/amd64
             TARGETPLATFORM=linux/amd64
+            PYTHON_VERSION=3.10-alpine
 
       # Move cache
       - name: Move cache

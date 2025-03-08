@@ -27,6 +27,12 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
+# Print environment for debugging
+echo "Current environment:"
+echo "TARGETARCH=${TARGETARCH}"
+echo "Current Dockerfile content:"
+cat dockerfile
+
 # Clean up any existing containers and volumes
 echo "Cleaning up existing containers and volumes..."
 docker compose down -v
@@ -37,7 +43,10 @@ fi
 # Build and start the services
 echo "Building and starting services..."
 export TARGETARCH=amd64
-docker compose build --build-arg TARGETPLATFORM=linux/amd64 --build-arg BUILDPLATFORM=linux/amd64
+export PYTHON_VERSION=3.10-alpine
+# We'll use an explicit command instead of docker compose to have more control
+docker build -t frontend:test -f dockerfile --build-arg TARGETPLATFORM=linux/amd64 --build-arg BUILDPLATFORM=linux/amd64 .
+echo "Docker build completed, now starting services..."
 docker compose up -d
 
 # Function to check container status

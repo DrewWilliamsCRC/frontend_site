@@ -28,7 +28,9 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.dev  # We'll create this file next
+      dockerfile: Dockerfile.dev
+      args:
+        - PYTHON_VERSION=${PYTHON_VERSION:-3.10-alpine}
     volumes:
       - .:/app  # Mount the entire project for hot reloading
       - /app/.venv  # Exclude the virtual environment directory

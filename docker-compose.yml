@@ -45,11 +45,7 @@ services:
       - app_network
 
   frontend:
-    build:
-      context: .
-      dockerfile: dockerfile
-      platforms:
-        - linux/amd64
+    image: frontend:test
     platform: linux/amd64
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
