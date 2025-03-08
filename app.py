@@ -3916,8 +3916,9 @@ def news_sentiment():
         })
         
     except Exception as e:
+        app.logger.error(f"Failed to retrieve news sentiment: {str(e)}")
         return jsonify({
-            "error": f"Failed to retrieve news sentiment: {str(e)}"
+            "error": "An internal error has occurred. Please try again later."
         }), 500
 
 if __name__ == '__main__':
