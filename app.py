@@ -3545,8 +3545,7 @@ def create_alert():
         app.logger.error(traceback.format_exc())
         
         return jsonify({
-            "error": "Failed to create alert rule",
-            "details": str(e)
+            "error": "Failed to create alert rule"
         }), 500
 
 
@@ -3593,8 +3592,7 @@ def delete_alert(rule_id):
         app.logger.error(traceback.format_exc())
         
         return jsonify({
-            "error": "Failed to delete alert rule",
-            "details": str(e)
+            "error": "Failed to delete alert rule"
         }), 500
 
 @app.route('/ai-dashboard')
