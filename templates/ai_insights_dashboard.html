@@ -1,0 +1,884 @@
+{% extends "base.html" %}
+{% block title %}AI Market Insights{% endblock %}
+
+{% block styles %}
+<style>
+    .ai-insights-container {
+        padding: 2rem;
+    }
+    
+    .insights-header {
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .insights-card {
+        background-color: var(--card-bg);
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        transition: all 0.3s ease;
+    }
+    
+    .insights-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.5rem;
+    }
+    
+    .card-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+    
+    .card-title i {
+        margin-right: 0.5rem;
+        color: var(--primary-color);
+    }
+    
+    .model-selector {
+        display: flex;
+        align-items: center;
+        background-color: var(--input-bg);
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .model-selector select {
+        background: transparent;
+        border: none;
+        color: var(--text-color);
+        padding: 0.25rem;
+        font-size: 0.85rem;
+    }
+    
+    .prediction-gauge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 1.5rem 0;
+    }
+    
+    .gauge-container {
+        width: 200px;
+        height: 100px;
+        position: relative;
+        margin: 0 auto;
+    }
+    
+    .gauge-background {
+        width: 200px;
+        height: 100px;
+        background: linear-gradient(90deg, #ff4b5c 0%, #ffb547 50%, #2dce89 100%);
+        border-radius: 100px 100px 0 0;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .gauge-cover {
+        width: 180px;
+        height: 90px;
+        background-color: var(--card-bg);
+        border-radius: 90px 90px 0 0;
+        position: absolute;
+        top: 5px;
+        left: 10px;
+    }
+    
+    .gauge-needle {
+        width: 2px;
+        height: 95px;
+        background-color: var(--text-color);
+        position: absolute;
+        top: 5px;
+        left: 50%;
+        transform-origin: bottom center;
+        transform: rotate(0deg);
+        transition: transform 1s ease-out;
+        z-index: 2;
+    }
+    
+    .gauge-value {
+        position: absolute;
+        bottom: -30px;
+        width: 100%;
+        text-align: center;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    
+    .prediction-detail {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        margin-top: 3rem;
+    }
+    
+    .prediction-metric {
+        flex: 0 0 calc(25% - 1rem);
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    
+    .metric-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+    }
+    
+    .metric-label {
+        font-size: 0.85rem;
+        color: var(--text-light);
+    }
+    
+    .prediction-chart {
+        width: 100%;
+        height: 300px;
+        margin-top: 2rem;
+    }
+    
+    .feature-importance {
+        margin-top: 2rem;
+    }
+    
+    .feature-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .feature-bar-container {
+        flex: 1;
+        height: 1.2rem;
+        background-color: var(--input-bg);
+        border-radius: 3px;
+        margin: 0 1rem;
+        overflow: hidden;
+    }
+    
+    .feature-bar {
+        height: 100%;
+        background-color: var(--primary-color);
+        transition: width 1s ease-out;
+    }
+    
+    .feature-name {
+        flex: 0 0 180px;
+        text-align: right;
+        font-size: 0.85rem;
+    }
+    
+    .feature-value {
+        flex: 0 0 50px;
+        text-align: left;
+        font-size: 0.85rem;
+        font-weight: bold;
+    }
+    
+    .insights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+    
+    .market-metric-card {
+        padding: 1.5rem;
+        border-radius: 8px;
+        background-color: var(--card-bg);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .market-metric-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-3px);
+    }
+    
+    .metric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .metric-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .metric-icon {
+        font-size: 1.5rem;
+        color: var(--primary-color);
+    }
+    
+    .current-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .change-value {
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+    }
+    
+    .positive {
+        color: #2dce89;
+    }
+    
+    .negative {
+        color: #ff4b5c;
+    }
+    
+    .neutral {
+        color: var(--text-light);
+    }
+    
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+    
+    .status-green {
+        background-color: #2dce89;
+    }
+    
+    .status-yellow {
+        background-color: #ffb547;
+    }
+    
+    .status-red {
+        background-color: #ff4b5c;
+    }
+    
+    .time-selector {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .time-btn {
+        padding: 0.25rem 0.75rem;
+        background-color: var(--input-bg);
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+    }
+    
+    .time-btn.active {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+    
+    /* Responsive styling */
+    @media (max-width: 768px) {
+        .insights-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .prediction-metric {
+            flex: 0 0 calc(50% - 1rem);
+        }
+        
+        .feature-name {
+            flex: 0 0 120px;
+        }
+    }
+    
+    /* Card loader */
+    .card-loader {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+    
+    .loader {
+        width: 48px;
+        height: 48px;
+        border: 5px solid var(--input-bg);
+        border-bottom-color: var(--primary-color);
+        border-radius: 50%;
+        animation: loader-spin 1s linear infinite;
+    }
+    
+    @keyframes loader-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ai-insights-container" data-aos="fade-up">
+    <div class="insights-header">
+        <h1>AI Market Insights</h1>
+        <div class="time-updated">
+            Last updated: <span id="last-updated-time">Loading...</span>
+        </div>
+    </div>
+    
+    <!-- Market Predictions Card -->
+    <div class="insights-card">
+        <div class="card-header">
+            <h2 class="card-title">
+                <i class="fas fa-robot"></i>
+                Market Direction Prediction
+            </h2>
+            <div class="model-selector">
+                <label for="model-selector">Model:</label>
+                <select id="model-selector" aria-label="Select prediction model">
+                    <option value="ensemble">Ensemble (All Models)</option>
+                    <option value="random_forest">Random Forest</option>
+                    <option value="gradient_boosting">Gradient Boosting</option>
+                    <option value="neural_network">Neural Network</option>
+                </select>
+            </div>
+        </div>
+        
+        <div id="prediction-container" class="card-loader">
+            <div class="loader"></div>
+        </div>
+        
+        <div id="prediction-content" style="display: none;">
+            <div class="prediction-gauge">
+                <div class="gauge-container">
+                    <div class="gauge-background"></div>
+                    <div class="gauge-cover"></div>
+                    <div id="gauge-needle" class="gauge-needle"></div>
+                    <div id="gauge-value" class="gauge-value">50%</div>
+                </div>
+            </div>
+            
+            <div class="prediction-detail">
+                <div class="prediction-metric">
+                    <div id="prediction-accuracy" class="metric-value">--</div>
+                    <div class="metric-label">Model Accuracy</div>
+                </div>
+                <div class="prediction-metric">
+                    <div id="prediction-precision" class="metric-value">--</div>
+                    <div class="metric-label">Precision</div>
+                </div>
+                <div class="prediction-metric">
+                    <div id="prediction-recall" class="metric-value">--</div>
+                    <div class="metric-label">Recall</div>
+                </div>
+                <div class="prediction-metric">
+                    <div id="prediction-f1" class="metric-value">--</div>
+                    <div class="metric-label">F1 Score</div>
+                </div>
+            </div>
+            
+            <div class="prediction-chart">
+                <canvas id="prediction-history-chart"></canvas>
+            </div>
+            
+            <div class="feature-importance">
+                <h3>Top Feature Importance</h3>
+                <div id="feature-importance-container">
+                    <!-- Features will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Market Return Predictions Card -->
+    <div class="insights-card">
+        <div class="card-header">
+            <h2 class="card-title">
+                <i class="fas fa-chart-line"></i>
+                5-Day Return Forecast
+            </h2>
+            <div class="model-selector">
+                <label for="index-selector">Index:</label>
+                <select id="index-selector" aria-label="Select market index">
+                    <option value="SPX">S&P 500</option>
+                    <option value="DJI">Dow Jones</option>
+                    <option value="IXIC">NASDAQ</option>
+                </select>
+            </div>
+        </div>
+        
+        <div id="return-prediction-container" class="card-loader">
+            <div class="loader"></div>
+        </div>
+        
+        <div id="return-prediction-content" style="display: none;">
+            <div class="prediction-detail">
+                <div class="prediction-metric">
+                    <div id="predicted-return" class="metric-value">--</div>
+                    <div class="metric-label">Predicted 5-Day Return</div>
+                </div>
+                <div class="prediction-metric">
+                    <div id="return-confidence" class="metric-value">--</div>
+                    <div class="metric-label">Confidence Level</div>
+                </div>
+                <div class="prediction-metric">
+                    <div id="return-rmse" class="metric-value">--</div>
+                    <div class="metric-label">Model RMSE</div>
+                </div>
+                <div class="prediction-metric">
+                    <div id="return-r2" class="metric-value">--</div>
+                    <div class="metric-label">Model R²</div>
+                </div>
+            </div>
+            
+            <div class="prediction-chart">
+                <canvas id="return-prediction-chart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Market Insights Grid -->
+    <h2>Market Analysis</h2>
+    <div class="time-selector">
+        <button class="time-btn active" data-period="1d">1D</button>
+        <button class="time-btn" data-period="1w">1W</button>
+        <button class="time-btn" data-period="1m">1M</button>
+        <button class="time-btn" data-period="3m">3M</button>
+        <button class="time-btn" data-period="1y">1Y</button>
+    </div>
+    
+    <div class="insights-grid">
+        <!-- Market Momentum -->
+        <div class="market-metric-card">
+            <div class="metric-header">
+                <h3 class="metric-title">Market Momentum</h3>
+                <i class="fas fa-tachometer-alt metric-icon"></i>
+            </div>
+            <div class="current-value" id="momentum-value">Loading...</div>
+            <div class="change-value">
+                <span class="status-indicator" id="momentum-status"></span>
+                <span id="momentum-description">Calculating momentum...</span>
+            </div>
+        </div>
+        
+        <!-- Market Volatility -->
+        <div class="market-metric-card">
+            <div class="metric-header">
+                <h3 class="metric-title">Volatility</h3>
+                <i class="fas fa-bolt metric-icon"></i>
+            </div>
+            <div class="current-value" id="volatility-value">Loading...</div>
+            <div class="change-value">
+                <span class="status-indicator" id="volatility-status"></span>
+                <span id="volatility-description">Calculating volatility...</span>
+            </div>
+        </div>
+        
+        <!-- Market Breadth -->
+        <div class="market-metric-card">
+            <div class="metric-header">
+                <h3 class="metric-title">Market Breadth</h3>
+                <i class="fas fa-layer-group metric-icon"></i>
+            </div>
+            <div class="current-value" id="breadth-value">Loading...</div>
+            <div class="change-value">
+                <span class="status-indicator" id="breadth-status"></span>
+                <span id="breadth-description">Calculating breadth...</span>
+            </div>
+        </div>
+        
+        <!-- Sentiment -->
+        <div class="market-metric-card">
+            <div class="metric-header">
+                <h3 class="metric-title">Market Sentiment</h3>
+                <i class="fas fa-smile metric-icon"></i>
+            </div>
+            <div class="current-value" id="sentiment-value">Loading...</div>
+            <div class="change-value">
+                <span class="status-indicator" id="sentiment-status"></span>
+                <span id="sentiment-description">Analyzing sentiment...</span>
+            </div>
+        </div>
+        
+        <!-- Technical Indicators -->
+        <div class="market-metric-card">
+            <div class="metric-header">
+                <h3 class="metric-title">Technical Score</h3>
+                <i class="fas fa-chart-bar metric-icon"></i>
+            </div>
+            <div class="current-value" id="technical-value">Loading...</div>
+            <div class="change-value">
+                <span class="status-indicator" id="technical-status"></span>
+                <span id="technical-description">Calculating score...</span>
+            </div>
+        </div>
+        
+        <!-- AI Confidence -->
+        <div class="market-metric-card">
+            <div class="metric-header">
+                <h3 class="metric-title">AI Confidence</h3>
+                <i class="fas fa-brain metric-icon"></i>
+            </div>
+            <div class="current-value" id="ai-confidence-value">Loading...</div>
+            <div class="change-value">
+                <span class="status-indicator" id="ai-confidence-status"></span>
+                <span id="ai-confidence-description">Calculating confidence...</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script>
+    // Demo data - in a real implementation, this would come from the backend API
+    const DEMO_DATA = {
+        predictionConfidence: 72,
+        modelMetrics: {
+            ensemble: { accuracy: 0.68, precision: 0.71, recall: 0.65, f1: 0.68 },
+            random_forest: { accuracy: 0.66, precision: 0.69, recall: 0.63, f1: 0.66 },
+            gradient_boosting: { accuracy: 0.67, precision: 0.72, recall: 0.61, f1: 0.67 },
+            neural_network: { accuracy: 0.64, precision: 0.67, recall: 0.60, f1: 0.63 }
+        },
+        predictionHistory: {
+            dates: ["2024-02-01", "2024-02-02", "2024-02-05", "2024-02-06", "2024-02-07", 
+                    "2024-02-08", "2024-02-09", "2024-02-12", "2024-02-13", "2024-02-14"],
+            actual: [1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
+            predicted: [1, 1, 1, 0, 1, 0, 0, 0, 1, 1]
+        },
+        featureImportance: [
+            { name: "RSI (14)", value: 0.18 },
+            { name: "Price vs 200-day MA", value: 0.15 },
+            { name: "MACD Histogram", value: 0.12 },
+            { name: "Volatility (21-day)", value: 0.10 },
+            { name: "Price vs 50-day MA", value: 0.08 },
+            { name: "Bollinger Width", value: 0.07 },
+            { name: "Monthly Return", value: 0.06 },
+            { name: "Weekly Return", value: 0.05 }
+        ],
+        returnPrediction: {
+            'SPX': { predicted: 1.85, confidence: 0.73, rmse: 2.3, r2: 0.58 },
+            'DJI': { predicted: 1.72, confidence: 0.68, rmse: 2.5, r2: 0.55 },
+            'IXIC': { predicted: 2.14, confidence: 0.71, rmse: 2.7, r2: 0.52 }
+        },
+        returnHistory: {
+            dates: ["2024-02-01", "2024-02-08", "2024-02-15", "2024-02-22", "2024-02-29", "2024-03-07"],
+            actual: [1.2, -0.8, 1.5, 0.7, -1.1, 1.3],
+            predicted: [1.5, -0.5, 1.0, 1.2, -0.8, 1.8]
+        },
+        marketMetrics: {
+            momentum: { value: "Strong", score: 7.2, status: "positive", description: "Strong upward momentum in the past week" },
+            volatility: { value: "Moderate", score: 15.8, status: "neutral", description: "Volatility slightly above historical average" },
+            breadth: { value: "Healthy", score: 71, status: "positive", description: "71% of stocks above 50-day moving average" },
+            sentiment: { value: "Bullish", score: 65, status: "positive", description: "Sentiment indicators suggest optimism" },
+            technical: { value: "Positive", score: 7.5, status: "positive", description: "7 of 10 indicators are bullish" },
+            aiConfidence: { value: "Moderate", score: 68, status: "neutral", description: "AI models show moderate confidence" }
+        },
+        lastUpdated: "2024-03-08 09:30:00 EST"
+    };
+    
+    // Helper functions
+    function formatPercent(value) {
+        return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+    }
+    
+    function updateGaugeNeedle(value) {
+        // Value should be between 0 and 100
+        const angle = -90 + (value / 100 * 180);
+        document.getElementById('gauge-needle').style.transform = `rotate(${angle}deg)`;
+        document.getElementById('gauge-value').textContent = `${value}%`;
+    }
+    
+    function updatePredictionMetrics(modelType) {
+        const metrics = DEMO_DATA.modelMetrics[modelType];
+        document.getElementById('prediction-accuracy').textContent = `${(metrics.accuracy * 100).toFixed(1)}%`;
+        document.getElementById('prediction-precision').textContent = `${(metrics.precision * 100).toFixed(1)}%`;
+        document.getElementById('prediction-recall').textContent = `${(metrics.recall * 100).toFixed(1)}%`;
+        document.getElementById('prediction-f1').textContent = `${(metrics.f1 * 100).toFixed(1)}%`;
+    }
+    
+    function updateFeatureImportance() {
+        const container = document.getElementById('feature-importance-container');
+        container.innerHTML = '';
+        
+        const maxValue = Math.max(...DEMO_DATA.featureImportance.map(f => f.value));
+        
+        DEMO_DATA.featureImportance.forEach(feature => {
+            const percent = (feature.value / maxValue) * 100;
+            
+            const featureItem = document.createElement('div');
+            featureItem.className = 'feature-item';
+            
+            featureItem.innerHTML = `
+                <div class="feature-name">${feature.name}</div>
+                <div class="feature-bar-container">
+                    <div class="feature-bar" style="width: ${percent}%"></div>
+                </div>
+                <div class="feature-value">${(feature.value * 100).toFixed(1)}%</div>
+            `;
+            
+            container.appendChild(featureItem);
+        });
+    }
+    
+    function createPredictionHistoryChart() {
+        const ctx = document.getElementById('prediction-history-chart').getContext('2d');
+        
+        // Prepare labels for correct/incorrect predictions
+        const labels = DEMO_DATA.predictionHistory.dates;
+        const correctPredictions = [];
+        const incorrectPredictions = [];
+        
+        for (let i = 0; i < labels.length; i++) {
+            if (DEMO_DATA.predictionHistory.predicted[i] === DEMO_DATA.predictionHistory.actual[i]) {
+                correctPredictions.push(DEMO_DATA.predictionHistory.actual[i]);
+                incorrectPredictions.push(null);
+            } else {
+                correctPredictions.push(null);
+                incorrectPredictions.push(DEMO_DATA.predictionHistory.actual[i]);
+            }
+        }
+        
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Correct Predictions',
+                        data: correctPredictions,
+                        borderColor: '#2dce89',
+                        backgroundColor: '#2dce8922',
+                        pointBackgroundColor: '#2dce89',
+                        pointRadius: 5,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Incorrect Predictions',
+                        data: incorrectPredictions,
+                        borderColor: '#ff4b5c',
+                        backgroundColor: '#ff4b5c22',
+                        pointBackgroundColor: '#ff4b5c',
+                        pointRadius: 5,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Predicted Direction',
+                        data: DEMO_DATA.predictionHistory.predicted.map(p => p === 1 ? 1 : 0),
+                        borderColor: '#5e72e4',
+                        backgroundColor: '#5e72e422',
+                        borderDash: [5, 5],
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 1.1,
+                        ticks: {
+                            callback: function(value) {
+                                if (value === 0) return 'Down';
+                                if (value === 1) return 'Up';
+                                return '';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Model Prediction History',
+                        font: { size: 16 }
+                    },
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        return chart;
+    }
+    
+    function createReturnPredictionChart() {
+        const ctx = document.getElementById('return-prediction-chart').getContext('2d');
+        
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: DEMO_DATA.returnHistory.dates,
+                datasets: [
+                    {
+                        label: 'Actual Returns',
+                        data: DEMO_DATA.returnHistory.actual,
+                        borderColor: '#2dce89',
+                        backgroundColor: '#2dce8922',
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Predicted Returns',
+                        data: DEMO_DATA.returnHistory.predicted,
+                        borderColor: '#5e72e4',
+                        backgroundColor: '#5e72e422',
+                        borderDash: [5, 5],
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) {
+                                return formatPercent(value);
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Return Prediction Accuracy',
+                        font: { size: 16 }
+                    },
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+        
+        return chart;
+    }
+    
+    function updateReturnPrediction(index) {
+        const prediction = DEMO_DATA.returnPrediction[index];
+        
+        document.getElementById('predicted-return').textContent = formatPercent(prediction.predicted);
+        document.getElementById('predicted-return').className = `metric-value ${prediction.predicted >= 0 ? 'positive' : 'negative'}`;
+        
+        document.getElementById('return-confidence').textContent = `${(prediction.confidence * 100).toFixed(1)}%`;
+        document.getElementById('return-rmse').textContent = `${prediction.rmse.toFixed(2)}%`;
+        document.getElementById('return-r2').textContent = `${(prediction.r2 * 100).toFixed(1)}%`;
+    }
+    
+    function updateMarketMetrics() {
+        const metrics = DEMO_DATA.marketMetrics;
+        
+        // Momentum
+        document.getElementById('momentum-value').textContent = metrics.momentum.value;
+        document.getElementById('momentum-status').className = `status-indicator status-${metrics.momentum.status}`;
+        document.getElementById('momentum-description').textContent = metrics.momentum.description;
+        
+        // Volatility
+        document.getElementById('volatility-value').textContent = metrics.volatility.value;
+        document.getElementById('volatility-status').className = `status-indicator status-${metrics.volatility.status}`;
+        document.getElementById('volatility-description').textContent = metrics.volatility.description;
+        
+        // Breadth
+        document.getElementById('breadth-value').textContent = metrics.breadth.value;
+        document.getElementById('breadth-status').className = `status-indicator status-${metrics.breadth.status}`;
+        document.getElementById('breadth-description').textContent = metrics.breadth.description;
+        
+        // Sentiment
+        document.getElementById('sentiment-value').textContent = metrics.sentiment.value;
+        document.getElementById('sentiment-status').className = `status-indicator status-${metrics.sentiment.status}`;
+        document.getElementById('sentiment-description').textContent = metrics.sentiment.description;
+        
+        // Technical
+        document.getElementById('technical-value').textContent = metrics.technical.value;
+        document.getElementById('technical-status').className = `status-indicator status-${metrics.technical.status}`;
+        document.getElementById('technical-description').textContent = metrics.technical.description;
+        
+        // AI Confidence
+        document.getElementById('ai-confidence-value').textContent = metrics.aiConfidence.value;
+        document.getElementById('ai-confidence-status').className = `status-indicator status-${metrics.aiConfidence.status}`;
+        document.getElementById('ai-confidence-description').textContent = metrics.aiConfidence.description;
+    }
+    
+    // Initialize the dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        // Update last updated time
+        document.getElementById('last-updated-time').textContent = DEMO_DATA.lastUpdated;
+        
+        // Simulate loading
+        setTimeout(() => {
+            // Hide loaders and show content
+            document.getElementById('prediction-container').style.display = 'none';
+            document.getElementById('prediction-content').style.display = 'block';
+            document.getElementById('return-prediction-container').style.display = 'none';
+            document.getElementById('return-prediction-content').style.display = 'block';
+            
+            // Initialize prediction gauge
+            updateGaugeNeedle(DEMO_DATA.predictionConfidence);
+            
+            // Update metrics for default model
+            updatePredictionMetrics('ensemble');
+            
+            // Update feature importance
+            updateFeatureImportance();
+            
+            // Create prediction history chart
+            const predictionChart = createPredictionHistoryChart();
+            
+            // Create return prediction chart
+            const returnChart = createReturnPredictionChart();
+            
+            // Update return prediction
+            updateReturnPrediction('SPX');
+            
+            // Update market metrics
+            updateMarketMetrics();
+            
+            // Initialize event listeners
+            
+            // Model selector
+            document.getElementById('model-selector').addEventListener('change', function() {
+                const selectedModel = this.value;
+                updatePredictionMetrics(selectedModel);
+            });
+            
+            // Index selector
+            document.getElementById('index-selector').addEventListener('change', function() {
+                const selectedIndex = this.value;
+                updateReturnPrediction(selectedIndex);
+            });
+            
+            // Time period buttons
+            const timeButtons = document.querySelectorAll('.time-btn');
+            timeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    timeButtons.forEach(btn => btn.classList.remove('active'));
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    
+                    // In a real implementation, this would fetch data for the selected period
+                    console.log(`Selected period: ${this.dataset.period}`);
+                });
+            });
+        }, 1500);
+    });
+</script>
+{% endblock %} 

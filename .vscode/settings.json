@@ -9,5 +9,8 @@
             "database": "frontend_db",
             "username": "db"
         }
+    ],
+    "python.analysis.extraPaths": [
+        "./ai_experiments"
     ]
 }
