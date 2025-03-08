@@ -54,6 +54,21 @@ We take the security of our web application seriously. If you believe you've fou
 - HTTPS enforcement in production
 - Rate limiting on API endpoints
 
+### API Security
+- API keys stored securely in environment variables
+- Rate limiting on outgoing API requests
+- Fallback mechanisms for when APIs are unavailable
+- Sensitive data not exposed through API responses
+- API requests validated and sanitized
+- Secure handling of API credentials
+
+### Financial Data Security
+- Market data is read-only and publicly available
+- User financial information is never stored
+- AI predictions are for informational purposes only 
+- Clear disclaimers about financial information usage
+- No personally identifiable information in financial calculations
+
 ### Infrastructure Security
 - Docker container isolation
 - Non-root container user
@@ -92,6 +107,14 @@ We take the security of our web application seriously. If you believe you've fou
    - Validate file uploads
    - Sanitize user input
 
+4. **API Integrations**
+   - Implement proper error handling for API requests
+   - Use timeouts for all external API calls
+   - Validate API responses before processing
+   - Implement circuit breakers for failing APIs
+   - Use mock responses for testing
+   - Monitor API usage to prevent exceeding rate limits
+
 ### For Users
 
 1. **Authentication**
@@ -114,6 +137,13 @@ We take the security of our web application seriously. If you believe you've fou
    - Configure proper firewall rules
    - Regular security audits
    - Monitor system logs
+
+4. **Data Privacy**
+   - Be aware of what data is being displayed
+   - The AI dashboard displays publicly available market data
+   - No personal financial data is stored or processed
+   - Weather location preferences are stored but can be modified or deleted
+   - User settings can be updated or removed upon request
 
 ## Security Measures
 
@@ -149,6 +179,13 @@ Our application implements several security measures:
    - Security monitoring
    - Access logging
    - Resource limits
+
+5. **API Integration Security**
+   - Proper handling of API keys
+   - Rate limit detection and handling
+   - Fallback to mock data when APIs are unavailable
+   - Caching to reduce API requests
+   - Timeouts and error handling for all external calls
 
 ## Incident Response
 

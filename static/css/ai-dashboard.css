@@ -35,9 +35,31 @@ body {
   padding: 15px;
 }
 
-.index-card {
-  min-width: 160px;
-  text-align: center;
+.index-card, .indicator-card {
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 6px;
+  background-color: #f9f9f9;
+  width: 100%; /* Full width within column */
+  text-align: left;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  margin-bottom: 0; /* Remove any bottom margin that might cause issues */
+}
+
+.index-card:hover, .indicator-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.index-card .card-title, .indicator-card .card-title {
+  font-size: 1rem;
+  margin-bottom: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  max-width: 65%; /* Prevent long titles from pushing price off card */
 }
 
 /* Loader */
@@ -71,8 +93,8 @@ body {
 }
 
 /* Market indices container */
-#market-indices-container {
-  margin-top: 20px;
+#market-indices-container, #economic-indicators-container {
+  margin-top: 0; /* Remove any top margin that might cause issues */
 }
 
 /* Text colors for positive/negative changes */
@@ -138,6 +160,14 @@ body {
   --border-radius-sm: 4px;
   --border-radius-md: 8px;
   --border-radius-lg: 16px;
+  --ai-dashboard-loaded: 'true';
+  --ai-primary-color: #4285f4;
+  --ai-secondary-color: #34a853;
+  --ai-warning-color: #fbbc05;
+  --ai-error-color: #ea4335;
+  --ai-neutral-color: #5f6368;
+  --ai-bg-light: #f8f9fa;
+  --ai-card-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 /* Base Styles */
@@ -563,17 +593,551 @@ body {
   color: #93c5fd !important;
 }
 
-#market-indices-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+/* AI Financial Dashboard - Comprehensive CSS */
+
+/* Base variables */
+:root {
+  /* Light mode colors */
+  --primary-color: #4a6fff;
+  --secondary-color: #28c76f;
+  --danger-color: #ea5455;
+  --warning-color: #ff9f43;
+  --info-color: #00cfe8;
+  --bg-color: #f8f8f8;
+  --card-bg: #ffffff;
+  --text-color: #333333;
+  --text-muted: #6e6b7b;
+  --border-color: #ebe9f1;
+  
+  /* Shadows */
+  --card-shadow: 0 4px 24px 0 rgba(34, 41, 47, 0.1);
+  
+  /* Transitions */
+  --transition-base: all 0.3s ease;
 }
 
-.index-card {
-  border: 1px solid #ddd;
-  padding: 10px;
-  border-radius: 4px;
-  background-color: #f9f9f9;
-  min-width: 100px; /* Ensure cards don't get too small */
+/* Dark theme variables */
+.dark-theme {
+  --primary-color: #5a8dee;
+  --secondary-color: #39da8a;
+  --danger-color: #ff5b5c;
+  --warning-color: #fdac41;
+  --info-color: #00cfdd;
+  --bg-color: #161d31;
+  --card-bg: #283046;
+  --text-color: #d0d2d6;
+  --text-muted: #676d7d;
+  --border-color: #3b4253;
+  --card-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.4);
+}
+
+/* General Styles */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: var(--transition-base);
+}
+
+.card {
+  background-color: var(--card-bg);
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: var(--card-shadow);
+  transition: var(--transition-base);
+  margin-bottom: 1.5rem;
+}
+
+.card-header {
+  background-color: var(--card-bg) !important;
+  border-bottom: 1px solid var(--border-color);
+  padding: 1.5rem;
+}
+
+.card-title {
+  margin-bottom: 0;
+  color: var(--text-color);
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+/* Loader */
+.loader {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--primary-color);
+  animation: spin 1s linear infinite;
+}
+
+.dark-theme .loader {
+  border-color: rgba(255, 255, 255, 0.1);
+  border-top-color: var(--primary-color);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Market Indices */
+.progress {
+  background-color: rgba(0, 0, 0, 0.07);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.dark-theme .progress {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.text-success {
+  color: var(--secondary-color) !important;
+}
+
+.text-danger {
+  color: var(--danger-color) !important;
+}
+
+.bg-success {
+  background-color: var(--secondary-color) !important;
+}
+
+.bg-danger {
+  background-color: var(--danger-color) !important;
+}
+
+/* Market Prediction */
+.gauge-container {
+  position: relative;
+  width: 200px;
+  height: 120px;
+  margin: 0 auto;
+}
+
+.gauge-background {
+  position: relative;
+  width: 200px;
+  height: 100px;
+  background: linear-gradient(90deg, 
+    var(--danger-color) 0%, 
+    var(--warning-color) 50%, 
+    var(--secondary-color) 100%);
+  border-top-left-radius: 100px;
+  border-top-right-radius: 100px;
+  overflow: hidden;
+}
+
+.gauge-cover {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 180px;
+  height: 90px;
+  background-color: var(--card-bg);
+  border-top-left-radius: 90px;
+  border-top-right-radius: 90px;
+}
+
+.gauge-needle {
+  position: absolute;
+  bottom: 0;
+  left: 100px;
+  width: 4px;
+  height: 90px;
+  background-color: var(--text-color);
+  transform-origin: bottom center;
+  transform: rotate(0deg);
+  transition: transform 1s ease-out;
+  z-index: 10;
+}
+
+.gauge-value {
+  position: absolute;
+  bottom: -10px;
+  left: 0;
+  right: 0;
   text-align: center;
+  font-size: 1.75rem;
+  font-weight: bold;
+}
+
+.sentiment-label {
+  font-size: 1.25rem;
+  margin-top: 1rem;
+}
+
+.bullish {
+  color: var(--secondary-color);
+}
+
+.slightly-bullish {
+  color: #8cd1a8;
+}
+
+.bearish {
+  color: var(--danger-color);
+}
+
+.slightly-bearish {
+  color: #f7a1a1;
+}
+
+.neutral {
+  color: var(--warning-color);
+}
+
+.metric-box {
+  background-color: rgba(0, 0, 0, 0.03);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.dark-theme .metric-box {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.metric-title {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.metric-value {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+/* News Sentiment */
+.sentiment-meter {
+  width: 100%;
+  height: 60px;
+  position: relative;
+  margin: 1rem 0;
+  border-radius: 30px;
+  background-color: rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.dark-theme .sentiment-meter {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.sentiment-meter.positive {
+  background-color: rgba(40, 199, 111, 0.2);
+}
+
+.sentiment-meter.negative {
+  background-color: rgba(234, 84, 85, 0.2);
+}
+
+.sentiment-meter.neutral {
+  background-color: rgba(255, 159, 67, 0.2);
+}
+
+.sentiment-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-align: center;
+  padding-top: 10px;
+}
+
+.sentiment-label {
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.source-list {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.article-item {
+  border-left: 3px solid var(--border-color);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dark-theme .article-item {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.article-item.positive {
+  border-left-color: var(--secondary-color);
+}
+
+.article-item.negative {
+  border-left-color: var(--danger-color);
+}
+
+.article-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.article-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.article-sentiment {
+  font-weight: 600;
+}
+
+.article-sentiment.positive {
+  color: var(--secondary-color);
+}
+
+.article-sentiment.negative {
+  color: var(--danger-color);
+}
+
+/* Feature Importance */
+.feature-list {
+  margin-top: 1rem;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.feature-name {
+  flex: 0 0 40%;
+  font-size: 0.9rem;
+}
+
+.feature-bar-container {
+  flex: 1;
+  height: 8px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 0 0.5rem;
+}
+
+.dark-theme .feature-bar-container {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.feature-bar {
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 4px;
+}
+
+.feature-value {
+  flex: 0 0 15%;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+/* Portfolio Optimization */
+.stats-list {
+  margin-top: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.stat-item:last-child {
+  border-bottom: none;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.stat-value {
+  font-weight: 600;
+}
+
+/* Economic Indicators */
+.indicator-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+}
+
+/* Alerts System */
+.table {
+  color: var(--text-color);
+}
+
+.table th {
+  border-bottom-width: 1px;
+  border-color: var(--border-color);
+  padding: 1rem;
+}
+
+.table td {
+  padding: 1rem;
+  vertical-align: middle;
+  border-color: var(--border-color);
+}
+
+.dark-theme .table {
+  color: var(--text-color);
+}
+
+.dark-theme .table th,
+.dark-theme .table td {
+  border-color: var(--border-color);
+}
+
+/* Form styles */
+.form-label {
+  color: var(--text-color);
+}
+
+.form-control {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+}
+
+.form-control:focus {
+  background-color: var(--card-bg);
+  border-color: var(--primary-color);
+  color: var(--text-color);
+}
+
+.dark-theme .form-control,
+.dark-theme .form-select {
+  background-color: var(--card-bg);
+  border-color: var(--border-color);
+  color: var(--text-color);
+}
+
+.dark-theme .form-control:focus,
+.dark-theme .form-select:focus {
+  background-color: var(--card-bg);
+  border-color: var(--primary-color);
+}
+
+/* Modal */
+.modal-content {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+}
+
+.modal-header {
+  border-color: var(--border-color);
+}
+
+.modal-footer {
+  border-color: var(--border-color);
+}
+
+.dark-theme .modal-content {
+  background-color: var(--card-bg);
+}
+
+.dark-theme .modal-header,
+.dark-theme .modal-footer {
+  border-color: var(--border-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .card-header {
+    padding: 1rem;
+  }
+  
+  .card-body {
+    padding: 1rem;
+  }
+  
+  .gauge-container {
+    width: 160px;
+    height: 100px;
+  }
+  
+  .gauge-background {
+    width: 160px;
+    height: 80px;
+  }
+  
+  .gauge-cover {
+    width: 144px;
+    height: 72px;
+    top: 8px;
+    left: 8px;
+  }
+  
+  .gauge-needle {
+    height: 72px;
+    left: 80px;
+  }
+}
+
+/* Last updated timestamp */
+.last-updated {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* AI Dashboard - Ticker Hiding for Performance */
+.stock-ticker-container,
+#newsTicker {
+    display: none !important; /* Hide tickers on AI dashboard page for performance */
+}
+
+/* AI Dashboard - Prediction Chart Optimization */
+#prediction-history-chart {
+    max-height: 200px;
+}
+
+.prediction-history-container {
+    position: relative;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    max-height: 200px;
+}
+
+.prediction-history-container.collapsed {
+    max-height: 40px;
+}
+
+.prediction-history-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 10;
+    background: rgba(0,0,0,0.1);
+    border: none;
+    border-radius: 3px;
+    padding: 2px 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.prediction-history-toggle:hover {
+    background: rgba(0,0,0,0.2);
+}
+
+/* Economic Indicator Cards - using shared style with index-card */
+/* Duplicate indicator-card specific styles removed since we're now using shared styles */
+
+/* Fix for Bootstrap grid */
+.row > * {
+  padding-right: calc(var(--bs-gutter-x) * .5);
+  padding-left: calc(var(--bs-gutter-x) * .5);
+  margin-top: var(--bs-gutter-y);
 } 

@@ -1315,10 +1315,49 @@ def get_news():
     print(f"Guardian API key loaded: {'Yes' if guardian_api_key else 'No'}")
     
     if not guardian_api_key:
-        print("Guardian API key not found in environment")
-        return jsonify({'error': 'Guardian API not configured'}), 500
+        print("Guardian API key not found in environment, returning mock news data")
+        # Return mock news data instead of failing with 500 error
+        mock_articles = [
+            {
+                'title': 'S&P 500 Hits New Record as Tech Stocks Rally',
+                'url': 'https://example.com/sp500-record'
+            },
+            {
+                'title': 'Federal Reserve Signals Potential Rate Cuts',
+                'url': 'https://example.com/fed-rate-cuts'
+            },
+            {
+                'title': 'Global Markets React to Economic Data',
+                'url': 'https://example.com/global-markets'
+            },
+            {
+                'title': 'Tech Giants Announce New AI Initiatives',
+                'url': 'https://example.com/tech-ai'
+            },
+            {
+                'title': 'Retail Sales Exceed Expectations in Q1',
+                'url': 'https://example.com/retail-sales'
+            },
+            {
+                'title': 'Energy Sector Faces Challenges Amid Price Volatility',
+                'url': 'https://example.com/energy-sector'
+            },
+            {
+                'title': 'Housing Market Shows Signs of Cooling',
+                'url': 'https://example.com/housing-market'
+            },
+            {
+                'title': 'New Regulations Impact Financial Services',
+                'url': 'https://example.com/financial-regulations'
+            }
+        ]
+        return jsonify({
+            'articles': mock_articles,
+            'source': 'Mock Data (Guardian API key not configured)'
+        })
 
     try:
+        # The rest of the function remains unchanged
         # Get user's preferred news sections
         conn = get_db_connection()
         try:
@@ -1340,25 +1379,34 @@ def get_news():
         cache_key = f"news_articles_{','.join(sorted(user_sections))}"
         print(f"Checking cache with key: {cache_key}")
         
-        # Try to get cached articles
+        # Try to get cached articles - also use cache in development mode to avoid rate limits
         cached_articles = cache.get(cache_key)
-        if cached_articles and not app.debug:  # Only use cache in production
+        if cached_articles:
             print(f"Found {len(cached_articles)} cached articles")
             return jsonify({'articles': cached_articles})
         
-        print("No cached articles found or in development mode, fetching from Guardian API")
+        print("No cached articles found, fetching from Guardian API")
         
         # Excluded sections and title patterns
         excluded_sections = ['corrections-and-clarifications', 'for-the-record']
         excluded_patterns = ['corrections and clarifications', 'for the record']
         
         # Set page size based on environment
-        page_size = 50 if app.debug else 5  # Get more articles in development mode
+        page_size = 15 if app.debug else 5  # Reduced from 50 to 15 in development mode to avoid rate limits
         
         # Fetch articles for each section
         for section in user_sections:
             if section.lower() in excluded_sections:
                 print(f"Skipping excluded section: {section}")
+                continue
+                
+            # Check if we have a section-specific cache to reduce API calls
+            section_cache_key = f"news_section_{section}"
+            section_articles = cache.get(section_cache_key)
+            
+            if section_articles:
+                print(f"Using cached articles for section {section}")
+                all_articles.extend(section_articles)
                 continue
                 
             print(f"\nFetching articles for section: {section}")
@@ -1375,42 +1423,93 @@ def get_news():
             print(f"Making API request to: {url}")
             print(f"With parameters: {params}")
             
-            response = requests.get(url, params=params)
-            print(f"API response status: {response.status_code}")
+            # Implement retry logic with exponential backoff
+            max_retries = 3
+            retry_count = 0
+            retry_delay = 1  # Start with 1 second delay
             
-            if response.status_code == 200:
-                data = response.json()
-                print(f"Response data: {data}")
-                
-                if 'response' in data and 'results' in data['response']:
-                    section_articles = data['response']['results']
-                    print(f"Found {len(section_articles)} articles in section {section}")
+            section_articles_list = []
+            while retry_count < max_retries:
+                try:
+                    response = requests.get(url, params=params, timeout=10)
+                    print(f"API response status: {response.status_code}")
                     
-                    for article in section_articles:
-                        # Skip articles with excluded patterns in the title
-                        title = article['fields']['headline'].lower()
-                        if any(pattern in title for pattern in excluded_patterns):
-                            print(f"Skipping article with excluded pattern: {title}")
-                            continue
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        if 'response' in data and 'results' in data['response']:
+                            section_articles = data['response']['results']
+                            print(f"Found {len(section_articles)} articles in section {section}")
                             
-                        all_articles.append({
-                            'title': article['fields']['headline'],
-                            'url': article['fields']['shortUrl']
-                        })
-                else:
-                    print(f"Unexpected response format for section {section}")
-            else:
-                print(f"Error response for section {section}: {response.text}")
+                            for article in section_articles:
+                                # Skip articles with excluded patterns in the title
+                                title = article['fields']['headline'].lower()
+                                if any(pattern in title for pattern in excluded_patterns):
+                                    print(f"Skipping article with excluded pattern: {title}")
+                                    continue
+                                    
+                                article_data = {
+                                    'title': article['fields']['headline'],
+                                    'url': article['fields']['shortUrl']
+                                }
+                                section_articles_list.append(article_data)
+                                all_articles.append(article_data)
+                            
+                            # Cache the section-specific articles
+                            section_cache_timeout = 1800  # 30 minutes
+                            cache.set(section_cache_key, section_articles_list, timeout=section_cache_timeout)
+                            print(f"Cached {len(section_articles_list)} articles for section {section} for {section_cache_timeout} seconds")
+                            
+                            # Success - break out of retry loop
+                            break
+                        else:
+                            print(f"Unexpected response format for section {section}")
+                            break  # No need to retry for format errors
+                            
+                    elif response.status_code == 429:  # Rate limit exceeded
+                        print(f"Rate limit exceeded for section {section}. Using mock data.")
+                        
+                        # Use section-specific mock data
+                        mock_section_articles = get_mock_articles_for_section(section)
+                        all_articles.extend(mock_section_articles)
+                        
+                        # Cache the mock data for this section to avoid further calls
+                        cache.set(section_cache_key, mock_section_articles, timeout=1800)  # 30 minutes
+                        print(f"Cached mock articles for section {section}")
+                        
+                        # No need to retry when rate limited
+                        break
+                        
+                    else:
+                        print(f"Error response for section {section}: {response.text}")
+                        
+                        # Only retry for connection errors, not for client/server errors
+                        if response.status_code >= 500:  # Server error, worth retrying
+                            retry_count += 1
+                            if retry_count < max_retries:
+                                print(f"Retrying in {retry_delay} seconds...")
+                                time.sleep(retry_delay)
+                                retry_delay *= 2  # Exponential backoff
+                            continue
+                        else:
+                            # Client error, no point retrying
+                            break
+                
+                except requests.exceptions.RequestException as e:
+                    print(f"Request exception for section {section}: {str(e)}")
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        print(f"Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                    continue
         
         print(f"\nTotal articles collected: {len(all_articles)}")
         
-        # Only cache in production
-        if not app.debug:
-            cache_timeout = 300  # 5 minutes in prod
-            cache.set(cache_key, all_articles, timeout=cache_timeout)
-            print(f"Articles cached with timeout: {cache_timeout} seconds")
-        else:
-            print("Skipping cache in development mode")
+        # Cache in both production and development mode
+        cache_timeout = 1800 if app.debug else 300  # 30 minutes in dev, 5 minutes in prod
+        cache.set(cache_key, all_articles, timeout=cache_timeout)
+        print(f"Articles cached with key {cache_key} for {cache_timeout} seconds")
         
         # Track API usage only in production
         if not app.debug:
@@ -2502,6 +2601,7 @@ def get_market_indices():
         
         # Generate results
         results = {}
+        success_count = 0
         
         for symbol_key, yahoo_symbol in symbols_to_fetch.items():
             try:
@@ -2510,11 +2610,16 @@ def get_market_indices():
                 app.logger.info(f"Fetching market data for {symbol_key} from Yahoo Finance: {url}")
                 
                 response = requests.get(url, timeout=10, headers={
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1'
                 })
                 
                 if response.status_code == 200:
                     data = response.json()
+                    app.logger.debug(f"Yahoo Finance response for {symbol_key}: {str(data)[:200]}...")
                     
                     # Extract the relevant data from Yahoo Finance response
                     if 'chart' in data and 'result' in data['chart'] and data['chart']['result']:
@@ -2545,6 +2650,7 @@ def get_market_indices():
                             'source': 'yahoo_finance'  # Mark as coming from Yahoo Finance
                         }
                         app.logger.info(f"Successfully fetched data for {symbol_key} from Yahoo Finance")
+                        success_count += 1
                     else:
                         # Handle missing data in response
                         app.logger.warning(f"Invalid data structure from Yahoo Finance for {symbol_key}")
@@ -2605,8 +2711,15 @@ def get_market_indices():
         # New: Format the response to match our expected structure
         formatted_results = {
             "indices": results,
-            "demo": False
+            "demo": False,
+            "partial": success_count > 0 and success_count < len(symbols_to_fetch)
         }
+        
+        # If we couldn't fetch any data at all, log error but still return what we have
+        if success_count == 0:
+            app.logger.error("Failed to fetch any market data from Yahoo Finance - returning simulation data")
+        else:
+            app.logger.info(f"Successfully fetched {success_count}/{len(symbols_to_fetch)} market indices")
         
         return jsonify(formatted_results)
         
@@ -2626,7 +2739,9 @@ def ai_insights():
 def get_ai_insights():
     """API endpoint for AI market insights data."""
     if 'user' not in session:
-        return jsonify({"error": "Authentication required"}), 401
+        app.logger.info("No user in session, returning demo data for unauthenticated access")
+        # Return demo data instead of 401 error
+        return generate_demo_ai_insights()
     
     # Get time period from request parameters (default to '1d')
     period = request.args.get('period', '1d')
@@ -2642,8 +2757,7 @@ def get_ai_insights():
         
         try:
             # Import our AI modules
-            from alpha_vantage_pipeline import AlphaVantageAPI, DataProcessor, MARKET_INDICES
-            from models.market_predictor import ModelManager
+            from alpha_vantage_pipeline import AlphaVantageAPI, MARKET_INDICES
             app.logger.info("Successfully imported AI modules")
         except ImportError as e:
             app.logger.error(f"Import error: {str(e)}")
@@ -2652,213 +2766,335 @@ def get_ai_insights():
                 "details": str(e)
             }), 500
         
-        # Create Alpha Vantage API instance
-        api_key = os.environ.get("ALPHA_VANTAGE_API_KEY")
-        if not api_key:
-            app.logger.error("No Alpha Vantage API key found in environment variables")
-            return jsonify({"error": "Alpha Vantage API key not configured"}), 500
-            
-        api = AlphaVantageAPI(api_key=api_key)
+        # Create Alpha Vantage API instance - use default behavior which loads from environment
+        api = AlphaVantageAPI()
         app.logger.info("AlphaVantageAPI instance created")
         
-        # Get current market data
+        # Try to get current market data
         app.logger.info("Starting to fetch market data")
         market_data = {}
-        for symbol_key, symbol in MARKET_INDICES.items():
-            try:
+        indices = {}
+        
+        try:
+            for symbol_key, symbol in MARKET_INDICES.items():
                 # Get quote data
                 app.logger.info(f"Fetching quote for {symbol}")
-                quote = api.get_quote(symbol)
-                if quote:
-                    market_data[symbol_key] = quote
+                quote = api.call_api('GLOBAL_QUOTE', symbol=symbol)
+                
+                if quote and 'Global Quote' in quote:
+                    quote_data = quote['Global Quote']
+                    indices[symbol_key] = {
+                        'price': quote_data.get('05. price', '0.00'),
+                        'change': quote_data.get('09. change', '0.00'),
+                        'changePercent': quote_data.get('10. change percent', '0.00%').replace('%', ''),
+                        'high': quote_data.get('03. high', '0.00'),
+                        'low': quote_data.get('04. low', '0.00'),
+                        'volume': quote_data.get('06. volume', '0')
+                    }
                     app.logger.info(f"Successfully fetched quote for {symbol}")
                 else:
                     app.logger.warning(f"No quote data returned for {symbol}")
-                time.sleep(0.5)  # Rate limit protection
-            except Exception as e:
-                app.logger.error(f"Error fetching data for {symbol}: {str(e)}")
-        
-        # If we only need to return market metrics for a different time period,
-        # and we already have data cached in the session, use that instead of fetching everything
-        if period != '1d' and request.args.get('metrics_only') == 'true' and 'processed_data' in session:
-            app.logger.info(f"Using cached data for period {period}")
-            processed_data = session['processed_data']
-            
-            # Calculate market metrics for the requested period
-            market_metrics = calculate_market_metrics(processed_data, period)
-            
-            return jsonify({
-                "marketMetrics": market_metrics,
-                "lastUpdated": datetime.now().strftime('%Y-%m-%d %H:%M:%S EST'),
-                "status": "Real data (metrics only)"
-            })
-        
-        if not market_data:
-            app.logger.error("Failed to fetch any market data")
-            # Return demo data instead
-            return jsonify({
-                "predictionConfidence": 72,
-                "modelMetrics": {
-                    "ensemble": {"accuracy": 0.68, "precision": 0.71, "recall": 0.65, "f1": 0.68},
-                    "random_forest": {"accuracy": 0.66, "precision": 0.69, "recall": 0.63, "f1": 0.66},
-                    "gradient_boosting": {"accuracy": 0.67, "precision": 0.72, "recall": 0.61, "f1": 0.67},
-                    "neural_network": {"accuracy": 0.64, "precision": 0.67, "recall": 0.60, "f1": 0.63}
-                },
-                "predictionHistory": {
-                    "dates": [(datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(10, 0, -1)],
-                    "actual": [1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
-                    "predicted": [1, 1, 1, 0, 1, 0, 0, 0, 1, 1]
-                },
-                "featureImportance": [
-                    {"name": "RSI (14)", "value": 0.18},
-                    {"name": "Price vs 200-day MA", "value": 0.15},
-                    {"name": "MACD Histogram", "value": 0.12},
-                    {"name": "Volatility (21-day)", "value": 0.10},
-                    {"name": "Price vs 50-day MA", "value": 0.08},
-                    {"name": "Bollinger Width", "value": 0.07},
-                    {"name": "Monthly Return", "value": 0.06},
-                    {"name": "Weekly Return", "value": 0.05}
-                ],
-                "returnPrediction": {
-                    "SPX": {"predicted": 1.85, "confidence": 0.73, "rmse": 2.3, "r2": 0.58},
-                    "DJI": {"predicted": 1.72, "confidence": 0.68, "rmse": 2.5, "r2": 0.55},
-                    "IXIC": {"predicted": 2.14, "confidence": 0.71, "rmse": 2.7, "r2": 0.52}
-                },
-                "returnHistory": {
-                    "dates": [(datetime.now() - timedelta(days=i*7)).strftime('%Y-%m-%d') for i in range(6, 0, -1)],
-                    "actual": [1.2, -0.8, 1.5, 0.7, -1.1, 1.3],
-                    "predicted": [1.5, -0.5, 1.0, 1.2, -0.8, 1.8]
-                },
-                "marketMetrics": {
-                    "momentum": {"value": "Strong", "score": 7.2, "status": "positive", "description": "Strong upward momentum in the past week"},
-                    "volatility": {"value": "Moderate", "score": 15.8, "status": "neutral", "description": "Volatility slightly above historical average"},
-                    "breadth": {"value": "Healthy", "score": 71, "status": "positive", "description": "71% of stocks above 50-day moving average"},
-                    "sentiment": {"value": "Bullish", "score": 65, "status": "positive", "description": "Sentiment indicators suggest optimism"},
-                    "technical": {"value": "Positive", "score": 7.5, "status": "positive", "description": "7 of 10 indicators are bullish"},
-                    "aiConfidence": {"value": "Moderate", "score": 68, "status": "neutral", "description": "AI models show moderate confidence"}
-                },
-                "lastUpdated": datetime.now().strftime('%Y-%m-%d %H:%M:%S EST'),
-                "status": "Demo data (API error)"
-            })
-        
-        # Process technical indicators for each index
-        app.logger.info("Starting to process technical indicators")
-        processed_data = {}
-        for symbol_key, data in market_data.items():
-            try:
-                # Get daily data
-                app.logger.info(f"Fetching daily time series for {MARKET_INDICES[symbol_key]}")
-                daily_data = api.get_daily_time_series(MARKET_INDICES[symbol_key], outputsize="compact")
                 
-                if daily_data is None or daily_data.empty:
-                    app.logger.warning(f"No daily data for {symbol_key}")
-                    continue
-                
-                # Add technical indicators
-                app.logger.info(f"Adding technical indicators for {symbol_key}")
-                processed_df = DataProcessor.add_technical_indicators(daily_data)
-                processed_data[symbol_key] = processed_df
-                app.logger.info(f"Successfully processed data for {symbol_key}")
                 time.sleep(0.5)  # Rate limit protection
-            except Exception as e:
-                app.logger.error(f"Error processing data for {symbol_key}: {str(e)}")
-        
-        if not processed_data:
-            app.logger.error("Failed to process any market data")
-            # Return demo data instead (same as above)
-            return jsonify({
-                # Same demo data response as above
-                "status": "Demo data (processing error)"
-            })
-        
-        # Store processed data in session for potential reuse
-        session['processed_data'] = processed_data
-        
-        # Use the rest of the original function with better error handling
-        try:
-            # Continue with the original implementation
-            app.logger.info("Continuing with the rest of the function")
-            
-            # Initialize model metrics
-            model_metrics = {
-                'ensemble': {'accuracy': 0.68, 'precision': 0.71, 'recall': 0.65, 'f1': 0.68},
-                'random_forest': {'accuracy': 0.66, 'precision': 0.69, 'recall': 0.63, 'f1': 0.66},
-                'gradient_boosting': {'accuracy': 0.67, 'precision': 0.72, 'recall': 0.61, 'f1': 0.67},
-                'neural_network': {'accuracy': 0.64, 'precision': 0.67, 'recall': 0.60, 'f1': 0.63}
-            }
-            
-            # Initialize prediction confidence
-            prediction_confidence = 72
-            
-            # Prepare feature importance data
-            feature_importance = [
-                {"name": "RSI (14)", "value": 0.18},
-                {"name": "Price vs 200-day MA", "value": 0.15},
-                {"name": "MACD Histogram", "value": 0.12},
-                {"name": "Volatility (21-day)", "value": 0.10},
-                {"name": "Price vs 50-day MA", "value": 0.08},
-                {"name": "Bollinger Width", "value": 0.07},
-                {"name": "Monthly Return", "value": 0.06},
-                {"name": "Weekly Return", "value": 0.05}
-            ]
-            
-            # Prepare return prediction data
-            return_prediction = {
-                "SPX": {"predicted": 1.85, "confidence": 0.73, "rmse": 2.3, "r2": 0.58},
-                "DJI": {"predicted": 1.72, "confidence": 0.68, "rmse": 2.5, "r2": 0.55},
-                "IXIC": {"predicted": 2.14, "confidence": 0.71, "rmse": 2.7, "r2": 0.52}
-            }
-            
-            # Calculate market metrics from the fetched data with the specified period
-            market_metrics = calculate_market_metrics(processed_data, period)
-            
-            # Create prediction history
-            prediction_history = {
-                "dates": [
-                    (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d') 
-                    for i in range(10, 0, -1)
-                ],
-                "actual": [1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
-                "predicted": [1, 1, 1, 0, 1, 0, 0, 0, 1, 1]
-            }
-            
-            # Create return history
-            return_history = {
-                "dates": [
-                    (datetime.now() - timedelta(days=i*7)).strftime('%Y-%m-%d')
-                    for i in range(6, 0, -1)
-                ],
-                "actual": [1.2, -0.8, 1.5, 0.7, -1.1, 1.3],
-                "predicted": [1.5, -0.5, 1.0, 1.2, -0.8, 1.8]
-            }
-            
-            # Assemble the response
-            response = {
-                "predictionConfidence": prediction_confidence,
-                "modelMetrics": model_metrics,
-                "predictionHistory": prediction_history,
-                "featureImportance": feature_importance,
-                "returnPrediction": return_prediction,
-                "returnHistory": return_history,
-                "marketMetrics": market_metrics,
-                "lastUpdated": datetime.now().strftime('%Y-%m-%d %H:%M:%S EST'),
-                "status": "Real data"
-            }
-            
-            app.logger.info("Successfully prepared AI insights response")
-            return jsonify(response)
-            
         except Exception as e:
-            app.logger.error(f"Error in prediction processing: {str(e)}")
-            # Return demo data as fallback
-            return jsonify({
-                # Same demo data response as above
-                "status": "Demo data (prediction error)"
-            })
-    
+            app.logger.error(f"Error fetching market data: {str(e)}")
+            # If we failed to fetch live data, fall back to demo data
+            return generate_demo_ai_insights()
+        
+        # If we at least got market data but not the rest of the AI features,
+        # return a hybrid response with live market data and demo AI data
+        if indices:
+            demo_data = generate_demo_ai_insights()
+            demo_data.json['indices'] = indices
+            return demo_data
+            
+        # If we failed to get any data, return demo data
+        return generate_demo_ai_insights()
+            
     except Exception as e:
-        app.logger.error(f"Error getting AI insights: {str(e)}")
-        return jsonify({"error": "Failed to get AI insights", "details": str(e)}), 500
+        app.logger.error(f"Error in AI insights API: {str(e)}")
+        return jsonify({
+            "error": "Server error",
+            "details": str(e)
+        }), 500
+
+def generate_demo_ai_insights():
+    """Generate demo data for AI insights"""
+    app.logger.info("Generating demo AI insights data")
+    
+    # Demo indices data
+    indices = {
+        'SPX': {
+            'price': '4,800.23',
+            'change': '28.32',
+            'changePercent': '0.59',
+            'high': '4,812.56',
+            'low': '4,768.51',
+            'volume': '3,840,500,000'
+        },
+        'DJI': {
+            'price': '38,563.80',
+            'change': '125.69',
+            'changePercent': '0.33',
+            'high': '38,620.74',
+            'low': '38,345.11',
+            'volume': '385,230,000'
+        },
+        'IXIC': {
+            'price': '15,360.29',
+            'change': '183.02',
+            'changePercent': '1.21',
+            'high': '15,385.75',
+            'low': '15,177.27',
+            'volume': '5,462,830,000'
+        },
+        'VIX': {
+            'price': '16.32',
+            'change': '-1.25',
+            'changePercent': '-7.12',
+            'high': '17.85',
+            'low': '16.21',
+            'volume': '0'
+        },
+        'TNX': {
+            'price': '4.15',
+            'change': '0.04',
+            'changePercent': '0.97',
+            'high': '4.16',
+            'low': '4.11',
+            'volume': '0'
+        }
+    }
+    
+    # Demo AI prediction data
+    prediction_confidence = 72  # 0-100 scale, above 50 is bullish
+    model_metrics = {
+        'ensemble': {'accuracy': 0.68, 'precision': 0.71, 'recall': 0.65, 'f1': 0.68},
+        'random_forest': {'accuracy': 0.66, 'precision': 0.69, 'recall': 0.63, 'f1': 0.66},
+        'gradient_boosting': {'accuracy': 0.67, 'precision': 0.72, 'recall': 0.61, 'f1': 0.67},
+        'neural_network': {'accuracy': 0.64, 'precision': 0.67, 'recall': 0.60, 'f1': 0.63}
+    }
+    
+    # Demo prediction history (1: up, 0: down)
+    prediction_history = {
+        'dates': [(datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(10, 0, -1)],
+        'actual': [1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
+        'predicted': [1, 1, 1, 0, 1, 0, 0, 0, 1, 1]
+    }
+    
+    # Demo feature importance
+    feature_importance = [
+        {'name': 'RSI (14)', 'value': 0.18},
+        {'name': 'Price vs 200-day MA', 'value': 0.15},
+        {'name': 'MACD Histogram', 'value': 0.12},
+        {'name': 'Volatility (21-day)', 'value': 0.10},
+        {'name': 'Price vs 50-day MA', 'value': 0.08},
+        {'name': 'Bollinger Width', 'value': 0.07},
+        {'name': 'Monthly Return', 'value': 0.06},
+        {'name': 'Weekly Return', 'value': 0.05}
+    ]
+    
+    # Demo return predictions
+    return_prediction = {
+        'SPX': {'predicted': 1.85, 'confidence': 0.73, 'rmse': 2.3, 'r2': 0.58},
+        'DJI': {'predicted': 1.72, 'confidence': 0.68, 'rmse': 2.5, 'r2': 0.55},
+        'IXIC': {'predicted': 2.18, 'confidence': 0.64, 'rmse': 2.8, 'r2': 0.51}
+    }
+    
+    # Demo news sentiment
+    news_sentiment = {
+        'overall': 0.35,  # -1 to 1 scale
+        'topSources': [
+            {'name': 'Bloomberg', 'sentiment': 0.42},
+            {'name': 'CNBC', 'sentiment': 0.38},
+            {'name': 'Reuters', 'sentiment': 0.25},
+            {'name': 'Wall Street Journal', 'sentiment': 0.15},
+            {'name': 'Financial Times', 'sentiment': -0.12}
+        ],
+        'recentArticles': [
+            {
+                'title': 'Fed signals potential rate cuts later this year',
+                'source': 'Bloomberg',
+                'date': '2023-06-15',
+                'sentiment': 0.58,
+                'url': '#'
+            },
+            {
+                'title': 'Tech stocks rally as inflation concerns ease',
+                'source': 'CNBC',
+                'date': '2023-06-14',
+                'sentiment': 0.65,
+                'url': '#'
+            },
+            {
+                'title': 'Market volatility increases amid geopolitical tensions',
+                'source': 'Financial Times',
+                'date': '2023-06-13',
+                'sentiment': -0.32,
+                'url': '#'
+            },
+            {
+                'title': 'Treasury yields climb after latest economic data',
+                'source': 'Wall Street Journal',
+                'date': '2023-06-12',
+                'sentiment': -0.18,
+                'url': '#'
+            }
+        ]
+    }
+    
+    # Demo portfolio optimization
+    portfolio_optimization = {
+        'max_sharpe': {
+            'weights': {'AAPL': 0.25, 'MSFT': 0.20, 'AMZN': 0.15, 'GOOGL': 0.10, 'NVDA': 0.15, 'BRK.B': 0.10, 'JNJ': 0.05},
+            'stats': {
+                'expectedReturn': 0.152,
+                'volatility': 0.185,
+                'sharpeRatio': 0.821,
+                'maxDrawdown': 0.255
+            }
+        },
+        'min_vol': {
+            'weights': {'AAPL': 0.15, 'MSFT': 0.10, 'AMZN': 0.05, 'GOOGL': 0.05, 'NVDA': 0.05, 'BRK.B': 0.25, 'JNJ': 0.35},
+            'stats': {
+                'expectedReturn': 0.089,
+                'volatility': 0.112,
+                'sharpeRatio': 0.794,
+                'maxDrawdown': 0.147
+            }
+        },
+        'risk_parity': {
+            'weights': {'AAPL': 0.18, 'MSFT': 0.17, 'AMZN': 0.12, 'GOOGL': 0.13, 'NVDA': 0.10, 'BRK.B': 0.15, 'JNJ': 0.15},
+            'stats': {
+                'expectedReturn': 0.113,
+                'volatility': 0.145,
+                'sharpeRatio': 0.779,
+                'maxDrawdown': 0.198
+            }
+        }
+    }
+    
+    # Demo economic indicators
+    economic_indicators = [
+        {
+            'name': 'Inflation Rate (CPI)',
+            'value': '2.9%',
+            'change': '-0.2%',
+            'status': 'positive',
+            'trend': 'down',
+            'category': 'Inflation',
+            'description': 'Consumer Price Index, year-over-year change'
+        },
+        {
+            'name': 'Core Inflation',
+            'value': '3.2%',
+            'change': '-0.1%',
+            'status': 'warning',
+            'trend': 'down',
+            'category': 'Inflation',
+            'description': 'CPI excluding food and energy'
+        },
+        {
+            'name': 'Unemployment Rate',
+            'value': '3.8%',
+            'change': '+0.1%',
+            'status': 'positive',
+            'trend': 'up',
+            'category': 'Employment',
+            'description': 'Percentage of labor force that is jobless'
+        },
+        {
+            'name': 'Non-Farm Payrolls',
+            'value': '+236K',
+            'change': '-30K',
+            'status': 'positive',
+            'trend': 'down',
+            'category': 'Employment',
+            'description': 'Jobs added excluding farm workers and some other categories'
+        },
+        {
+            'name': 'GDP Growth Rate',
+            'value': '2.4%',
+            'change': '+0.3%',
+            'status': 'positive',
+            'trend': 'up',
+            'category': 'GDP',
+            'description': 'Annualized quarterly growth rate of Gross Domestic Product'
+        },
+        {
+            'name': 'Fed Funds Rate',
+            'value': '5.25-5.50%',
+            'change': '0.00%',
+            'status': 'neutral',
+            'trend': 'unchanged',
+            'category': 'Interest Rates',
+            'description': 'Target interest rate range set by the Federal Reserve'
+        },
+        {
+            'name': 'Retail Sales MoM',
+            'value': '0.7%',
+            'change': '+0.5%',
+            'status': 'positive',
+            'trend': 'up',
+            'category': 'Consumer',
+            'description': 'Month-over-month change in retail and food service sales'
+        },
+        {
+            'name': 'Consumer Sentiment',
+            'value': '67.5',
+            'change': '+3.3',
+            'status': 'positive',
+            'trend': 'up',
+            'category': 'Consumer',
+            'description': 'University of Michigan Consumer Sentiment Index'
+        }
+    ]
+    
+    # Demo alerts
+    alerts = [
+        {
+            'id': '1001',
+            'name': 'S&P 500 Below 200-day MA',
+            'condition': 'SPX price falls below 200-day moving average',
+            'status': 'active',
+            'lastTriggered': None,
+            'icon': 'chart-line'
+        },
+        {
+            'id': '1002',
+            'name': 'VIX Spike Alert',
+            'condition': 'VIX rises above 25',
+            'status': 'triggered',
+            'lastTriggered': '2023-05-18',
+            'icon': 'bolt'
+        },
+        {
+            'id': '1003',
+            'name': 'AAPL RSI Oversold',
+            'condition': 'AAPL RSI(14) falls below 30',
+            'status': 'active',
+            'lastTriggered': '2023-03-12',
+            'icon': 'apple'
+        }
+    ]
+    
+    # Combine all data
+    response_data = {
+        'indices': indices,
+        'predictionConfidence': prediction_confidence,
+        'modelMetrics': model_metrics,
+        'predictionHistory': prediction_history,
+        'featureImportance': feature_importance,
+        'returnPrediction': return_prediction,
+        'newsSentiment': news_sentiment,
+        'portfolioOptimization': portfolio_optimization,
+        'economicIndicators': economic_indicators,
+        'alerts': alerts,
+        'lastUpdated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'status': 'Demo data'
+    }
+    
+    return jsonify(response_data)
 
 def calculate_market_metrics(processed_data, period='1d'):
     """Calculate market metrics based on processed data."""
@@ -2879,8 +3115,8 @@ def calculate_market_metrics(processed_data, period='1d'):
         # Import Alpha Vantage API
         from alpha_vantage_pipeline import AlphaVantageAPI
         
-        # Create Alpha Vantage API instance
-        api = AlphaVantageAPI(api_key=os.environ.get("ALPHA_VANTAGE_API_KEY"))
+        # Create Alpha Vantage API instance - use default behavior which loads from environment
+        api = AlphaVantageAPI()
         
         # Fetch market news sentiment
         news_data = api.get_market_news(limit=20)
@@ -3606,7 +3842,13 @@ def ai_dashboard():
     # Allow unauthenticated access but show a banner
     is_authenticated = 'user' in session
     
-    return render_template('ai_dashboard.html', is_authenticated=is_authenticated)
+    # Add debug logging
+    app.logger.info("Rendering AI dashboard template")
+    app.logger.info(f"Is authenticated: {is_authenticated}")
+    app.logger.info(f"Static folder path: {app.static_folder}")
+    
+    # Return the rendered template
+    return render_template('ai_dashboard.html', is_authenticated=is_authenticated, debug_mode=True)
 
 @app.route('/market-indices-standalone')
 def market_indices_standalone():
@@ -4030,6 +4272,151 @@ def analyze_news_data():
 def log_error(message):
     logging.error(message)
 
+def get_mock_articles_for_section(section):
+    """
+    Return mock articles for a specific section when the API is rate limited
+    
+    Args:
+        section (str): The news section to get mock articles for
+        
+    Returns:
+        list: A list of mock article dictionaries relevant to the given section
+    """
+    # Base mock articles that could appear in any section
+    base_articles = [
+        {
+            'title': 'Breaking News: Major Developments Expected',
+            'url': 'https://example.com/breaking-news'
+        },
+        {
+            'title': 'Analysis: What Recent Events Mean for the Future',
+            'url': 'https://example.com/analysis-future'
+        }
+    ]
+    
+    # Section-specific mock articles
+    section_specific = {
+        'news': [
+            {
+                'title': 'Global Headlines: Top Stories from Around the World',
+                'url': 'https://example.com/global-headlines'
+            },
+            {
+                'title': 'Latest Updates on Major News Events',
+                'url': 'https://example.com/latest-updates'
+            }
+        ],
+        'world': [
+            {
+                'title': 'International Relations: New Diplomatic Efforts Underway',
+                'url': 'https://example.com/international-relations'
+            },
+            {
+                'title': 'Global Climate Initiatives Face Challenges',
+                'url': 'https://example.com/climate-initiatives'
+            }
+        ],
+        'business': [
+            {
+                'title': 'Markets Respond to Economic Data Release',
+                'url': 'https://example.com/markets-respond'
+            },
+            {
+                'title': 'Corporate Earnings Exceed Expectations',
+                'url': 'https://example.com/corporate-earnings'
+            },
+            {
+                'title': 'New Regulations Impact Financial Sector',
+                'url': 'https://example.com/financial-regulations'
+            }
+        ],
+        'technology': [
+            {
+                'title': 'Tech Giants Announce New Innovations',
+                'url': 'https://example.com/tech-innovations'
+            },
+            {
+                'title': 'AI Developments Transform Industries',
+                'url': 'https://example.com/ai-developments'
+            }
+        ],
+        'science': [
+            {
+                'title': 'Breakthrough Research in Quantum Computing',
+                'url': 'https://example.com/quantum-computing'
+            },
+            {
+                'title': 'Space Exploration: New Discoveries Announced',
+                'url': 'https://example.com/space-exploration'
+            }
+        ],
+        'sport': [
+            {
+                'title': 'Championship Results: Unexpected Outcomes',
+                'url': 'https://example.com/championship-results'
+            },
+            {
+                'title': 'Analysis of Recent Sporting Events',
+                'url': 'https://example.com/sporting-analysis'
+            }
+        ],
+        'environment': [
+            {
+                'title': 'Climate Change: New Studies Released',
+                'url': 'https://example.com/climate-studies'
+            },
+            {
+                'title': 'Sustainability Initiatives Gain Momentum',
+                'url': 'https://example.com/sustainability'
+            }
+        ],
+        'uk-news': [
+            {
+                'title': 'UK Policy Changes: What You Need to Know',
+                'url': 'https://example.com/uk-policy'
+            },
+            {
+                'title': 'Regional Developments Across the UK',
+                'url': 'https://example.com/uk-regional'
+            }
+        ],
+        'culture': [
+            {
+                'title': 'Arts and Entertainment: Weekend Highlights',
+                'url': 'https://example.com/weekend-arts'
+            },
+            {
+                'title': 'Cultural Events Drawing Record Attendance',
+                'url': 'https://example.com/cultural-events'
+            }
+        ]
+    }
+    
+    # Combine base articles with section-specific ones
+    result = base_articles.copy()
+    
+    # Add section-specific articles if available, otherwise use generic ones
+    if section in section_specific:
+        result.extend(section_specific[section])
+    else:
+        # For unknown sections, add some generic articles
+        result.extend([
+            {
+                'title': f'Top Stories in {section.capitalize()}',
+                'url': f'https://example.com/{section}-top-stories'
+            },
+            {
+                'title': f'Latest Developments in {section.capitalize()}',
+                'url': f'https://example.com/{section}-latest'
+            }
+        ])
+    
+    # Add a note that these are mock articles due to rate limiting
+    for article in result:
+        article['title'] = f"{article['title']} [Mock - API Rate Limited]"
+    
+    return result
+
 def fetch_news_for_section(section, page_size=50):
     """
     Fetches news articles for a specific section from the Guardian API.
@@ -4046,6 +4433,13 @@ def fetch_news_for_section(section, page_size=50):
         print("Guardian API key not found")
         return []
     
+    # Check if we have cached data for this section
+    cache_key = f"news_section_helper_{section}"
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        print(f"Using cached data for section {section}")
+        return cached_data
+    
     try:
         print(f"Fetching articles for section: {section}")
         url = "https://content.guardianapis.com/search"
@@ -4060,22 +4454,79 @@ def fetch_news_for_section(section, page_size=50):
         print(f"Making API request to: {url}")
         print(f"With parameters: {params}")
         
-        response = requests.get(url, params=params)
-        print(f"API response status: {response.status_code}")
+        # Implement retry logic with exponential backoff
+        max_retries = 2
+        retry_count = 0
+        retry_delay = 1
         
-        if response.status_code == 200:
-            data = response.json()
-            if 'response' in data and 'results' in data['response']:
-                print(f"Found {len(data['response']['results'])} articles in section {section}")
-                return data['response']['results']
-            else:
-                print(f"Unexpected response structure: {data}")
-        else:
-            print(f"Error response for section {section}: {response.text}")
+        while retry_count < max_retries:
+            try:
+                response = requests.get(url, params=params, timeout=10)
+                print(f"API response status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'response' in data and 'results' in data['response']:
+                        results = data['response']['results']
+                        print(f"Found {len(results)} articles in section {section}")
+                        
+                        # Cache the results for 30 minutes
+                        cache.set(cache_key, results, timeout=1800)
+                        
+                        return results
+                    else:
+                        print(f"Unexpected response structure: {data}")
+                        return []
+                        
+                elif response.status_code == 429:  # Rate limit exceeded
+                    print(f"Rate limit exceeded for section {section}. Using mock data.")
+                    
+                    # Generate mock articles for this section
+                    mock_articles = get_mock_articles_for_section(section)
+                    
+                    # Transform to match Guardian API structure
+                    formatted_mock = []
+                    for article in mock_articles:
+                        formatted_mock.append({
+                            'webTitle': article['title'],
+                            'fields': {
+                                'headline': article['title'],
+                                'shortUrl': article['url']
+                            }
+                        })
+                    
+                    # Cache the mock data
+                    cache.set(cache_key, formatted_mock, timeout=1800)
+                    
+                    return formatted_mock
+                    
+                else:
+                    print(f"Error response for section {section}: {response.text}")
+                    
+                    # Only retry server errors
+                    if response.status_code >= 500:
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            print(f"Retrying in {retry_delay} seconds...")
+                            time.sleep(retry_delay)
+                            retry_delay *= 2
+                        continue
+                    else:
+                        return []
+                        
+            except requests.exceptions.RequestException as e:
+                print(f"Request exception for section {section}: {str(e)}")
+                retry_count += 1
+                if retry_count < max_retries:
+                    print(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                continue
+                
+        return []  # Return empty list if all retries fail
         
-        return []
     except Exception as e:
-        print(f"Exception while fetching news for section {section}: {str(e)}")
+        print(f"Error fetching news for section {section}: {str(e)}")
         return []
 
 if __name__ == '__main__':
