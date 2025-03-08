@@ -20,6 +20,10 @@
         --tab-active-color: white;
         --response-bg: #f8f9fa;
         --code-color: #333;
+        --rate-limit-bg: #ffe8e8;
+        --rate-limit-text: #d9534f;
+        --cached-response-bg: #e8f4ff;
+        --cached-response-text: #0275d8;
     }
 
     [data-theme="dark"] {
@@ -38,6 +42,10 @@
         --tab-active-color: white;
         --response-bg: #34495e;
         --code-color: #ecf0f1;
+        --rate-limit-bg: #6e2a28;
+        --rate-limit-text: #f8d7da;
+        --cached-response-bg: #2a4b6e;
+        --cached-response-text: #d1ecf1;
     }
     
     .api-browser {
@@ -304,12 +312,89 @@
     [data-theme="dark"] .btn-close {
         filter: invert(1) grayscale(100%) brightness(200%);
     }
+
+    /* Additional styles for the new features */
+    .rate-limit-alert {
+        background-color: var(--rate-limit-bg);
+        color: var(--rate-limit-text);
+        border-radius: 4px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .rate-limit-alert .timer {
+        font-weight: bold;
+        margin-left: 10px;
+    }
+    
+    .cached-response-badge {
+        background-color: var(--cached-response-bg);
+        color: var(--cached-response-text);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        display: inline-block;
+        margin-bottom: 8px;
+    }
+    
+    .throttle-notice {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-top: 8px;
+        font-style: italic;
+    }
+    
+    .info-tooltip {
+        position: relative;
+        display: inline-block;
+        cursor: help;
+    }
+    
+    .info-tooltip .tooltip-text {
+        visibility: hidden;
+        width: 200px;
+        background-color: var(--text-primary);
+        color: var(--card-bg);
+        text-align: center;
+        border-radius: 4px;
+        padding: 5px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;
+        left: 50%;
+        margin-left: -100px;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    
+    .info-tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 0.9;
+    }
+    
+    .api-docs-link {
+        display: block;
+        margin-top: 5px;
+        font-size: 0.9rem;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container api-browser">
     <h1 class="mb-4">Alpha Vantage API Browser</h1>
+    
+    <!-- Rate limiting alert - hidden by default -->
+    <div id="rateLimitAlert" class="rate-limit-alert" style="display: none;">
+        <div>
+            <i class="fas fa-exclamation-triangle"></i>
+            API rate limit reached. Please wait before making more requests.
+        </div>
+        <div class="timer" id="rateLimitTimer">60s</div>
+    </div>
     
     <div class="search-box mb-3">
         <input type="text" id="searchInput" class="form-control" placeholder="Search for API endpoints...">
@@ -334,10 +419,29 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Parameter Help</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" title="Close"></button>
             </div>
             <div class="modal-body">
                 <!-- Content will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Documentation Modal -->
+<div class="modal fade" id="docsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">API Documentation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" title="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Content will be populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <a href="#" id="officialDocsLink" target="_blank" class="btn btn-primary">View Official Documentation</a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -348,6 +452,10 @@
 <script>
 let apiFunctions = null;
 let currentCategory = null;
+let requestThrottleTimer = null;
+let isRateLimited = false;
+let rateLimitCountdown = 0;
+let rateLimitInterval = null;
 
 // Parameter hints and defaults
 const PARAM_HINTS = {
@@ -409,50 +517,72 @@ const DEFAULT_VALUES = {
     'slowlimit': '0.05'
 };
 
-// Fetch API functions when the page loads
+// Documentation links for API categories
+const CATEGORY_DOCS = {
+    'stock': 'https://www.alphavantage.co/documentation/#stock-time-series',
+    'forex': 'https://www.alphavantage.co/documentation/#fx',
+    'crypto': 'https://www.alphavantage.co/documentation/#digital-currency',
+    'economic': 'https://www.alphavantage.co/documentation/#economic-indicators',
+    'technical': 'https://www.alphavantage.co/documentation/#technical-indicators',
+    'fundamental': 'https://www.alphavantage.co/documentation/#fundamentals'
+};
+
+// Fetch the list of available API functions on page load
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        const response = await fetch('/alpha_vantage/api/functions');
-        apiFunctions = await response.json();
+        // Show loading spinner
+        document.querySelector('.loading-spinner').style.display = 'block';
         
-        // Create category tabs
+        const response = await fetch('/alpha_vantage/api/functions');
+        if (!response.ok) {
+            throw new Error(`Failed to fetch API functions: ${response.status} ${response.statusText}`);
+        }
+        
+        apiFunctions = await response.json();
         createCategoryTabs();
         
-        // Show the first category by default
+        // Default to showing first category
         const firstCategory = Object.keys(apiFunctions)[0];
         showCategory(firstCategory);
-
+        
         // Setup search functionality
-        setupSearch();
+        document.getElementById('searchInput').addEventListener('input', handleSearch);
     } catch (error) {
-        console.error('Error fetching API functions:', error);
+        console.error('Error loading API functions:', error);
         showError('Failed to load API functions. Please try again later.');
+    } finally {
+        // Hide loading spinner
+        document.querySelector('.loading-spinner').style.display = 'none';
     }
 });
 
-function setupSearch() {
-    const searchInput = document.getElementById('searchInput');
-    searchInput.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase();
-        
-        if (!searchTerm) {
-            // If search is empty, show current category
+function handleSearch() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    if (!searchTerm) {
+        // If search is cleared, show current category
+        if (currentCategory) {
             showCategory(currentCategory);
-            return;
         }
-
-        // Search across all categories
-        const functionsList = document.getElementById('functionsList');
-        functionsList.innerHTML = '';
-        
-        Object.entries(apiFunctions).forEach(([category, functions]) => {
-            Object.entries(functions).forEach(([functionName, details]) => {
-                if (functionName.toLowerCase().includes(searchTerm) || 
-                    details.description.toLowerCase().includes(searchTerm)) {
-                    const card = createFunctionCard(functionName, details, category);
-                    functionsList.appendChild(card);
-                }
-            });
+        return;
+    }
+    
+    // Clear function list
+    const functionsList = document.getElementById('functionsList');
+    functionsList.innerHTML = '';
+    
+    // Reset category tab highlighting
+    document.querySelectorAll('.category-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Search across all categories
+    Object.entries(apiFunctions).forEach(([category, functions]) => {
+        Object.entries(functions).forEach(([functionName, details]) => {
+            if (functionName.toLowerCase().includes(searchTerm) || 
+                details.description.toLowerCase().includes(searchTerm)) {
+                const card = createFunctionCard(functionName, details, category);
+                functionsList.appendChild(card);
+            }
         });
     });
 }
@@ -503,10 +633,18 @@ function createFunctionCard(functionName, details, category) {
     const buttonGroup = document.createElement('div');
     buttonGroup.className = 'button-group';
     
+    const docsButton = document.createElement('button');
+    docsButton.className = 'btn btn-info btn-sm me-2';
+    docsButton.innerHTML = '<i class="fas fa-book" aria-hidden="true"></i> Docs';
+    docsButton.setAttribute('aria-label', 'Show detailed documentation');
+    docsButton.setAttribute('title', 'Show detailed documentation');
+    docsButton.onclick = () => showDocumentation(functionName, details, category);
+    
     const helpButton = document.createElement('button');
-    helpButton.className = 'btn btn-info btn-sm me-2';
+    helpButton.className = 'btn btn-secondary btn-sm me-2';
     helpButton.innerHTML = '<i class="fas fa-question-circle" aria-hidden="true"></i> Help';
     helpButton.setAttribute('aria-label', 'Show parameter help');
+    helpButton.setAttribute('title', 'Show parameter help');
     helpButton.onclick = () => showParameterHelp(functionName, details.params);
     
     const tryButton = document.createElement('button');
@@ -514,6 +652,7 @@ function createFunctionCard(functionName, details, category) {
     tryButton.textContent = 'Try it';
     tryButton.onclick = () => toggleParamsForm(functionName);
     
+    buttonGroup.appendChild(docsButton);
     buttonGroup.appendChild(helpButton);
     buttonGroup.appendChild(tryButton);
     
@@ -531,6 +670,141 @@ function createFunctionCard(functionName, details, category) {
     card.appendChild(paramsForm);
     
     return card;
+}
+
+// Function to fetch detailed documentation for a specific function
+async function fetchDocumentation(functionName) {
+    try {
+        const response = await fetch(`/alpha_vantage/docs/${functionName}`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch documentation: ${response.statusText}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching documentation:', error);
+        return null;
+    }
+}
+
+// Show documentation for a function
+async function showDocumentation(functionName, details, category) {
+    // Try to fetch enhanced documentation
+    const enhancedDocs = await fetchDocumentation(functionName);
+    if (enhancedDocs && !enhancedDocs.error) {
+        // Use enhanced docs if available
+        details = enhancedDocs;
+    }
+
+    const modal = document.getElementById('docsModal');
+    const modalTitle = modal.querySelector('.modal-title');
+    const modalBody = modal.querySelector('.modal-body');
+    const officialDocsLink = document.getElementById('officialDocsLink');
+    
+    modalTitle.textContent = `${functionName} Documentation`;
+    
+    let content = `
+        <div class="mb-4">
+            <h5>Description</h5>
+            <p>${details.description || 'No description available.'}</p>
+        </div>`;
+        
+    // Add enhanced documentation if available
+    if (details.enhanced_docs) {
+        const enhancedDocs = details.enhanced_docs;
+        
+        content += `
+            <div class="mb-4">
+                <h5>Detailed Description</h5>
+                <p>${enhancedDocs.description}</p>
+            </div>`;
+            
+        // Add examples
+        if (enhancedDocs.examples && enhancedDocs.examples.length > 0) {
+            content += `
+                <div class="mb-4">
+                    <h5>Examples</h5>
+                    <div class="list-group">`;
+            
+            enhancedDocs.examples.forEach(example => {
+                const paramString = Object.entries(example.params)
+                    .map(([key, value]) => `<b>${key}</b>: ${value}`)
+                    .join(', ');
+                    
+                content += `
+                    <div class="list-group-item">
+                        <h6>${example.description}</h6>
+                        <div>Parameters: ${paramString}</div>
+                    </div>`;
+            });
+            
+            content += `
+                    </div>
+                </div>`;
+        }
+        
+        // Add notes
+        if (enhancedDocs.notes) {
+            content += `
+                <div class="mb-4">
+                    <h5>Notes</h5>
+                    <div class="alert alert-info">${enhancedDocs.notes}</div>
+                </div>`;
+        }
+    }
+    
+    // Add parameters section
+    content += `
+        <div class="mb-4">
+            <h5>Parameters</h5>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Required</th>
+                        <th>Options</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+    
+    for (const [param, details] of Object.entries(details.params || {})) {
+        const options = details.options ? details.options.join(', ') : 'N/A';
+        content += `
+            <tr>
+                <td><code>${param}</code></td>
+                <td>${details.description || 'No description'}</td>
+                <td>${details.required ? 'Yes' : 'No'}</td>
+                <td>${options}</td>
+            </tr>`;
+    }
+    
+    content += `
+                </tbody>
+            </table>
+        </div>`;
+        
+    // Add fetch button to test the function
+    content += `
+        <div class="mb-4">
+            <h5>Try It Out</h5>
+            <button class="btn btn-primary mt-2" onclick="selectFunction('${category}', '${functionName}')">
+                Use This Function
+            </button>
+        </div>`;
+    
+    modalBody.innerHTML = content;
+    
+    // Set up the official docs link
+    if (details.url) {
+        officialDocsLink.href = details.url;
+        officialDocsLink.style.display = 'block';
+    } else {
+        officialDocsLink.style.display = 'none';
+    }
+    
+    // Show the modal
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
 }
 
 function showParameterHelp(functionName, params) {
@@ -561,45 +835,66 @@ function createParamsForm(functionName, params, category) {
     const form = document.createElement('form');
     form.className = 'params-form';
     form.id = `form-${functionName}`;
+    form.style.display = 'none';
+    
+    // Add throttling notice
+    const throttleNotice = document.createElement('div');
+    throttleNotice.className = 'throttle-notice';
+    throttleNotice.innerHTML = '<i class="fas fa-info-circle"></i> Requests are automatically throttled to avoid hitting API rate limits.';
+    form.appendChild(throttleNotice);
     
     params.forEach(param => {
-        const group = document.createElement('div');
-        group.className = 'param-group';
+        const formGroup = document.createElement('div');
+        formGroup.className = 'form-group';
         
         const label = document.createElement('label');
-        label.className = 'param-label';
-        label.textContent = param.charAt(0).toUpperCase() + param.slice(1).replace(/_/g, ' ');
+        label.htmlFor = `${functionName}-${param}`;
+        label.textContent = param;
+        
+        // Add tooltip for parameter help
+        if (PARAM_HINTS[param]) {
+            const tooltip = document.createElement('span');
+            tooltip.className = 'info-tooltip ms-2';
+            tooltip.innerHTML = '<i class="fas fa-info-circle"></i>';
+            
+            const tooltipText = document.createElement('span');
+            tooltipText.className = 'tooltip-text';
+            tooltipText.textContent = PARAM_HINTS[param];
+            
+            tooltip.appendChild(tooltipText);
+            label.appendChild(tooltip);
+        }
         
         const input = document.createElement('input');
         input.type = 'text';
-        input.className = 'param-input';
+        input.className = 'form-control';
+        input.id = `${functionName}-${param}`;
         input.name = param;
-        input.required = true;
-        input.placeholder = PARAM_HINTS[param] || '';
         
         // Set default value if available
         if (DEFAULT_VALUES[param]) {
             input.value = DEFAULT_VALUES[param];
         }
         
-        const hint = document.createElement('small');
-        hint.className = 'text-muted d-block mt-1';
-        hint.textContent = PARAM_HINTS[param] || '';
+        // Set required attribute for the first parameter
+        if (params.indexOf(param) === 0) {
+            input.required = true;
+        }
         
-        group.appendChild(label);
-        group.appendChild(input);
-        group.appendChild(hint);
-        form.appendChild(group);
+        formGroup.appendChild(label);
+        formGroup.appendChild(input);
+        form.appendChild(formGroup);
     });
     
     const submitButton = document.createElement('button');
     submitButton.type = 'submit';
-    submitButton.className = 'btn btn-success mt-3';
-    submitButton.textContent = 'Execute';
+    submitButton.className = 'btn btn-primary mt-3';
+    submitButton.textContent = 'Submit';
     
     const responseSection = document.createElement('div');
     responseSection.className = 'response-section';
     responseSection.innerHTML = `
+        <div class="cached-response-badge" style="display: none;">Cached Response</div>
         <div class="response-data" style="display: none;"></div>
         <div class="error-message" style="display: none;"></div>
     `;
@@ -630,36 +925,90 @@ function toggleParamsForm(functionName) {
 async function handleFormSubmit(event, functionName, category) {
     event.preventDefault();
     
+    // If rate limited, show alert and don't proceed
+    if (isRateLimited) {
+        showRateLimitAlert();
+        return;
+    }
+    
     const form = event.target;
     const responseData = form.querySelector('.response-data');
     const errorMessage = form.querySelector('.error-message');
     const loadingSpinner = document.querySelector('.loading-spinner');
+    const cachedBadge = form.querySelector('.cached-response-badge');
     
     // Clear previous responses
     responseData.style.display = 'none';
     errorMessage.style.display = 'none';
+    cachedBadge.style.display = 'none';
     loadingSpinner.style.display = 'block';
+    
+    // Client-side throttling
+    if (requestThrottleTimer) {
+        clearTimeout(requestThrottleTimer);
+    }
     
     // Build query parameters
     const formData = new FormData(form);
     const queryParams = new URLSearchParams(formData);
     
     try {
-        const response = await fetch(`/alpha_vantage/api/${category}/${functionName}?${queryParams}`);
-        const data = await response.json();
-        
-        if (data.error) {
-            errorMessage.textContent = data.error;
-            errorMessage.style.display = 'block';
-        } else {
-            responseData.textContent = JSON.stringify(data.data, null, 2);
-            responseData.style.display = 'block';
-        }
+        // Implement request throttling
+        requestThrottleTimer = setTimeout(async () => {
+            const response = await fetch(`/alpha_vantage/api/${category}/${functionName}?${queryParams}`);
+            const data = await response.json();
+            
+            if (data.rate_limited) {
+                // Handle rate limiting
+                isRateLimited = true;
+                rateLimitCountdown = data.retry_after || 60;
+                showRateLimitAlert();
+                errorMessage.textContent = data.error;
+                errorMessage.style.display = 'block';
+            } else if (data.error) {
+                errorMessage.textContent = data.error;
+                errorMessage.style.display = 'block';
+            } else {
+                // Show cache badge if response was cached
+                if (data.cached) {
+                    cachedBadge.style.display = 'inline-block';
+                }
+                
+                responseData.textContent = JSON.stringify(data.data, null, 2);
+                responseData.style.display = 'block';
+            }
+            
+            loadingSpinner.style.display = 'none';
+        }, 300); // 300ms throttling delay
     } catch (error) {
         errorMessage.textContent = 'An error occurred while fetching data. Please try again.';
         errorMessage.style.display = 'block';
-    } finally {
         loadingSpinner.style.display = 'none';
+    }
+}
+
+function showRateLimitAlert() {
+    const alert = document.getElementById('rateLimitAlert');
+    const timer = document.getElementById('rateLimitTimer');
+    
+    // Display the alert
+    alert.style.display = 'flex';
+    timer.textContent = `${rateLimitCountdown}s`;
+    
+    // Start countdown if not already running
+    if (!rateLimitInterval) {
+        rateLimitInterval = setInterval(() => {
+            rateLimitCountdown--;
+            timer.textContent = `${rateLimitCountdown}s`;
+            
+            if (rateLimitCountdown <= 0) {
+                // Reset rate limit status when countdown finishes
+                clearInterval(rateLimitInterval);
+                rateLimitInterval = null;
+                isRateLimited = false;
+                alert.style.display = 'none';
+            }
+        }, 1000);
     }
 }
 

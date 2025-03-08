@@ -24,7 +24,8 @@ load_dotenv()
 # --------------------
 # Select the appropriate database URL based on the environment
 if os.environ.get("FLASK_ENV") == "development":
-    DATABASE_URL = os.environ.get("DEV_DATABASE_URL", os.environ.get("DATABASE_URL"))
+    # When running in Docker, we should use the "db" service name, not localhost
+    DATABASE_URL = os.environ.get("DATABASE_URL", os.environ.get("DEV_DATABASE_URL"))
 else:
     DATABASE_URL = os.environ.get("DATABASE_URL")
 

@@ -34,7 +34,8 @@ def require_login():
 # --------------------
 # Select appropriate database URL based on environment
 if os.environ.get("FLASK_ENV") == "development":
-    DATABASE_URL = os.environ.get("DEV_DATABASE_URL", os.environ.get("DATABASE_URL"))
+    # When running in Docker, we should use the "db" service name, not localhost
+    DATABASE_URL = os.environ.get("DATABASE_URL", os.environ.get("DEV_DATABASE_URL"))
 else:
     DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -57,7 +58,7 @@ def index():
     """
     Displays a list of all users in the system.
     
-    Retrieves basic user information (ID, username, city) for all users
+    Retrieves basic user information (ID, username, email, city) for all users
     and renders them in the user management index template.
     
     Returns:
@@ -66,7 +67,7 @@ def index():
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, username, city_name FROM users")
+            cur.execute("SELECT id, username, email, city_name FROM users")
             users = cur.fetchall()
     finally:
         conn.close()
@@ -82,6 +83,7 @@ def add_user():
     
     Form Fields:
         - username: User's login name (required, unique)
+        - email: User's email address (required, unique)
         - password: User's password (required)
         - city_name: User's preferred city (optional)
     
@@ -97,28 +99,29 @@ def add_user():
     if request.method == "POST":
         # Strip inputs to remove extraneous spaces.
         username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
         password = request.form.get("password")
         city_name = request.form.get("city_name", "").strip()
-        if not username or not password:
-            flash("Username and password are required.", "warning")
+        if not username or not password or not email:
+            flash("Username, email, and password are required.", "warning")
             return redirect(url_for("user_manager.add_user"))
         password_hash = generate_password_hash(password)
         try:
             conn = get_db_connection()
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO users (username, password_hash, city_name) VALUES (%s, %s, %s)",
-                    (username, password_hash, city_name),
+                    "INSERT INTO users (username, email, password_hash, city_name) VALUES (%s, %s, %s, %s)",
+                    (username, email, password_hash, city_name),
                 )
                 conn.commit()
             flash("User added successfully", "success")
             return redirect(url_for("user_manager.index"))
         except psycopg2.IntegrityError:
-            flash("Error: Username already exists.", "danger")
+            flash("Error: Username or email already exists.", "danger")
             return redirect(url_for("user_manager.add_user"))
     return render_template("add_user.html")
 
-@user_manager_bp.route("/users/edit/<int:user_id>", methods=["GET", "POST"])
+@user_manager_bp.route("/users/edit/<user_id>", methods=["GET", "POST"])
 def edit_user(user_id):
     """
     Handles user information updates through a web form.
@@ -127,10 +130,11 @@ def edit_user(user_id):
     POST: Processes the form submission and updates the user
     
     Args:
-        user_id (int): ID of the user to edit
+        user_id (str): UUID of the user to edit
     
     Form Fields:
         - username: User's login name (required, unique)
+        - email: User's email address (required, unique)
         - password: User's new password (optional)
         - city_name: User's preferred city (optional)
     
@@ -158,8 +162,12 @@ def edit_user(user_id):
     
     if request.method == "POST":
         username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
         city_name = request.form.get("city_name", "").strip()
         password = request.form.get("password", "")
+        if not username or not email:
+            flash("Username and email are required.", "warning")
+            return redirect(url_for("user_manager.edit_user", user_id=user_id))
         if password:
             password_hash = generate_password_hash(password)
         else:
@@ -169,27 +177,26 @@ def edit_user(user_id):
         try:
             with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE users SET username = %s, password_hash = %s, city_name = %s WHERE id = %s",
-                    (username, password_hash, city_name, user_id),
+                    "UPDATE users SET username = %s, email = %s, password_hash = %s, city_name = %s WHERE id = %s",
+                    (username, email, password_hash, city_name, user_id),
                 )
                 conn.commit()
             flash("User updated successfully", "success")
             return redirect(url_for("user_manager.index"))
         except psycopg2.IntegrityError:
-            conn.rollback()
-            flash("Error: Username conflict or other issue.", "danger")
+            flash("Error: Username or email already exists.", "danger")
             return redirect(url_for("user_manager.edit_user", user_id=user_id))
         finally:
             conn.close()
     return render_template("edit_user.html", user=user)
 
-@user_manager_bp.route("/users/delete/<int:user_id>", methods=["POST"])
+@user_manager_bp.route("/users/delete/<user_id>", methods=["POST"])
 def delete_user(user_id):
     """
     Handles user deletion requests.
     
     Args:
-        user_id (int): ID of the user to delete
+        user_id (str): UUID of the user to delete
     
     Returns:
         Redirect to user list with success message

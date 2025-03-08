@@ -1,14 +1,122 @@
-from flask import Blueprint, render_template, jsonify, request, session, redirect, url_for
+from flask import Blueprint, render_template, jsonify, request, session, redirect, url_for, current_app, flash
 import os
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 import logging
-
-alpha_vantage_bp = Blueprint('alpha_vantage', __name__)
+import json
+from hashlib import md5
+import time
+from . import cache
 
 # Get API key from environment
 ALPHA_VANTAGE_API_KEY = os.environ.get("ALPHA_VANTAGE_API_KEY")
+
+# Cache durations for different types of data
+CACHE_DURATIONS = {
+    'TIME_SERIES_INTRADAY': 60 * 5,          # 5 minutes
+    'TIME_SERIES_DAILY': 60 * 60,            # 1 hour
+    'TIME_SERIES_WEEKLY': 60 * 60 * 24,        # 24 hours
+    'TIME_SERIES_MONTHLY': 60 * 60 * 24,       # 24 hours
+    'GLOBAL_QUOTE': 60 * 5,                  # 5 minutes
+    'SYMBOL_SEARCH': 60 * 60 * 24,            # 24 hours
+    'OVERVIEW': 60 * 60 * 24,                # 24 hours
+    'INCOME_STATEMENT': 86400,               # 1 day
+    'BALANCE_SHEET': 86400,                  # 1 day
+    'CASH_FLOW': 86400,                      # 1 day
+    'EARNINGS': 86400,                       # 1 day
+    'LISTING_STATUS': 86400,                 # 1 day
+    'EARNINGS_CALENDAR': 86400,              # 1 day
+    'IPO_CALENDAR': 86400,                   # 1 day
+    'COMPANY_OVERVIEW': 86400,               # 1 day
+    'OPTIONS': 86400,                        # 1 day
+    'NEWS_SENTIMENT': 86400,                 # 1 day
+    'TOP_GAINERS_LOSERS': 86400,             # 1 day
+    'INSIDER_TRANSACTIONS': 86400,          # 1 day
+    'FX_INTRADAY': 86400,                    # 1 day
+    'FX_DAILY': 86400,                       # 1 day
+    'FX_WEEKLY': 86400,                       # 1 day
+    'FX_MONTHLY': 86400,                      # 1 day
+    'CURRENCY_EXCHANGE_RATE': 86400,          # 1 day
+    'CRYPTO_INTRADAY': 86400,                 # 1 day
+    'DIGITAL_CURRENCY_DAILY': 86400,          # 1 day
+    'DIGITAL_CURRENCY_WEEKLY': 86400,         # 1 day
+    'DIGITAL_CURRENCY_MONTHLY': 86400,        # 1 day
+    'WTI': 86400,                              # 1 day
+    'BRENT': 86400,                             # 1 day
+    'NATURAL_GAS': 86400,                      # 1 day
+    'COPPER': 86400,                            # 1 day
+    'ALUMINUM': 86400,                          # 1 day
+    'WHEAT': 86400,                              # 1 day
+    'CORN': 86400,                               # 1 day
+    'COTTON': 86400,                             # 1 day
+    'SUGAR': 86400,                              # 1 day
+    'COFFEE': 86400,                             # 1 day
+    'REAL_GDP': 86400,                           # 1 day
+    'REAL_GDP_PER_CAPITA': 86400,                # 1 day
+    'TREASURY_YIELD': 86400,                     # 1 day
+    'FEDERAL_FUNDS_RATE': 86400,                  # 1 day
+    'CPI': 86400,                                 # 1 day
+    'INFLATION': 86400,                           # 1 day
+    'RETAIL_SALES': 86400,                         # 1 day
+    'DURABLES': 86400,                              # 1 day
+    'UNEMPLOYMENT': 86400,                           # 1 day
+    'NONFARM_PAYROLL': 86400,                         # 1 day
+    'SMA': 86400,                                    # 1 day
+    'EMA': 86400,                                     # 1 day
+    'WMA': 86400,                                     # 1 day
+    'DEMA': 86400,                                     # 1 day
+    'TEMA': 86400,                                     # 1 day
+    'TRIMA': 86400,                                     # 1 day
+    'KAMA': 86400,                                     # 1 day
+    'MAMA': 86400,                                     # 1 day
+    'T3': 86400,                                         # 1 day
+    'MACD': 86400,                                         # 1 day
+    'STOCH': 86400,                                         # 1 day
+    'RSI': 86400,                                             # 1 day
+    'ADX': 86400,                                                 # 1 day
+    'CCI': 86400,                                                 # 1 day
+    'AROON': 86400,                                                 # 1 day
+    'BBANDS': 86400,                                                 # 1 day
+    'AD': 86400,                                                     # 1 day
+    'OBV': 86400,                                                     # 1 day
+    'default': 60 * 15  # 15 minutes default
+}
+
+# Enhanced API documentation with examples
+API_DOCUMENTATION = {
+    'TIME_SERIES_INTRADAY': {
+        'description': 'Returns intraday time series of the equity specified, covering extended trading hours where applicable.',
+        'examples': [
+            {'params': {'symbol': 'MSFT', 'interval': '5min'}, 'description': 'Get 5-minute intraday data for Microsoft'},
+            {'params': {'symbol': 'AAPL', 'interval': '15min', 'outputsize': 'full'}, 'description': 'Get full 15-minute intraday data for Apple'}
+        ],
+        'notes': 'Data is delayed by 15 minutes for free API keys. Premium API keys provide real-time intraday data.'
+    },
+    'TIME_SERIES_DAILY': {
+        'description': 'Returns daily time series of the equity specified, covering 20+ years of historical data.',
+        'examples': [
+            {'params': {'symbol': 'IBM'}, 'description': 'Get daily data for IBM (default compact)'},
+            {'params': {'symbol': 'MSFT', 'outputsize': 'full'}, 'description': 'Get full daily data for Microsoft (20+ years)'}
+        ],
+        'notes': 'The "compact" outputsize (default) returns the latest 100 data points, while "full" returns up to 20+ years of historical data.'
+    },
+    'GLOBAL_QUOTE': {
+        'description': 'Returns the latest price and volume information for a security of your choice.',
+        'examples': [
+            {'params': {'symbol': 'AAPL'}, 'description': 'Get the latest price information for Apple'}
+        ],
+        'notes': 'This endpoint provides a lightweight response with just the latest price data, ideal for quick price checks.'
+    },
+    'SYMBOL_SEARCH': {
+        'description': 'Returns best-matching symbols and market information based on keywords of your choice.',
+        'examples': [
+            {'params': {'keywords': 'microsoft'}, 'description': 'Search for Microsoft related securities'},
+            {'params': {'keywords': 'BA'}, 'description': 'Search for securities matching "BA" (Boeing, etc.)'}
+        ],
+        'notes': 'Search results include symbols from multiple exchanges globally.'
+    }
+}
 
 def login_required(f):
     @wraps(f)
@@ -18,66 +126,106 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-@alpha_vantage_bp.route('/browser')
+@alpha_vantage_bp.route('/browser') # type: ignore
 @login_required
 def browser():
     """Main page for the Alpha Vantage API browser."""
     return render_template('alpha_vantage_browser.html')
 
-@alpha_vantage_bp.route('/api/<category>/<function_name>', methods=['GET'])
+def get_cache_key(function_name, params):
+    """Generate a unique cache key for an API request."""
+    # Sort params to ensure consistent keys regardless of param order
+    sorted_params = dict(sorted(params.items()))
+    # Create a string representation and hash it
+    param_str = json.dumps(sorted_params)
+    return f"alphavantage_{function_name}_{md5(param_str.encode()).hexdigest()}"
+
+def get_cache_duration(function_name):
+    """Get cache duration for the given function"""
+    # Direct match
+    if function_name in CACHE_DURATIONS:
+        return CACHE_DURATIONS[function_name]
+        
+    # Return default cache duration
+    return CACHE_DURATIONS['default']
+
+@alpha_vantage_bp.route('/api/<category>/<function_name>', methods=['GET']) # type: ignore
 @login_required
 def api_call(category, function_name):
-    """Generic endpoint to handle Alpha Vantage API calls."""
-    if not ALPHA_VANTAGE_API_KEY:
+    """Make request to Alpha Vantage API with caching"""
+    # Check if function exists
+    if category not in API_FUNCTIONS or function_name not in API_FUNCTIONS[category]:
         return jsonify({
-            'error': 'API key not configured',
-            'data': None
-        })
+            'error': 'Invalid function',
+            'message': f'Function {function_name} not found in category {category}'
+        }), 400
 
     # Get parameters from request
-    params = request.args.to_dict()
-    params['apikey'] = ALPHA_VANTAGE_API_KEY
+    params = {k: v for k, v in request.args.items() if k != 'apikey'}
+    
+    # Add required API key
+    alpha_vantage_api_key = current_app.config.get('ALPHA_VANTAGE_API_KEY')
+    if not alpha_vantage_api_key:
+        return jsonify({
+            'error': 'API key not configured',
+            'message': 'Alpha Vantage API key is not configured in the application.'
+        }), 500
+    
+    params['apikey'] = alpha_vantage_api_key
+    
+    # Check for required parameters
+    function_params = API_FUNCTIONS[category][function_name]['params']
+    missing_params = [param for param, details in function_params.items() 
+                     if details.get('required', False) and param not in params]
+    
+    if missing_params:
+        return jsonify({
+            'error': 'Missing parameters',
+            'message': f'Required parameters missing: {", ".join(missing_params)}'
+        }), 400
+
+    # Generate cache key
+    cache_key = get_cache_key(function_name, params)
+    
+    # Check cache first
+    cached_result = cache.get(cache_key)
+    if cached_result:
+        # Add cache metadata to response
+        if isinstance(cached_result, dict):
+            cached_result['_cached'] = True
+            cached_result['_cache_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        return jsonify(cached_result)
+    
+    # If not in cache, make API request
+    url = 'https://www.alphavantage.co/query'
     params['function'] = function_name
-
+    
     try:
-        url = "https://www.alphavantage.co/query"
         response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
+        
+        # Check if rate limit reached
         data = response.json()
-
-        # Check for rate limit messages
-        if "Note" in data:
+        if 'Note' in data and 'Thank you for using Alpha Vantage' in data['Note']:
             return jsonify({
-                'error': 'API rate limit reached - Please try again later',
-                'data': None
-            })
-
-        return jsonify({
-            'error': None,
-            'data': data
-        })
-
+                'error': 'Rate limit exceeded',
+                'message': data['Note'],
+                'retry_after': 60,
+                'status': 429
+            }), 429
+            
+        # Store in cache if successful
+        if response.status_code == 200:
+            cache_duration = get_cache_duration(function_name)
+            cache.set(cache_key, data, timeout=cache_duration)
+            
+        return jsonify(data), response.status_code
+        
     except requests.exceptions.RequestException as e:
-        # Log the actual error for debugging
-        logging.error(f"Alpha Vantage API request error: {str(e)}")
         return jsonify({
-            'error': 'Failed to fetch data from the API. Please try again later.',
-            'data': None
-        })
-    except ValueError as e:
-        # JSON parsing error
-        logging.error(f"JSON parsing error in Alpha Vantage response: {str(e)}")
-        return jsonify({
-            'error': 'Invalid response format from the API.',
-            'data': None
-        })
-    except Exception as e:
-        # Log unexpected errors but don't expose details to client
-        logging.error(f"Unexpected error in Alpha Vantage API call: {str(e)}")
-        return jsonify({
-            'error': 'An unexpected error occurred. Please try again later.',
-            'data': None
-        })
+            'error': 'Request failed',
+            'message': str(e),
+            'status': 500
+        }), 500
 
 # API Categories and their functions
 API_FUNCTIONS = {
@@ -381,8 +529,37 @@ API_FUNCTIONS = {
     }
 }
 
-@alpha_vantage_bp.route('/api/functions')
+@alpha_vantage_bp.route('/api/functions') # type: ignore
 @login_required
 def get_functions():
-    """Return the list of available API functions and their parameters."""
-    return jsonify(API_FUNCTIONS) 
+    """Return the list of available API functions with documentation"""
+    # Enhance API function definitions with additional documentation if available
+    enhanced_functions = {}
+    for category, functions in API_FUNCTIONS.items():
+        enhanced_functions[category] = {}
+        for func_name, details in functions.items():
+            enhanced_functions[category][func_name] = details.copy()
+            # Add enhanced documentation if available
+            if func_name in API_DOCUMENTATION:
+                enhanced_functions[category][func_name]['enhanced_docs'] = API_DOCUMENTATION[func_name]
+    
+    return jsonify(enhanced_functions)
+
+@alpha_vantage_bp.route('/docs/<function_name>') # type: ignore
+@login_required
+def function_docs(function_name):
+    """Return detailed documentation for a specific function"""
+    # Find the function in API_FUNCTIONS
+    for category, functions in API_FUNCTIONS.items():
+        if function_name in functions:
+            docs = functions[function_name].copy()
+            # Add enhanced documentation if available
+            if function_name in API_DOCUMENTATION:
+                docs['enhanced_docs'] = API_DOCUMENTATION[function_name]
+            return jsonify(docs)
+    
+    # If function not found
+    return jsonify({
+        'error': 'Function not found',
+        'message': f'Documentation for {function_name} not available'
+    }), 404 
