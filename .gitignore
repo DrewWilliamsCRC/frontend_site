@@ -41,3 +41,4 @@ deploy.sh
 *.pyc
 *.hintrc*
 .vscode/settings.json
+*.jar
