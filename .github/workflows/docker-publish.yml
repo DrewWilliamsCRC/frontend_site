@@ -28,24 +28,12 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    strategy:
-      matrix:
-        platform: [linux/amd64]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Extract platform arch
-        id: platform
-        run: |
-          ARCH=$(echo ${{ matrix.platform }} | cut -d'/' -f2)
-          echo "arch=${ARCH}" >> $GITHUB_OUTPUT
 
       - name: Create test env file
         run: |
@@ -61,7 +49,7 @@ jobs:
           DATABASE_URL=postgresql://db:testing123@db:5432/frontend_db
           ALPHA_VANTAGE_API_KEY="test-key"
           GNEWS_API_KEY="test-key"
-          TARGETARCH=${{ steps.platform.outputs.arch }}
+          TARGETARCH=amd64
           POSTGRES_HOST_AUTH_METHOD=scram-sha-256
           POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
           POSTGRES_PASSWORD_ENCRYPTION=scram-sha-256
@@ -79,9 +67,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
