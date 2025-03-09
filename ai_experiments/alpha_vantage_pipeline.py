@@ -554,4 +554,167 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()
+
+# Add the missing function needed by transformer_pipeline.py
+def fetch_market_data(symbol, days=500, use_cache=True, force_refresh=False):
+    """
+    Fetch market data for a given symbol.
+    
+    This function is a wrapper around the AlphaVantageAPI class methods to provide
+    a simplified interface for the transformer pipeline.
+    
+    Args:
+        symbol (str): Market symbol to fetch data for
+        days (int, optional): Number of days of data to fetch. Defaults to 500.
+        use_cache (bool, optional): Whether to use cached data if available. Defaults to True.
+        force_refresh (bool, optional): Whether to force refresh cached data. Defaults to False.
+        
+    Returns:
+        pd.DataFrame: DataFrame containing market data with columns:
+                     [date, open, high, low, close, volume]
+    """
+    logger.info(f"Fetching market data for {symbol}")
+    
+    # Check cache if enabled
+    cache_file = os.path.join(DATA_DIR, f"{symbol}_daily.csv")
+    if use_cache and os.path.exists(cache_file) and not force_refresh:
+        # Check if cache is fresh (less than 24 hours old)
+        cache_time = datetime.fromtimestamp(os.path.getmtime(cache_file))
+        if (datetime.now() - cache_time).total_seconds() < 86400:  # 24 hours
+            logger.info(f"Loading cached data for {symbol}")
+            df = pd.read_csv(cache_file, parse_dates=['date'])
+            return df.tail(days)
+    
+    # If we get here, we need to fetch fresh data
+    try:
+        api = AlphaVantageAPI()
+        data = api.get_daily_time_series(symbol, outputsize="full")
+        
+        if not data or 'Time Series (Daily)' not in data:
+            logger.error(f"Failed to fetch data for {symbol}: {data.get('Error Message', 'Unknown error')}")
+            # Try to use existing cache regardless of age
+            if use_cache and os.path.exists(cache_file):
+                logger.warning(f"Using older cached data for {symbol}")
+                df = pd.read_csv(cache_file, parse_dates=['date'])
+                return df.tail(days)
+            else:
+                return None
+        
+        # Process the data
+        ts_data = data['Time Series (Daily)']
+        records = []
+        
+        for date, values in ts_data.items():
+            record = {
+                'date': date,
+                'open': float(values['1. open']),
+                'high': float(values['2. high']),
+                'low': float(values['3. low']),
+                'close': float(values['4. close']),
+                'volume': int(values['5. volume'])
+            }
+            records.append(record)
+        
+        df = pd.DataFrame(records)
+        df['date'] = pd.to_datetime(df['date'])
+        df = df.sort_values('date')
+        
+        # Cache the data
+        if use_cache:
+            df.to_csv(cache_file, index=False)
+            logger.info(f"Cached data for {symbol}")
+        
+        return df.tail(days)
+        
+    except Exception as e:
+        logger.error(f"Error fetching market data for {symbol}: {e}")
+        # Try to use existing cache regardless of age as fallback
+        if use_cache and os.path.exists(cache_file):
+            logger.warning(f"Using older cached data for {symbol} due to error")
+            df = pd.read_csv(cache_file, parse_dates=['date'])
+            return df.tail(days)
+        return None
+
+# Add the missing function for cleaning data
+def clean_and_process_data(df):
+    """
+    Clean and process market data.
+    
+    Args:
+        df (pd.DataFrame): DataFrame containing market data
+        
+    Returns:
+        pd.DataFrame: Cleaned and processed DataFrame
+    """
+    if df is None or df.empty:
+        return None
+    
+    # Make a copy to avoid modifying the original
+    df = df.copy()
+    
+    # Handle missing values
+    df = df.dropna()
+    
+    # Add date features
+    df['year'] = df['date'].dt.year
+    df['month'] = df['date'].dt.month
+    df['day'] = df['date'].dt.day
+    df['day_of_week'] = df['date'].dt.dayofweek
+    
+    # Calculate returns
+    df['daily_return'] = df['close'].pct_change()
+    
+    # Replace infinite values with NaN and then drop
+    df = df.replace([np.inf, -np.inf], np.nan).dropna()
+    
+    return df
+
+# Add the missing function for computing technical indicators
+def compute_technical_indicators(df):
+    """
+    Compute technical indicators for market data.
+    
+    Args:
+        df (pd.DataFrame): DataFrame containing market data
+        
+    Returns:
+        pd.DataFrame: DataFrame with added technical indicators
+    """
+    if df is None or df.empty:
+        return None
+    
+    # Make a copy to avoid modifying the original
+    df = df.copy()
+    
+    # Simple Moving Averages
+    df['sma_5'] = df['close'].rolling(window=5).mean()
+    df['sma_20'] = df['close'].rolling(window=20).mean()
+    df['sma_50'] = df['close'].rolling(window=50).mean()
+    
+    # Exponential Moving Averages
+    df['ema_12'] = df['close'].ewm(span=12, adjust=False).mean()
+    df['ema_26'] = df['close'].ewm(span=26, adjust=False).mean()
+    
+    # MACD
+    df['macd'] = df['ema_12'] - df['ema_26']
+    df['macd_signal'] = df['macd'].ewm(span=9, adjust=False).mean()
+    df['macd_hist'] = df['macd'] - df['macd_signal']
+    
+    # Relative Strength Index (RSI)
+    delta = df['close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    df['rsi'] = 100 - (100 / (1 + rs))
+    
+    # Bollinger Bands
+    df['bb_middle'] = df['close'].rolling(window=20).mean()
+    df['bb_std'] = df['close'].rolling(window=20).std()
+    df['bb_upper'] = df['bb_middle'] + (df['bb_std'] * 2)
+    df['bb_lower'] = df['bb_middle'] - (df['bb_std'] * 2)
+    
+    # Handle missing values created by rolling windows
+    df = df.dropna()
+    
+    return df 
