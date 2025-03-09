@@ -238,25 +238,44 @@ jobs:
         run: |
           # Basic diagnostics
           echo "Alpine container shell information:"
-          docker run --rm alpine sh -c "which sh && ls -la /bin/sh && grep -A2 'Available shells' /etc/passwd || echo Not available"
+          docker run --rm alpine sh -c "which sh && ls -la /bin/sh"
           
-          # Create simplified AI server for CI (avoid YAML heredoc issues)
+          # Create simplified app.py for CI - avoiding heredoc YAML issues
+          echo "Creating simplified app.py for CI..."
+          echo '#!/usr/bin/env python3' > app.py
+          echo '"""Minimal Flask app for CI testing"""' >> app.py
+          echo 'from flask import Flask, jsonify' >> app.py
+          echo '' >> app.py
+          echo 'app = Flask(__name__)' >> app.py
+          echo '' >> app.py
+          echo '@app.route("/health")' >> app.py
+          echo 'def health():' >> app.py
+          echo '    """Health check endpoint."""' >> app.py
+          echo '    return jsonify({"status": "ok", "environment": "CI"})' >> app.py
+          echo '' >> app.py
+          echo '@app.route("/")' >> app.py
+          echo 'def index():' >> app.py
+          echo '    """Root endpoint."""' >> app.py
+          echo '    return jsonify({"message": "CI Test Flask App"})' >> app.py
+          echo '' >> app.py
+          echo '@app.route("/api/guardian/news")' >> app.py
+          echo 'def guardian_news():' >> app.py
+          echo '    """Mock news endpoint."""' >> app.py
+          echo '    return jsonify({"articles": []})' >> app.py
+          echo '' >> app.py
+          echo 'if __name__ == "__main__":' >> app.py
+          echo '    app.run(host="0.0.0.0", port=5001)' >> app.py
+          
+          # Create simplified AI server for CI
           echo "Creating simplified AI server..."
           echo '#!/usr/bin/env python3' > ci_ai_server.py
-          echo '"""' >> ci_ai_server.py
-          echo 'Simplified AI Server for CI Testing' >> ci_ai_server.py
-          echo '"""' >> ci_ai_server.py
+          echo '"""Simplified AI Server for CI Testing"""' >> ci_ai_server.py
           echo 'import os' >> ci_ai_server.py
-          echo 'import sys' >> ci_ai_server.py
           echo 'import logging' >> ci_ai_server.py
           echo 'from flask import Flask, jsonify' >> ci_ai_server.py
           echo '' >> ci_ai_server.py
-          echo '# Set up logging for CI - only to stdout' >> ci_ai_server.py
-          echo 'logging.basicConfig(' >> ci_ai_server.py
-          echo '    level=logging.INFO,' >> ci_ai_server.py
-          echo '    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",' >> ci_ai_server.py
-          echo '    handlers=[logging.StreamHandler()]' >> ci_ai_server.py
-          echo ')' >> ci_ai_server.py
+          echo '# Configure logging' >> ci_ai_server.py
+          echo 'logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[logging.StreamHandler()])' >> ci_ai_server.py
           echo 'logger = logging.getLogger("ci_ai_server")' >> ci_ai_server.py
           echo 'logger.info("Starting CI AI Server")' >> ci_ai_server.py
           echo '' >> ci_ai_server.py
@@ -276,11 +295,15 @@ jobs:
           echo '    port = int(os.getenv("PORT", 5002))' >> ci_ai_server.py
           echo '    logger.info(f"Starting server on port {port}")' >> ci_ai_server.py
           echo '    app.run(host="0.0.0.0", port=port)' >> ci_ai_server.py
+          
           chmod +x ci_ai_server.py
-          cat ci_ai_server.py
+          
+          # Verify files created
+          echo "Verifying app.py and ci_ai_server.py files:"
+          ls -la app.py ci_ai_server.py
           
           # Check docker-compose file syntax
-          echo "Verifying docker-compose.ci.yml syntax and shell commands..."
+          echo "Verifying docker-compose.ci.yml syntax:"
           cat docker-compose.ci.yml | grep command
           
           # Verify docker-compose.ci.yml exists

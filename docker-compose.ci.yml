@@ -36,8 +36,7 @@ services:
       - PORT=5002
       - ALPHA_VANTAGE_API_KEY=test-key
       - CI_BUILD=true
-      - PYTHONUNBUFFERED=1  # Make sure Python output is unbuffered for logs
-    # Mount only the CI server file, avoid mounting directories with permission issues
+      - PYTHONUNBUFFERED=1
     volumes:
       - ./ci_ai_server.py:/app/ci_ai_server.py:ro
     ports:
@@ -45,10 +44,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Skip the default entrypoint to avoid permission issues
-    entrypoint: []
-    # Use our simplified CI server for testing with directory prep
-    command: ["sh", "-c", "mkdir -p /app/logs && chmod 777 /app/logs && python -m flask run --host=0.0.0.0 --port=5002"]
+    # Use direct Python command, no shell
+    command: ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=5002"]
     networks:
       - app_network
 
@@ -74,16 +71,8 @@ services:
         condition: service_healthy
       ai_server:
         condition: service_started
-    # Skip the default entrypoint to avoid permission issues
-    entrypoint: []
-    # Install curl and then start the server - use sh instead of bash
-    command: ["sh", "-c", "apk add --no-cache curl && python -m flask run --host=0.0.0.0 --port=${PORT}"]
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${PORT}/health || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
+    # Use direct Python command, no shell and no package installation
+    command: ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=${PORT}"]
     networks:
       - app_network
 

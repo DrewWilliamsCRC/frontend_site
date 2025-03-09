@@ -7,17 +7,14 @@ to ensure the container can start without errors.
 """
 
 import os
-import sys
 import logging
 from flask import Flask, jsonify
 
-# Set up logging for CI - only to stdout
+# Set up logging only to stdout - no files
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler()
-    ]
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger('ci_ai_server')
 logger.info('Starting CI AI Server')
@@ -27,26 +24,25 @@ app = Flask(__name__)
 
 @app.route('/health')
 def health():
-    """Health check endpoint."""
+    """Simple health check endpoint."""
     logger.info('Health check called')
     return jsonify({
         "status": "healthy",
-        "environment": "CI",
-        "message": "This is a simplified CI version of the AI server"
+        "environment": "CI"
     })
 
 @app.route('/api/ai-insights')
 def insights():
-    """Dummy insights endpoint for CI testing."""
+    """Dummy API endpoint."""
     logger.info('AI insights endpoint called')
     return jsonify({
-        "message": "This is a CI test server",
+        "message": "CI test server",
         "insights": {
             "metrics": [
-                {"name": "Momentum", "value": 70, "status": "positive"}
+                {"name": "Test Metric", "value": 100, "status": "positive"}
             ],
             "recommendations": [
-                {"text": "CI test recommendation", "confidence": 0.8}
+                {"text": "CI test recommendation", "confidence": 1.0}
             ]
         },
         "indices": []
@@ -54,7 +50,7 @@ def insights():
 
 @app.route('/api/market-indices')
 def indices():
-    """Dummy market indices endpoint for CI testing."""
+    """Dummy market indices endpoint."""
     logger.info('Market indices endpoint called')
     return jsonify({
         "indices": []
@@ -63,4 +59,4 @@ def indices():
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5002))
     logger.info(f'Starting server on port {port}')
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    app.run(host='0.0.0.0', port=port) 
