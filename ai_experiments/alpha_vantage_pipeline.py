@@ -10,18 +10,29 @@ import time
 import json
 import logging
 from datetime import datetime, timedelta
+import importlib.util
+import sys
 
 import pandas as pd # type: ignore
 import numpy as np # type: ignore
 import requests
 from dotenv import load_dotenv
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger('alpha_vantage_pipeline')
+# Set up better logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Check if TensorFlow and PyTorch are available
+TENSORFLOW_AVAILABLE = importlib.util.find_spec("tensorflow") is not None
+try:
+    import torch
+    torch_available = True
+except ImportError:
+    torch_available = False
+    logger.warning("PyTorch not available, some functionality will be limited")
+
+if not TENSORFLOW_AVAILABLE:
+    logger.warning("TensorFlow not available, some functionality will be limited")
 
 # Load environment variables
 load_dotenv()

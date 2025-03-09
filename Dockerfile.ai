@@ -1,9 +1,15 @@
 FROM python:3.11-slim as builder
 
+# Add build args to support CI environment
+ARG CI_BUILD=false
+ARG SKIP_ML_FRAMEWORKS=false
+
 # Set environment variables for build
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/usr/local/bin:$PATH"
+    PATH="/usr/local/bin:$PATH" \
+    CI_BUILD=${CI_BUILD} \
+    SKIP_ML_FRAMEWORKS=${SKIP_ML_FRAMEWORKS}
 
 # Create and set working directory
 WORKDIR /build
@@ -40,16 +46,33 @@ COPY build-helpers/ai-critical-requirements.txt ./critical-requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir -r critical-requirements.txt
 
-# Copy and install AI-specific requirements
+# Copy AI requirements but filter ML frameworks if in CI
 COPY ai_experiments/requirements.txt ./ai_requirements.txt
+RUN if [ "$SKIP_ML_FRAMEWORKS" = "true" ]; then \
+        # If in CI build, filter out tensorflow and torch to save space
+        grep -v "tensorflow\|torch\|prophet\|gymnasium" ./ai_requirements.txt > ./ai_requirements_filtered.txt && \
+        mv ./ai_requirements_filtered.txt ./ai_requirements.txt && \
+        echo "CI Build: Skipping large ML frameworks to save disk space"; \
+    fi && \
+    cat ./ai_requirements.txt
+
 # Install in steps for better error handling
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r ai_requirements.txt || echo "Some dependencies failed to install, continuing with core packages" && \
     pip install pandas numpy matplotlib seaborn scikit-learn || true
 
-# Explicitly install fallback packages if critical ML ones fail
-RUN pip list | grep -q "tensorflow" || echo "TensorFlow not installed, using fallbacks" && \
-    pip list | grep -q "torch" || echo "PyTorch not installed, using fallbacks"
+# Install mock packages for tensorflow and pytorch when in CI mode
+RUN if [ "$SKIP_ML_FRAMEWORKS" = "true" ]; then \
+        mkdir -p /build/tensorflow_mock && \
+        echo "class MockTensorFlow: pass" > /build/tensorflow_mock/__init__.py && \
+        echo "from setuptools import setup; setup(name='tensorflow-mock', version='0.1')" > /build/tensorflow_mock/setup.py && \
+        pip install -e /build/tensorflow_mock && \
+        mkdir -p /build/torch_mock && \
+        echo "class MockTorch: pass" > /build/torch_mock/__init__.py && \
+        echo "from setuptools import setup; setup(name='torch-mock', version='0.1')" > /build/torch_mock/setup.py && \
+        pip install -e /build/torch_mock && \
+        echo "Installed mock packages for CI build"; \
+    fi
 
 # Final stage
 FROM python:3.11-slim

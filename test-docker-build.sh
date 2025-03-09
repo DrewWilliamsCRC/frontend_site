@@ -61,6 +61,14 @@ export PYTHON_VERSION=3.10-alpine
 # We'll use an explicit command instead of docker compose to have more control
 docker build -t frontend:test -f dockerfile --build-arg TARGETPLATFORM=linux/amd64 --build-arg BUILDPLATFORM=linux/amd64 .
 
+# Build AI server with CI-specific options
+echo "Building AI server with CI optimizations to save disk space..."
+docker build -t ai_server:test -f Dockerfile.ai \
+  --build-arg TARGETPLATFORM=linux/amd64 \
+  --build-arg BUILDPLATFORM=linux/amd64 \
+  --build-arg CI_BUILD=true \
+  --build-arg SKIP_ML_FRAMEWORKS=true .
+
 # Check if we're running in CI
 IS_CI=${GITHUB_ACTIONS:-false}
 

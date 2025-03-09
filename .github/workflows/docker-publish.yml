@@ -208,6 +208,25 @@ jobs:
           # Configure buildx
           docker buildx create --use --driver docker-container --driver-opt network=host
           
+      # Maximum disk cleanup for CI environment
+      - name: Extreme disk cleanup for AI build
+        run: |
+          # Remove large packages
+          sudo apt-get remove -y '^dotnet-.*' '^llvm-.*' 'php.*' '^mongodb-.*' '^mysql-.*' '^postgresql-.*' || true
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          
+          # Remove Android SDK, large cache directories
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache
+          
+          # Clean npm and yarn cache
+          sudo rm -rf /usr/local/share/.cache
+          sudo rm -rf /usr/local/lib/node_modules
+          
+          echo "--- Disk space after cleanup ---"
+          df -h
+          
       - name: Run Docker tests
         run: |
           chmod +x test-docker-build.sh
@@ -278,6 +297,25 @@ jobs:
           df -h
           # Configure buildx
           docker buildx create --use --driver docker-container --driver-opt network=host
+      
+      # Maximum disk cleanup for CI environment
+      - name: Extreme disk cleanup for AI build
+        run: |
+          # Remove large packages
+          sudo apt-get remove -y '^dotnet-.*' '^llvm-.*' 'php.*' '^mongodb-.*' '^mysql-.*' '^postgresql-.*' || true
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          
+          # Remove Android SDK, large cache directories
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache
+          
+          # Clean npm and yarn cache
+          sudo rm -rf /usr/local/share/.cache
+          sudo rm -rf /usr/local/lib/node_modules
+          
+          echo "--- Disk space after cleanup ---"
+          df -h
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -301,9 +339,40 @@ jobs:
           # Add layer caching
           no-cache: false
           pull: true
+          
+      # Build and push AI server image (with full TensorFlow for production)
+      - name: Build and push AI server Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.ai
+          platforms: linux/amd64
+          push: true
+          tags: dawttu00/dawttu_private:ai_server
+          cache-from: |
+            type=local,src=/tmp/.buildx-cache-ai
+            type=registry,ref=dawttu00/dawttu_private:ai_server
+          cache-to: type=local,dest=/tmp/.buildx-cache-ai-new,mode=max
+          build-args: |
+            BUILDPLATFORM=linux/amd64
+            TARGETPLATFORM=linux/amd64
+            CI_BUILD=false
+            SKIP_ML_FRAMEWORKS=false
+          # Enable better caching with build layers
+          provenance: false
+          outputs: type=registry,push=true
+          # Add layer caching
+          no-cache: false
+          pull: true
 
       # Move cache
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          
+      # Move AI server cache
+      - name: Move AI server cache
+        run: |
+          rm -rf /tmp/.buildx-cache-ai
+          mv /tmp/.buildx-cache-ai-new /tmp/.buildx-cache-ai
