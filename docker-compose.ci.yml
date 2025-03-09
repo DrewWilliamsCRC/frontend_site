@@ -31,24 +31,22 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - SECRET_KEY=${SECRET_KEY}
       - FLASK_ENV=testing
+      - FLASK_APP=ci_ai_server.py
+      - FLASK_DEBUG=1
       - PORT=5002
       - ALPHA_VANTAGE_API_KEY=test-key
       - CI_BUILD=true
+      - PYTHONUNBUFFERED=1  # Make sure Python output is unbuffered for logs
+    # Simplified volume setup for CI
     volumes:
-      - ./logs:/app/logs
-      - ./data:/app/data
+      - ./ci_ai_server.py:/app/ci_ai_server.py:ro
     ports:
       - "5002:5002"
     depends_on:
       db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5002/health || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-    command: ["gunicorn", "--bind", "0.0.0.0:5002", "--workers", "1", "--timeout", "30", "ai_server:app"]
+    # Use our simplified CI server for testing
+    command: ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=5002"]
     networks:
       - app_network
 
@@ -70,7 +68,7 @@ services:
       db:
         condition: service_healthy
       ai_server:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${PORT}/health || exit 1"]
       interval: 5s

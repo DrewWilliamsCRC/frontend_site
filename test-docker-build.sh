@@ -73,9 +73,11 @@ docker build -t ai_server:test -f Dockerfile.ai \
 # Check if we're running in CI
 IS_CI=${GITHUB_ACTIONS:-false}
 
-# In CI environments, create a smaller version of app.py to avoid pandas issues
+# In CI environments, create special files for testing
 if [ "$IS_CI" = "true" ]; then
-    echo "Running in CI environment, creating test Flask app..."
+    echo "Running in CI environment, creating test files..."
+    
+    # Create simplified app.py for the frontend
     cat > app.py.test << EOF
 from flask import Flask, jsonify
 import os
@@ -100,10 +102,60 @@ EOF
         mv app.py.test app.py
         echo "Created simplified app.py for testing"
     fi
+    
+    # Ensure ci_ai_server.py exists
+    if [ ! -f "ci_ai_server.py" ]; then
+        echo "Error: ci_ai_server.py is missing, CI testing may fail"
+        exit 1
+    fi
 fi
 
 echo "Docker build completed, now starting services..."
 if [ "$IS_CI" = "true" ]; then
+    # Test AI server in isolation first
+    echo "Testing AI server in isolation for debugging..."
+    # Create minimal test container with debug command
+    docker run --name ai_debug -e CI_BUILD=true -e PYTHONUNBUFFERED=1 -v $(pwd)/logs:/app/logs -v $(pwd)/data:/app/data ai_server:test python -c "
+import os
+import sys
+print('Python version:', sys.version)
+print('Current directory:', os.getcwd())
+print('Directory contents:', os.listdir('.'))
+print('Testing imports...')
+try:
+    import flask
+    print('Flask imported successfully')
+except ImportError as e:
+    print('Flask import error:', str(e))
+
+try:
+    import flask_cors
+    print('Flask-CORS imported successfully')
+except ImportError as e:
+    print('Flask-CORS import error:', str(e))
+    
+try:
+    import ai_server
+    print('AI server module found')
+except ImportError as e:
+    print('AI server import error:', str(e))
+
+try:
+    from ai_experiments.alpha_vantage_pipeline import AlphaVantageAPI
+    print('AlphaVantageAPI imported successfully')
+except Exception as e:
+    print('AlphaVantageAPI import error:', str(e))
+
+print('Environment variables:')
+for k, v in os.environ.items():
+    if 'SECRET' not in k and 'PASSWORD' not in k and 'KEY' not in k:
+        print(f'{k}={v}')
+"
+    
+    # Show output from debug container
+    docker logs ai_debug
+    docker rm ai_debug
+    
     # Use the CI-specific compose file for GitHub Actions
     echo "Using CI-specific Docker Compose configuration..."
     docker compose -f docker-compose.ci.yml up -d

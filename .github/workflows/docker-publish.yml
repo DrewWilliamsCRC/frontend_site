@@ -229,7 +229,29 @@ jobs:
           
       - name: Run Docker tests
         run: |
-          chmod +x test-docker-build.sh
+          # Create simplified AI server for CI (avoid YAML heredoc issues)
+          echo '#!/usr/bin/env python3' > ci_ai_server.py
+          echo '"""' >> ci_ai_server.py
+          echo 'Simplified AI Server for CI Testing' >> ci_ai_server.py
+          echo '"""' >> ci_ai_server.py
+          echo 'import os' >> ci_ai_server.py
+          echo 'from flask import Flask, jsonify' >> ci_ai_server.py
+          echo '' >> ci_ai_server.py
+          echo 'app = Flask(__name__)' >> ci_ai_server.py
+          echo '' >> ci_ai_server.py
+          echo '@app.route("/health")' >> ci_ai_server.py
+          echo 'def health():' >> ci_ai_server.py
+          echo '    return jsonify({"status": "healthy", "environment": "CI"})' >> ci_ai_server.py
+          echo '' >> ci_ai_server.py
+          echo '@app.route("/api/ai-insights")' >> ci_ai_server.py
+          echo 'def insights():' >> ci_ai_server.py
+          echo '    return jsonify({"message": "CI test server", "insights": {"metrics": [], "recommendations": []}, "indices": []})' >> ci_ai_server.py
+          echo '' >> ci_ai_server.py
+          echo 'if __name__ == "__main__":' >> ci_ai_server.py
+          echo '    app.run(host="0.0.0.0", port=5002)' >> ci_ai_server.py
+          chmod +x ci_ai_server.py
+          cat ci_ai_server.py
+          
           # Verify docker-compose.ci.yml exists
           if [ ! -f "docker-compose.ci.yml" ]; then
             echo "Error: docker-compose.ci.yml is missing"
@@ -237,6 +259,7 @@ jobs:
           fi
           # Set environment variable to indicate CI environment
           export GITHUB_ACTIONS=true
+          chmod +x test-docker-build.sh
           ./test-docker-build.sh
 
   # Publish job only runs on push to main

@@ -52,6 +52,11 @@ ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
+# Check if we're in CI mode
+CI_MODE = os.getenv("CI_BUILD", "false").lower() == "true"
+if CI_MODE:
+    logger.info("Running in CI mode - using simplified data processing")
+
 # Constants
 BASE_URL = "https://www.alphavantage.co/query"
 REQUEST_DELAY = 15  # seconds between API calls to avoid rate limits
