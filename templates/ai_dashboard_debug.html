@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}AI Financial Dashboard{% endblock %}
+{% block title %}AI Financial Dashboard - Debug Mode{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ai-dashboard.css') }}">
@@ -48,21 +48,56 @@
         margin-bottom: 15px;
         font-family: monospace;
     }
+    
     .debug-loading {
         display: none;
     }
+    
     .debug-error {
         color: #dc3545;
         font-weight: bold;
     }
+    
     .debug-success {
         color: #28a745;
+    }
+    
+    /* Data viewer */
+    #data-viewer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 300px;
+        background-color: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+        z-index: 1000;
+        display: none;
+        padding: 15px;
+        overflow: auto;
+    }
+    
+    #data-viewer.open {
+        display: block;
+    }
+    
+    .toggle-viewer {
+        position: fixed;
+        bottom: 0;
+        right: 20px;
+        z-index: 1001;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Debug Mode Banner -->
+    <div class="alert alert-warning mb-3">
+        <strong>Debug Mode Active</strong> - This version includes diagnostic tools to help identify loading issues.
+        <button id="toggle-data-viewer" class="btn btn-sm btn-outline-secondary float-end">Show Data Viewer</button>
+    </div>
+
     <!-- Compact Debug Indicator -->
     <div class="row mb-3">
         <div class="col-12">
@@ -224,6 +259,22 @@
     </div>
 </div>
 
+<!-- Data Viewer Panel -->
+<div id="data-viewer">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Data Viewer</h4>
+        <button id="close-data-viewer" class="btn btn-sm btn-outline-secondary">Close</button>
+    </div>
+    <div id="data-viewer-content">
+        <div class="alert alert-info">Click "Show Current Data" to view the current state data.</div>
+    </div>
+    <div class="mt-3">
+        <button id="show-current-data" class="btn btn-sm btn-primary me-2">Show Current Data</button>
+        <button id="fetch-new-data" class="btn btn-sm btn-success me-2">Fetch New Data</button>
+        <button id="check-components" class="btn btn-sm btn-info">Check Components</button>
+    </div>
+</div>
+
 <!-- Alert Creation Modal -->
 <div class="modal fade" id="alert-modal" tabindex="-1" aria-labelledby="alert-modal-label" aria-hidden="true">
     <div class="modal-dialog">
@@ -248,8 +299,79 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{{ url_for('static', filename='js/ai-dashboard-debug.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai-dashboard-diagnostic.js') }}"></script>
 <script src="{{ url_for('static', filename='js/ai-dashboard.js') }}"></script>
+
+<!-- Data Viewer Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup data viewer toggle
+    const dataViewer = document.getElementById('data-viewer');
+    const toggleButton = document.getElementById('toggle-data-viewer');
+    const closeButton = document.getElementById('close-data-viewer');
+    
+    toggleButton.addEventListener('click', function() {
+        dataViewer.classList.toggle('open');
+        this.textContent = dataViewer.classList.contains('open') ? 'Hide Data Viewer' : 'Show Data Viewer';
+    });
+    
+    closeButton.addEventListener('click', function() {
+        dataViewer.classList.remove('open');
+        toggleButton.textContent = 'Show Data Viewer';
+    });
+    
+    // Show current data button
+    document.getElementById('show-current-data').addEventListener('click', function() {
+        const viewerContent = document.getElementById('data-viewer-content');
+        if (typeof dashboardState !== 'undefined' && dashboardState.data) {
+            viewerContent.innerHTML = `<pre>${JSON.stringify(dashboardState.data, null, 2)}</pre>`;
+        } else {
+            viewerContent.innerHTML = '<div class="alert alert-warning">No data available in dashboardState</div>';
+        }
+    });
+    
+    // Fetch new data button
+    document.getElementById('fetch-new-data').addEventListener('click', function() {
+        if (typeof loadDashboardData === 'function') {
+            loadDashboardData();
+            document.getElementById('data-viewer-content').innerHTML = 
+                '<div class="alert alert-info">Fetching new data... Check console for details.</div>';
+        } else {
+            document.getElementById('data-viewer-content').innerHTML = 
+                '<div class="alert alert-danger">loadDashboardData function not found</div>';
+        }
+    });
+    
+    // Check components button
+    document.getElementById('check-components').addEventListener('click', function() {
+        const components = [
+            'market-indices-container',
+            'market-prediction-container',
+            'news-sentiment-container',
+            'feature-importance-container',
+            'portfolio-optimization-container',
+            'economic-indicators-container',
+            'alerts-container'
+        ];
+        
+        let html = '<div class="list-group">';
+        components.forEach(id => {
+            const container = document.getElementById(id);
+            if (!container) {
+                html += `<div class="list-group-item list-group-item-danger">${id}: Container not found</div>`;
+            } else {
+                const loader = container.querySelector('.loader');
+                html += `<div class="list-group-item list-group-item-${loader ? 'warning' : 'success'}">
+                    ${id}: ${loader ? 'Still loading' : 'Loaded'}
+                </div>`;
+            }
+        });
+        html += '</div>';
+        
+        document.getElementById('data-viewer-content').innerHTML = html;
+    });
+});
+</script>
 
 <!-- Hide stock ticker and news ticker for better performance -->
 <script>
@@ -259,14 +381,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const stockTickerContainer = document.querySelector('.stock-ticker-container');
     if (stockTickerContainer) {
         stockTickerContainer.style.display = 'none';
-        console.log('Stock ticker hidden for better dashboard performance');
     }
     
     // Hide news ticker
     const newsTicker = document.getElementById('newsTicker');
     if (newsTicker) {
         newsTicker.style.display = 'none';
-        console.log('News ticker hidden for better dashboard performance');
     }
     
     // Add some extra space for the main content since we removed the ticker
@@ -280,125 +400,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (tickerSpacer) {
         tickerSpacer.style.height = '0';
     }
-});
-</script>
-
-<!-- Inline debugging script -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('AI Dashboard Debug: DOM loaded');
-    
-    // Update timestamp
-    function updateTimestamp() {
-        const timestampEl = document.getElementById('debug-timestamp');
-        if (timestampEl) {
-            const now = new Date();
-            timestampEl.textContent = now.toLocaleTimeString();
-        }
-    }
-    
-    // Check if main JS file is loaded
-    function checkJsLoaded() {
-        const jsBadge = document.getElementById('debug-js-badge');
-        if (typeof dashboardState !== 'undefined') {
-            jsBadge.textContent = 'JS ✓';
-            jsBadge.classList.add('loaded');
-            jsBadge.classList.remove('error');
-        } else {
-            jsBadge.textContent = 'JS ✗';
-            jsBadge.classList.add('error');
-            jsBadge.classList.remove('loaded');
-        }
-    }
-    
-    // Check if CSS is loaded
-    function checkCssLoaded() {
-        const cssBadge = document.getElementById('debug-css-badge');
-        const testEl = document.createElement('div');
-        testEl.className = 'ai-dashboard-css-test';
-        testEl.style.display = 'none';
-        document.body.appendChild(testEl);
-        
-        // Get computed style
-        const style = window.getComputedStyle(testEl);
-        const hasCustomStyle = style.getPropertyValue('--ai-dashboard-loaded');
-        
-        if (hasCustomStyle) {
-            cssBadge.textContent = 'CSS ✓';
-            cssBadge.classList.add('loaded');
-            cssBadge.classList.remove('error');
-        } else {
-            cssBadge.textContent = 'CSS ✗';
-            cssBadge.classList.add('error');
-            cssBadge.classList.remove('loaded');
-        }
-        
-        document.body.removeChild(testEl);
-    }
-    
-    // Directly load AI insights data
-    function loadAiInsightsData() {
-        const apiBadge = document.getElementById('debug-api-badge');
-        const errorMessage = document.getElementById('debug-error-message');
-        
-        apiBadge.textContent = 'API...';
-        apiBadge.classList.remove('loaded', 'error');
-        errorMessage.classList.add('d-none');
-        errorMessage.textContent = '';
-        
-        updateTimestamp();
-        
-        fetch('/api/ai-insights')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`API returned status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                apiBadge.textContent = 'API ✓';
-                apiBadge.classList.add('loaded');
-                
-                // Populate dashboard data
-                if (typeof window.dashboardState === 'undefined') {
-                    window.dashboardState = { data: data };
-                    console.log('Created dashboardState object with data');
-                } else {
-                    window.dashboardState.data = data;
-                    console.log('Updated existing dashboardState with data');
-                }
-                
-                // Try to call the normal function if it exists
-                if (typeof loadMarketIndices === 'function') {
-                    console.log('Calling loadMarketIndices function');
-                    loadMarketIndices();
-                } else {
-                    console.log('loadMarketIndices function not found');
-                }
-            })
-            .catch(error => {
-                console.error('Error loading AI insights:', error);
-                apiBadge.textContent = 'API ✗';
-                apiBadge.classList.add('error');
-                
-                // Show error message
-                errorMessage.textContent = `Error: ${error.message}`;
-                errorMessage.classList.remove('d-none');
-            });
-    }
-    
-    // Set up reload button
-    const reloadBtn = document.getElementById('debug-reload-btn');
-    if (reloadBtn) {
-        reloadBtn.addEventListener('click', function() {
-            loadAiInsightsData();
-        });
-    }
-    
-    // Run checks
-    setTimeout(checkJsLoaded, 500);
-    setTimeout(checkCssLoaded, 500);
-    loadAiInsightsData();
 });
 </script>
 {% endblock %} 

@@ -25,6 +25,38 @@ services:
     networks:
       - app_network
 
+  ai_server:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+      target: builder  # Use the builder stage for development
+    volumes:
+      - .:/app  # Mount the project to the /app directory
+      - ./logs:/app/logs  # Persist logs
+      - ./ai_experiments/data:/app/ai_experiments/data  # Persist data
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - SECRET_KEY=${SECRET_KEY}
+      - OWM_API_KEY=${OWM_API_KEY}
+      - FLASK_DEBUG=1
+      - FLASK_ENV=development
+      - PORT=5002
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
+      - FLASK_APP=ai_server.py
+    ports:
+      - "5002:5002"  # Expose to host machine without restriction
+    depends_on:
+      db:
+        condition: service_healthy
+    # Run the AI server in development mode
+    command: >
+      sh -c "cd /app && python -m flask run --host=0.0.0.0 --port=5002 --debug"
+    networks:
+      - app_network
+
   frontend:
     build:
       context: .
@@ -49,14 +81,17 @@ services:
       - PORT=${PORT}
       - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
       - FLASK_APP=app.py
+      - AI_SERVER_URL=http://ai_server:5002
     ports:
       - "${PORT}:${PORT}"  # Expose without restriction for easier local development
     depends_on:
       db:
         condition: service_healthy
+      ai_server:
+        condition: service_started
     # Install minimal critical packages and run Flask
     command: >
-      sh -c "pip install pandas numpy flask python-dotenv &&
+      sh -c "pip install flask python-dotenv requests pandas numpy &&
              cd /build && python -m flask run --host=0.0.0.0 --port=${PORT} --debug"
     networks:
       - app_network

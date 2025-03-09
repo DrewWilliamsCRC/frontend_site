@@ -2243,18 +2243,16 @@ def stock_tracker():
         else:
             # Use default settings
             settings = {
-                'city_name': 'New York',
                 'button_width': 200,
                 'button_height': 200,
-                'news_categories': 'general'
+                'theme': 'light'
             }
     except Exception as e:
         app.logger.error(f"Error fetching user settings: {str(e)}")
         settings = {
-            'city_name': 'New York',
             'button_width': 200,
             'button_height': 200,
-            'news_categories': 'general'
+            'theme': 'light'
         }
     
     # Get stocks data (if needed)
@@ -2289,18 +2287,16 @@ def trend_insight():
         else:
             # Use default settings
             settings = {
-                'city_name': 'New York',
                 'button_width': 200,
                 'button_height': 200,
-                'news_categories': 'general'
+                'theme': 'light'
             }
     except Exception as e:
         app.logger.error(f"Error fetching user settings: {str(e)}")
         settings = {
-            'city_name': 'New York',
             'button_width': 200,
             'button_height': 200,
-            'news_categories': 'general'
+            'theme': 'light'
         }
     
     conn.close()
@@ -2739,6 +2735,41 @@ def ai_insights():
     
     return render_template('ai_insights_dashboard.html')
 
+@app.route('/ai-debug')
+def ai_debug():
+    """Render AI debug page."""
+    # Don't require login for debug page during development
+    return render_template('ai_debug.html')
+
+@app.route('/ai-test')
+def ai_test():
+    """Render AI test page for direct testing."""
+    # Direct test page that doesn't require login
+    return render_template('ai_test.html')
+
+@app.route('/ai-dashboard-debug')
+def ai_dashboard_debug():
+    """Render AI dashboard with diagnostic tools."""
+    # Debug dashboard doesn't require login
+    return render_template('ai_dashboard_debug.html')
+
+@app.route('/proxy-ai-server')
+def proxy_ai_server():
+    """Proxy endpoint to access the AI server directly without CORS issues."""
+    try:
+        # Call the AI server API
+        ai_response = call_ai_api('/api/ai-insights')
+        
+        if ai_response:
+            return jsonify(ai_response)
+        else:
+            app.logger.error("Failed to get response from AI server")
+            return jsonify({"error": "Failed to connect to AI server"}), 500
+    
+    except Exception as e:
+        app.logger.error(f"Error in proxy to AI server: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/ai-insights')
 def get_ai_insights():
     """API endpoint for AI market insights data."""
@@ -2752,75 +2783,18 @@ def get_ai_insights():
     app.logger.info(f"Requested period: {period}")
     
     try:
-        # Path to AI experiments directory
-        ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
-        app.logger.info(f"AI directory path: {ai_dir}")
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/ai-insights', params={'period': period})
         
-        # Add AI directory to path
-        sys.path.append(ai_dir)
-        
-        try:
-            # Import our AI modules
-            from alpha_vantage_pipeline import AlphaVantageAPI, MARKET_INDICES
-            app.logger.info("Successfully imported AI modules")
-        except ImportError as e:
-            app.logger.error(f"Import error: {str(e)}")
-            return jsonify({
-                "error": "Failed to import AI modules",
-                "details": str(e)
-            }), 500
-        
-        # Create Alpha Vantage API instance - use default behavior which loads from environment
-        api = AlphaVantageAPI()
-        app.logger.info("AlphaVantageAPI instance created")
-        
-        # Try to get current market data
-        app.logger.info("Starting to fetch market data")
-        market_data = {}
-        indices = {}
-        
-        try:
-            for symbol_key, symbol in MARKET_INDICES.items():
-                # Get quote data
-                app.logger.info(f"Fetching quote for {symbol}")
-                quote = api.call_api('GLOBAL_QUOTE', symbol=symbol)
-                
-                if quote and 'Global Quote' in quote:
-                    quote_data = quote['Global Quote']
-                    indices[symbol_key] = {
-                        'price': quote_data.get('05. price', '0.00'),
-                        'change': quote_data.get('09. change', '0.00'),
-                        'changePercent': quote_data.get('10. change percent', '0.00%').replace('%', ''),
-                        'high': quote_data.get('03. high', '0.00'),
-                        'low': quote_data.get('04. low', '0.00'),
-                        'volume': quote_data.get('06. volume', '0')
-                    }
-                    app.logger.info(f"Successfully fetched quote for {symbol}")
-                else:
-                    app.logger.warning(f"No quote data returned for {symbol}")
-                
-                time.sleep(0.5)  # Rate limit protection
-        except Exception as e:
-            app.logger.error(f"Error fetching market data: {str(e)}")
-            # If we failed to fetch live data, fall back to demo data
+        if ai_response and 'insights' in ai_response:
+            return jsonify(ai_response)
+        else:
+            app.logger.error("AI server returned invalid response")
             return generate_demo_ai_insights()
-        
-        # If we at least got market data but not the rest of the AI features,
-        # return a hybrid response with live market data and demo AI data
-        if indices:
-            demo_data = generate_demo_ai_insights()
-            demo_data.json['indices'] = indices
-            return demo_data
-            
-        # If we failed to get any data, return demo data
-        return generate_demo_ai_insights()
-            
+    
     except Exception as e:
-        app.logger.error(f"Error in AI insights API: {str(e)}")
-        return jsonify({
-            "error": "Server error",
-            "details": str(e)
-        }), 500
+        app.logger.error(f"Error in AI insights: {str(e)}")
+        return generate_demo_ai_insights()
 
 def generate_demo_ai_insights():
     """Generate demo data for AI insights"""
@@ -2870,239 +2844,359 @@ def generate_demo_ai_insights():
         }
     }
     
-    # Demo AI prediction data
-    prediction_confidence = 72  # 0-100 scale, above 50 is bullish
-    model_metrics = {
-        'ensemble': {'accuracy': 0.68, 'precision': 0.71, 'recall': 0.65, 'f1': 0.68},
-        'random_forest': {'accuracy': 0.66, 'precision': 0.69, 'recall': 0.63, 'f1': 0.66},
-        'gradient_boosting': {'accuracy': 0.67, 'precision': 0.72, 'recall': 0.61, 'f1': 0.67},
-        'neural_network': {'accuracy': 0.64, 'precision': 0.67, 'recall': 0.60, 'f1': 0.63}
-    }
-    
-    # Demo prediction history (1: up, 0: down)
-    prediction_history = {
-        'dates': [(datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(10, 0, -1)],
-        'actual': [1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
-        'predicted': [1, 1, 1, 0, 1, 0, 0, 0, 1, 1]
-    }
-    
-    # Demo feature importance
-    feature_importance = [
-        {'name': 'RSI (14)', 'value': 0.18},
-        {'name': 'Price vs 200-day MA', 'value': 0.15},
-        {'name': 'MACD Histogram', 'value': 0.12},
-        {'name': 'Volatility (21-day)', 'value': 0.10},
-        {'name': 'Price vs 50-day MA', 'value': 0.08},
-        {'name': 'Bollinger Width', 'value': 0.07},
-        {'name': 'Monthly Return', 'value': 0.06},
-        {'name': 'Weekly Return', 'value': 0.05}
-    ]
-    
-    # Demo return predictions
-    return_prediction = {
-        'SPX': {'predicted': 1.85, 'confidence': 0.73, 'rmse': 2.3, 'r2': 0.58},
-        'DJI': {'predicted': 1.72, 'confidence': 0.68, 'rmse': 2.5, 'r2': 0.55},
-        'IXIC': {'predicted': 2.18, 'confidence': 0.64, 'rmse': 2.8, 'r2': 0.51}
-    }
-    
-    # Demo news sentiment
-    news_sentiment = {
-        'overall': 0.35,  # -1 to 1 scale
-        'topSources': [
-            {'name': 'Bloomberg', 'sentiment': 0.42},
-            {'name': 'CNBC', 'sentiment': 0.38},
-            {'name': 'Reuters', 'sentiment': 0.25},
-            {'name': 'Wall Street Journal', 'sentiment': 0.15},
-            {'name': 'Financial Times', 'sentiment': -0.12}
-        ],
-        'recentArticles': [
+    # Include original insights structure for backward compatibility
+    insights = {
+        "timestamp": datetime.now().isoformat(),
+        "period": "1d",
+        "metrics": {
+            "momentum": {
+                "value": "Bullish",
+                "score": 75.0,
+                "status": "positive",
+                "description": "Strong upward movement in major indices"
+            },
+            "volatility": {
+                "value": "Low",
+                "score": 25.0,
+                "status": "positive",
+                "description": "Stable price action with minimal swings"
+            },
+            "breadth": {
+                "value": "Broad",
+                "score": 70,
+                "status": "positive",
+                "description": "Majority of stocks participating in market movement"
+            },
+            "sentiment": {
+                "value": "Bullish",
+                "score": 65.0,
+                "status": "positive",
+                "description": "Positive sentiment indicators with improving outlook"
+            },
+            "technical": {
+                "value": "Bullish",
+                "score": 65.0,
+                "status": "positive",
+                "description": "Majority of technical indicators are positive"
+            },
+            "aiConfidence": {
+                "value": "High",
+                "score": 80.0,
+                "status": "positive",
+                "description": "AI models show strong conviction in current assessment"
+            }
+        },
+        "recommendations": [
             {
-                'title': 'Fed signals potential rate cuts later this year',
-                'source': 'Bloomberg',
-                'date': '2023-06-15',
-                'sentiment': 0.58,
-                'url': '#'
+                "type": "sector",
+                "name": "Technology",
+                "action": "overweight",
+                "confidence": 75,
+                "reasoning": "Strong momentum in tech stocks with positive earnings outlook"
             },
             {
-                'title': 'Tech stocks rally as inflation concerns ease',
-                'source': 'CNBC',
-                'date': '2023-06-14',
-                'sentiment': 0.65,
-                'url': '#'
+                "type": "sector",
+                "name": "Utilities",
+                "action": "underweight",
+                "confidence": 68,
+                "reasoning": "Rising interest rates may pressure utility valuations"
             },
             {
-                'title': 'Market volatility increases amid geopolitical tensions',
-                'source': 'Financial Times',
-                'date': '2023-06-13',
-                'sentiment': -0.32,
-                'url': '#'
-            },
-            {
-                'title': 'Treasury yields climb after latest economic data',
-                'source': 'Wall Street Journal',
-                'date': '2023-06-12',
-                'sentiment': -0.18,
-                'url': '#'
+                "type": "strategy",
+                "name": "Market Timing",
+                "action": "remain invested",
+                "confidence": 82,
+                "reasoning": "Positive market breadth and momentum suggest continued upside potential"
             }
         ]
     }
     
-    # Demo portfolio optimization
+    # Model metrics
+    model_metrics = {
+        "ensemble": {
+            "accuracy": 0.68,
+            "precision": 0.71,
+            "recall": 0.65,
+            "f1": 0.68
+        },
+        "random_forest": {
+            "accuracy": 0.66,
+            "precision": 0.69,
+            "recall": 0.63,
+            "f1": 0.66
+        },
+        "gradient_boosting": {
+            "accuracy": 0.67,
+            "precision": 0.72,
+            "recall": 0.61,
+            "f1": 0.67
+        },
+        "neural_network": {
+            "accuracy": 0.64,
+            "precision": 0.67,
+            "recall": 0.60,
+            "f1": 0.63
+        }
+    }
+    
+    # News sentiment
+    news_sentiment = {
+        "overall": 0.35,
+        "topSources": [
+            {"name": "Bloomberg", "sentiment": 0.42},
+            {"name": "CNBC", "sentiment": 0.38},
+            {"name": "Reuters", "sentiment": 0.25},
+            {"name": "Wall Street Journal", "sentiment": 0.15},
+            {"name": "Financial Times", "sentiment": -0.12}
+        ],
+        "recentArticles": [
+            {
+                "title": "Fed signals potential rate cuts later this year",
+                "source": "Bloomberg",
+                "date": "2023-06-15",
+                "sentiment": 0.58,
+                "url": "#"
+            },
+            {
+                "title": "Tech stocks rally as inflation concerns ease",
+                "source": "CNBC",
+                "date": "2023-06-14",
+                "sentiment": 0.65,
+                "url": "#"
+            },
+            {
+                "title": "Market volatility increases amid geopolitical tensions",
+                "source": "Financial Times",
+                "date": "2023-06-13",
+                "sentiment": -0.32,
+                "url": "#"
+            },
+            {
+                "title": "Treasury yields climb after latest economic data",
+                "source": "Wall Street Journal",
+                "date": "2023-06-12",
+                "sentiment": -0.18,
+                "url": "#"
+            }
+        ]
+    }
+    
+    # Feature importance
+    feature_importance = [
+        {"name": "RSI (14)", "value": 0.18},
+        {"name": "Price vs 200-day MA", "value": 0.15},
+        {"name": "MACD Histogram", "value": 0.12},
+        {"name": "Volatility (21-day)", "value": 0.10},
+        {"name": "Price vs 50-day MA", "value": 0.08},
+        {"name": "Bollinger Width", "value": 0.07},
+        {"name": "Monthly Return", "value": 0.06},
+        {"name": "Weekly Return", "value": 0.05}
+    ]
+    
+    # Portfolio optimization
     portfolio_optimization = {
-        'max_sharpe': {
-            'weights': {'AAPL': 0.25, 'MSFT': 0.20, 'AMZN': 0.15, 'GOOGL': 0.10, 'NVDA': 0.15, 'BRK.B': 0.10, 'JNJ': 0.05},
-            'stats': {
-                'expectedReturn': 0.152,
-                'volatility': 0.185,
-                'sharpeRatio': 0.821,
-                'maxDrawdown': 0.255
+        "max_sharpe": {
+            "weights": {
+                "AAPL": 0.25,
+                "MSFT": 0.20,
+                "AMZN": 0.15,
+                "NVDA": 0.15,
+                "GOOGL": 0.10,
+                "BRK.B": 0.10,
+                "JNJ": 0.05
+            },
+            "stats": {
+                "expectedReturn": 0.152,
+                "volatility": 0.185,
+                "sharpeRatio": 0.821,
+                "maxDrawdown": 0.255
             }
         },
-        'min_vol': {
-            'weights': {'AAPL': 0.15, 'MSFT': 0.10, 'AMZN': 0.05, 'GOOGL': 0.05, 'NVDA': 0.05, 'BRK.B': 0.25, 'JNJ': 0.35},
-            'stats': {
-                'expectedReturn': 0.089,
-                'volatility': 0.112,
-                'sharpeRatio': 0.794,
-                'maxDrawdown': 0.147
+        "min_vol": {
+            "weights": {
+                "JNJ": 0.35,
+                "BRK.B": 0.25,
+                "AAPL": 0.15,
+                "MSFT": 0.10,
+                "GOOGL": 0.05,
+                "AMZN": 0.05,
+                "NVDA": 0.05
+            },
+            "stats": {
+                "expectedReturn": 0.089,
+                "volatility": 0.112,
+                "sharpeRatio": 0.794,
+                "maxDrawdown": 0.147
             }
         },
-        'risk_parity': {
-            'weights': {'AAPL': 0.18, 'MSFT': 0.17, 'AMZN': 0.12, 'GOOGL': 0.13, 'NVDA': 0.10, 'BRK.B': 0.15, 'JNJ': 0.15},
-            'stats': {
-                'expectedReturn': 0.113,
-                'volatility': 0.145,
-                'sharpeRatio': 0.779,
-                'maxDrawdown': 0.198
+        "risk_parity": {
+            "weights": {
+                "AAPL": 0.18,
+                "MSFT": 0.17,
+                "BRK.B": 0.15,
+                "JNJ": 0.15,
+                "GOOGL": 0.13,
+                "AMZN": 0.12,
+                "NVDA": 0.10
+            },
+            "stats": {
+                "expectedReturn": 0.113,
+                "volatility": 0.145,
+                "sharpeRatio": 0.779,
+                "maxDrawdown": 0.198
             }
         }
     }
     
-    # Demo economic indicators
+    # Economic indicators
     economic_indicators = [
         {
-            'name': 'Inflation Rate (CPI)',
-            'value': '2.9%',
-            'change': '-0.2%',
-            'status': 'positive',
-            'trend': 'down',
-            'category': 'Inflation',
-            'description': 'Consumer Price Index, year-over-year change'
+            "name": "Inflation Rate (CPI)",
+            "value": "2.9%",
+            "change": "-0.2%",
+            "trend": "down",
+            "status": "positive",
+            "category": "Inflation",
+            "description": "Consumer Price Index, year-over-year change"
         },
         {
-            'name': 'Core Inflation',
-            'value': '3.2%',
-            'change': '-0.1%',
-            'status': 'warning',
-            'trend': 'down',
-            'category': 'Inflation',
-            'description': 'CPI excluding food and energy'
+            "name": "Core Inflation",
+            "value": "3.2%",
+            "change": "-0.1%",
+            "trend": "down",
+            "status": "warning",
+            "category": "Inflation",
+            "description": "CPI excluding food and energy"
         },
         {
-            'name': 'Unemployment Rate',
-            'value': '3.8%',
-            'change': '+0.1%',
-            'status': 'positive',
-            'trend': 'up',
-            'category': 'Employment',
-            'description': 'Percentage of labor force that is jobless'
+            "name": "Unemployment Rate",
+            "value": "3.8%",
+            "change": "+0.1%",
+            "trend": "up",
+            "status": "positive",
+            "category": "Employment",
+            "description": "Percentage of labor force that is jobless"
         },
         {
-            'name': 'Non-Farm Payrolls',
-            'value': '+236K',
-            'change': '-30K',
-            'status': 'positive',
-            'trend': 'down',
-            'category': 'Employment',
-            'description': 'Jobs added excluding farm workers and some other categories'
+            "name": "Non-Farm Payrolls",
+            "value": "+236K",
+            "change": "-30K",
+            "trend": "down",
+            "status": "positive",
+            "category": "Employment",
+            "description": "Jobs added excluding farm workers and some other categories"
         },
         {
-            'name': 'GDP Growth Rate',
-            'value': '2.4%',
-            'change': '+0.3%',
-            'status': 'positive',
-            'trend': 'up',
-            'category': 'GDP',
-            'description': 'Annualized quarterly growth rate of Gross Domestic Product'
+            "name": "GDP Growth Rate",
+            "value": "2.4%",
+            "change": "+0.3%",
+            "trend": "up",
+            "status": "positive",
+            "category": "GDP",
+            "description": "Annualized quarterly growth rate of Gross Domestic Product"
         },
         {
-            'name': 'Fed Funds Rate',
-            'value': '5.25-5.50%',
-            'change': '0.00%',
-            'status': 'neutral',
-            'trend': 'unchanged',
-            'category': 'Interest Rates',
-            'description': 'Target interest rate range set by the Federal Reserve'
+            "name": "Fed Funds Rate",
+            "value": "5.25-5.50%",
+            "change": "0.00%",
+            "trend": "unchanged",
+            "status": "neutral",
+            "category": "Interest Rates",
+            "description": "Target interest rate range set by the Federal Reserve"
         },
         {
-            'name': 'Retail Sales MoM',
-            'value': '0.7%',
-            'change': '+0.5%',
-            'status': 'positive',
-            'trend': 'up',
-            'category': 'Consumer',
-            'description': 'Month-over-month change in retail and food service sales'
+            "name": "Retail Sales MoM",
+            "value": "0.7%",
+            "change": "+0.5%",
+            "trend": "up",
+            "status": "positive",
+            "category": "Consumer",
+            "description": "Month-over-month change in retail and food service sales"
         },
         {
-            'name': 'Consumer Sentiment',
-            'value': '67.5',
-            'change': '+3.3',
-            'status': 'positive',
-            'trend': 'up',
-            'category': 'Consumer',
-            'description': 'University of Michigan Consumer Sentiment Index'
+            "name": "Consumer Sentiment",
+            "value": "67.5",
+            "change": "+3.3",
+            "trend": "up",
+            "status": "positive",
+            "category": "Consumer",
+            "description": "University of Michigan Consumer Sentiment Index"
         }
     ]
     
-    # Demo alerts
+    # Alerts
     alerts = [
         {
-            'id': '1001',
-            'name': 'S&P 500 Below 200-day MA',
-            'condition': 'SPX price falls below 200-day moving average',
-            'status': 'active',
-            'lastTriggered': None,
-            'icon': 'chart-line'
+            "id": "1001",
+            "name": "S&P 500 Below 200-day MA",
+            "condition": "SPX price falls below 200-day moving average",
+            "status": "active",
+            "icon": "chart-line",
+            "lastTriggered": None
         },
         {
-            'id': '1002',
-            'name': 'VIX Spike Alert',
-            'condition': 'VIX rises above 25',
-            'status': 'triggered',
-            'lastTriggered': '2023-05-18',
-            'icon': 'bolt'
+            "id": "1002",
+            "name": "VIX Spike Alert",
+            "condition": "VIX rises above 25",
+            "status": "triggered",
+            "icon": "bolt",
+            "lastTriggered": "2023-05-18"
         },
         {
-            'id': '1003',
-            'name': 'AAPL RSI Oversold',
-            'condition': 'AAPL RSI(14) falls below 30',
-            'status': 'active',
-            'lastTriggered': '2023-03-12',
-            'icon': 'apple'
+            "id": "1003",
+            "name": "AAPL RSI Oversold",
+            "condition": "AAPL RSI(14) falls below 30",
+            "status": "active",
+            "icon": "apple",
+            "lastTriggered": "2023-03-12"
         }
     ]
     
-    # Combine all data
-    response_data = {
-        'indices': indices,
-        'predictionConfidence': prediction_confidence,
-        'modelMetrics': model_metrics,
-        'predictionHistory': prediction_history,
-        'featureImportance': feature_importance,
-        'returnPrediction': return_prediction,
-        'newsSentiment': news_sentiment,
-        'portfolioOptimization': portfolio_optimization,
-        'economicIndicators': economic_indicators,
-        'alerts': alerts,
-        'lastUpdated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'status': 'Demo data'
+    # Prediction history
+    prediction_history = {
+        "dates": [
+            "2025-02-27", "2025-02-28", "2025-03-01", "2025-03-02", 
+            "2025-03-03", "2025-03-04", "2025-03-05", "2025-03-06", 
+            "2025-03-07", "2025-03-08"
+        ],
+        "predicted": [1, 1, 1, 0, 1, 0, 0, 0, 1, 1],
+        "actual": [1, 1, 0, 0, 1, 1, 0, 0, 1, 1]
     }
     
-    return jsonify(response_data)
+    # Return prediction
+    return_prediction = {
+        "SPX": {"predicted": 1.85, "confidence": 0.73, "rmse": 2.3, "r2": 0.58},
+        "DJI": {"predicted": 1.72, "confidence": 0.68, "rmse": 2.5, "r2": 0.55},
+        "IXIC": {"predicted": 2.18, "confidence": 0.64, "rmse": 2.8, "r2": 0.51}
+    }
+    
+    # Return the complete demo data structure
+    return {
+        "insights": insights,
+        "indices": indices,
+        "lastUpdated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "modelMetrics": model_metrics,
+        "newsSentiment": news_sentiment,
+        "featureImportance": feature_importance,
+        "portfolioOptimization": portfolio_optimization,
+        "economicIndicators": economic_indicators,
+        "alerts": alerts,
+        "predictionConfidence": 72,
+        "predictionHistory": prediction_history,
+        "returnPrediction": return_prediction,
+        "status": "Demo data"
+    }
 
 def calculate_market_metrics(processed_data, period='1d'):
     """Calculate market metrics based on processed data."""
     try:
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/ai-insights', params={'period': period})
+        
+        if ai_response and 'insights' in ai_response and 'metrics' in ai_response['insights']:
+            return ai_response['insights']['metrics']
+        
+        # Fallback to default metrics if API call fails
         metrics = {
             "momentum": {"value": "Mixed", "score": 5.0, "status": "neutral", "description": "Mixed signals in recent market action"},
             "volatility": {"value": "Moderate", "score": 15.0, "status": "neutral", "description": "Volatility near historical average"},
@@ -3112,391 +3206,18 @@ def calculate_market_metrics(processed_data, period='1d'):
             "aiConfidence": {"value": "Moderate", "score": 50, "status": "neutral", "description": "AI models show moderate confidence"}
         }
         
-        # Add AI experiments directory to path
-        ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
-        sys.path.append(ai_dir)
-        
-        # Import Alpha Vantage API
-        from alpha_vantage_pipeline import AlphaVantageAPI
-        
-        # Create Alpha Vantage API instance - use default behavior which loads from environment
-        api = AlphaVantageAPI()
-        
-        # Fetch market news sentiment
-        news_data = api.get_market_news(limit=20)
-        
-        # Calculate average sentiment score from news
-        news_sentiment_score = 0
-        if 'feed' in news_data and news_data['feed']:
-            sentiment_scores = []
-            for item in news_data['feed']:
-                if 'overall_sentiment_score' in item:
-                    sentiment_scores.append(float(item['overall_sentiment_score']))
-            
-            if sentiment_scores:
-                avg_sentiment = sum(sentiment_scores) / len(sentiment_scores)
-                # Convert to 0-100 scale (Alpha Vantage sentiment is approximately -1 to 1)
-                news_sentiment_score = (avg_sentiment + 1) * 50
-        
-        # Map period to the appropriate timeframe for calculations
-        period_map = {
-            '1d': 1,      # 1 day look-back
-            '1w': 5,      # 5 trading days (1 week)
-            '1m': 21,     # 21 trading days (1 month)
-            '3m': 63,     # 63 trading days (3 months)
-            '1y': 252     # 252 trading days (1 year)
-        }
-        
-        # Get the number of days for calculations based on the selected period
-        days = period_map.get(period, 1)
-        
-        # Calculate technical indicators if data is available
-        if 'SPX' in processed_data:
-            df = processed_data['SPX']
-            
-            # Calculate momentum (based on recent returns for the selected period)
-            if len(df) >= days:
-                recent_returns = df['close'].pct_change(days).dropna()
-                if len(recent_returns) > 0:
-                    momentum_value = recent_returns.iloc[-1] * 100
-                    
-                    # Adjust thresholds based on the period (longer periods have naturally larger returns)
-                    period_adjustments = {
-                        '1d': {'strong': 1.5, 'positive': 0.5, 'negative': -0.5, 'strong_negative': -1.5},
-                        '1w': {'strong': 2.5, 'positive': 1.0, 'negative': -1.0, 'strong_negative': -2.5},
-                        '1m': {'strong': 5.0, 'positive': 2.0, 'negative': -2.0, 'strong_negative': -5.0},
-                        '3m': {'strong': 8.0, 'positive': 3.0, 'negative': -3.0, 'strong_negative': -8.0},
-                        '1y': {'strong': 15.0, 'positive': 8.0, 'negative': -8.0, 'strong_negative': -15.0}
-                    }
-                    
-                    thresholds = period_adjustments.get(period, period_adjustments['1d'])
-                    
-                    period_desc = {
-                        '1d': 'day',
-                        '1w': 'week',
-                        '1m': 'month',
-                        '3m': '3 months',
-                        '1y': 'year'
-                    }.get(period, 'period')
-                    
-                    if momentum_value > thresholds['strong']:
-                        metrics["momentum"] = {"value": "Strong", "score": 8.0, "status": "positive", 
-                                              "description": f"Strong upward momentum: {momentum_value:.1f}% over the past {period_desc}"}
-                    elif momentum_value > thresholds['positive']:
-                        metrics["momentum"] = {"value": "Positive", "score": 7.0, "status": "positive", 
-                                              "description": f"Positive momentum: {momentum_value:.1f}% over the past {period_desc}"}
-                    elif momentum_value > 0:
-                        metrics["momentum"] = {"value": "Mild", "score": 6.0, "status": "positive", 
-                                              "description": f"Mild upward momentum: {momentum_value:.1f}% over the past {period_desc}"}
-                    elif momentum_value > thresholds['negative']:
-                        metrics["momentum"] = {"value": "Weak", "score": 4.0, "status": "neutral", 
-                                              "description": f"Weak momentum: {momentum_value:.1f}% over the past {period_desc}"}
-                    elif momentum_value > thresholds['strong_negative']:
-                        metrics["momentum"] = {"value": "Negative", "score": 3.0, "status": "negative", 
-                                              "description": f"Negative momentum: {momentum_value:.1f}% over the past {period_desc}"}
-                    else:
-                        metrics["momentum"] = {"value": "Strong Negative", "score": 2.0, "status": "negative", 
-                                              "description": f"Strong downward momentum: {momentum_value:.1f}% over the past {period_desc}"}
-            
-            # Calculate volatility for the given period
-            volatility_window = min(days, 21)  # Use days for shorter periods, cap at 21 for longer ones
-            if len(df) >= volatility_window:
-                # For longer periods, calculate realized volatility over the period
-                if period in ['3m', '1y']:
-                    recent_volatility = df['close'].pct_change().rolling(volatility_window).std().dropna() * 100 * np.sqrt(252) # type: ignore
-                    if len(recent_volatility) > 0:
-                        # For longer periods, calculate average volatility over the period
-                        recent_window = min(days, len(recent_volatility))
-                        vol_value = recent_volatility.iloc[-recent_window:].mean()
-                else:
-                    # For shorter periods, use the most recent volatility calculation
-                    recent_volatility = df['close'].pct_change().rolling(volatility_window).std().dropna() * 100 * np.sqrt(252) # type: ignore
-                    if len(recent_volatility) > 0:
-                        vol_value = recent_volatility.iloc[-1]
-                
-                if 'vol_value' in locals():
-                    period_desc = {
-                        '1d': 'current',
-                        '1w': 'weekly',
-                        '1m': 'monthly',
-                        '3m': 'quarterly',
-                        '1y': 'yearly'
-                    }.get(period, '')
-                    
-                    if vol_value < 10:
-                        metrics["volatility"] = {"value": "Low", "score": vol_value, "status": "positive", 
-                                                "description": f"Low {period_desc} volatility: {vol_value:.1f}% annualized"}
-                    elif vol_value < 15:
-                        metrics["volatility"] = {"value": "Moderate", "score": vol_value, "status": "neutral", 
-                                                "description": f"Moderate {period_desc} volatility: {vol_value:.1f}% annualized"}
-                    elif vol_value < 25:
-                        metrics["volatility"] = {"value": "Elevated", "score": vol_value, "status": "neutral", 
-                                                "description": f"Elevated {period_desc} volatility: {vol_value:.1f}% annualized"}
-                    else:
-                        metrics["volatility"] = {"value": "High", "score": vol_value, "status": "negative", 
-                                                "description": f"High {period_desc} volatility: {vol_value:.1f}% annualized"}
-            
-            # Calculate technical score based on the selected period
-            if 'rsi_14' in df.columns and 'macd_hist' in df.columns:
-                # Use lookback for different periods
-                lookback = min(days, len(df) - 1)  # Ensure we don't go beyond data length
-                
-                # For different periods, we'll check technical indicators over time
-                if period in ['3m', '1y']:
-                    # For longer periods, check how often indicators were bullish
-                    bullish_days = 0
-                    total_days = 0
-                    
-                    for i in range(min(lookback, len(df) - 1)):
-                        row = df.iloc[-(i+1)]
-                        day_bullish = 0
-                        day_signals = 0
-                        
-                        # RSI
-                        if 'rsi_14' in row:
-                            day_signals += 1
-                            if row['rsi_14'] > 50:
-                                day_bullish += 1
-                        
-                        # MACD
-                        if 'macd_hist' in row:
-                            day_signals += 1
-                            if row['macd_hist'] > 0:
-                                day_bullish += 1
-                        
-                        # Moving Averages
-                        if 'sma_50' in row and 'close' in row:
-                            day_signals += 1
-                            if row['close'] > row['sma_50']:
-                                day_bullish += 1
-                        
-                        if 'sma_200' in row and 'close' in row:
-                            day_signals += 1
-                            if row['close'] > row['sma_200']:
-                                day_bullish += 1
-                        
-                        # Bollinger Bands
-                        if 'bb_upper' in row and 'bb_lower' in row and 'close' in row:
-                            day_signals += 1
-                            bb_position = (row['close'] - row['bb_lower']) / (row['bb_upper'] - row['bb_lower'])
-                            if bb_position > 0.5:
-                                day_bullish += 1
-                        
-                        if day_signals > 0:
-                            bullish_days += (day_bullish / day_signals) > 0.5
-                            total_days += 1
-                    
-                    if total_days > 0:
-                        tech_score = (bullish_days / total_days) * 10
-                        period_desc = '3 months' if period == '3m' else 'year'
-                        
-                        if tech_score >= 7.5:
-                            metrics["technical"] = {"value": "Bullish", "score": tech_score, "status": "positive", 
-                                                   "description": f"Bullish technical indicators for {bullish_days} of {total_days} days over the past {period_desc}"}
-                        elif tech_score >= 6:
-                            metrics["technical"] = {"value": "Mildly Bullish", "score": tech_score, "status": "positive", 
-                                                   "description": f"Mildly bullish technical indicators over the past {period_desc}"}
-                        elif tech_score > 4:
-                            metrics["technical"] = {"value": "Neutral", "score": tech_score, "status": "neutral", 
-                                                   "description": f"Mixed technical indicators over the past {period_desc}"}
-                        elif tech_score >= 2.5:
-                            metrics["technical"] = {"value": "Mildly Bearish", "score": tech_score, "status": "negative", 
-                                                   "description": f"Mildly bearish technical indicators over the past {period_desc}"}
-                        else:
-                            metrics["technical"] = {"value": "Bearish", "score": tech_score, "status": "negative", 
-                                                   "description": f"Bearish technical indicators for {total_days - bullish_days} of {total_days} days over the past {period_desc}"}
-                else:
-                    # For shorter periods, use the most recent data
-                    last_row = df.iloc[-1]
-                    
-                    # Count bullish signals
-                    bullish_count = 0
-                    total_signals = 0
-                    
-                    # RSI
-                    if 'rsi_14' in last_row:
-                        total_signals += 1
-                        if last_row['rsi_14'] > 50:
-                            bullish_count += 1
-                    
-                    # MACD
-                    if 'macd_hist' in last_row:
-                        total_signals += 1
-                        if last_row['macd_hist'] > 0:
-                            bullish_count += 1
-                    
-                    # Moving Averages
-                    if 'sma_50' in last_row and 'close' in last_row:
-                        total_signals += 1
-                        if last_row['close'] > last_row['sma_50']:
-                            bullish_count += 1
-                    
-                    if 'sma_200' in last_row and 'close' in last_row:
-                        total_signals += 1
-                        if last_row['close'] > last_row['sma_200']:
-                            bullish_count += 1
-                    
-                    # Bollinger Bands
-                    if 'bb_upper' in last_row and 'bb_lower' in last_row and 'close' in last_row:
-                        total_signals += 1
-                        bb_position = (last_row['close'] - last_row['bb_lower']) / (last_row['bb_upper'] - last_row['bb_lower'])
-                        if bb_position > 0.5:
-                            bullish_count += 1
-                    
-                    if total_signals > 0:
-                        tech_score = (bullish_count / total_signals) * 10
-                        period_desc = {
-                            '1d': 'current',
-                            '1w': 'recent',
-                            '1m': 'monthly'
-                        }.get(period, '')
-                        
-                        if tech_score >= 7.5:
-                            metrics["technical"] = {"value": "Bullish", "score": tech_score, "status": "positive", 
-                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
-                        elif tech_score >= 6:
-                            metrics["technical"] = {"value": "Mildly Bullish", "score": tech_score, "status": "positive", 
-                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
-                        elif tech_score > 4:
-                            metrics["technical"] = {"value": "Neutral", "score": tech_score, "status": "neutral", 
-                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
-                        elif tech_score >= 2.5:
-                            metrics["technical"] = {"value": "Mildly Bearish", "score": tech_score, "status": "negative", 
-                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
-                        else:
-                            metrics["technical"] = {"value": "Bearish", "score": tech_score, "status": "negative", 
-                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
-        
-        # Use S&P, VIX relationship and news sentiment for combined sentiment calculation
-        if 'SPX' in processed_data and 'VIX' in processed_data:
-            spx_df = processed_data['SPX']
-            vix_df = processed_data['VIX']
-            
-            lookback_days = period_map.get(period, 5)
-            
-            if len(spx_df) > lookback_days and len(vix_df) > lookback_days:
-                # Calculate returns for the selected period
-                spx_return = spx_df['close'].pct_change(lookback_days).iloc[-1] * 100
-                vix_change = vix_df['close'].pct_change(lookback_days).iloc[-1] * 100
-                
-                # Calculate sentiment score (negative correlation expected)
-                sentiment_score = 50  # Neutral baseline
-                
-                # Adjust thresholds based on the period
-                period_adjustments = {
-                    '1d': {'strong': 1.5, 'positive': 0.5, 'negative': -0.5, 'strong_negative': -1.5, 'vix_thresholds': [-5, -2, 0, 2, 5]},
-                    '1w': {'strong': 2.5, 'positive': 1.0, 'negative': -1.0, 'strong_negative': -2.5, 'vix_thresholds': [-10, -5, 0, 5, 10]},
-                    '1m': {'strong': 5.0, 'positive': 2.0, 'negative': -2.0, 'strong_negative': -5.0, 'vix_thresholds': [-15, -8, 0, 8, 15]},
-                    '3m': {'strong': 8.0, 'positive': 3.0, 'negative': -3.0, 'strong_negative': -8.0, 'vix_thresholds': [-20, -10, 0, 10, 20]},
-                    '1y': {'strong': 15.0, 'positive': 8.0, 'negative': -8.0, 'strong_negative': -15.0, 'vix_thresholds': [-30, -15, 0, 15, 30]}
-                }
-                
-                thresholds = period_adjustments.get(period, period_adjustments['1d'])
-                
-                # Adjust based on SPX return
-                if spx_return > thresholds['strong']:
-                    sentiment_score += 15
-                elif spx_return > thresholds['positive']:
-                    sentiment_score += 10
-                elif spx_return > 0:
-                    sentiment_score += 5
-                elif spx_return > thresholds['negative']:
-                    sentiment_score -= 5
-                elif spx_return > thresholds['strong_negative']:
-                    sentiment_score -= 10
-                else:
-                    sentiment_score -= 15
-                
-                # Adjust based on VIX change (inversely)
-                vix_thresholds = thresholds['vix_thresholds']
-                if vix_change < vix_thresholds[0]:
-                    sentiment_score += 15
-                elif vix_change < vix_thresholds[1]:
-                    sentiment_score += 10
-                elif vix_change < vix_thresholds[2]:
-                    sentiment_score += 5
-                elif vix_change < vix_thresholds[3]:
-                    sentiment_score -= 5
-                elif vix_change < vix_thresholds[4]:
-                    sentiment_score -= 10
-                else:
-                    sentiment_score -= 15
-                
-                # Add news sentiment if available (with higher weight)
-                if news_sentiment_score > 0:
-                    # Weighted average: 60% price/VIX signals, 40% news sentiment
-                    sentiment_score = sentiment_score * 0.6 + news_sentiment_score * 0.4
-                
-                # Cap between 0 and 100
-                sentiment_score = max(0, min(100, sentiment_score))
-                
-                # Assign sentiment category
-                if sentiment_score >= 80:
-                    news_desc = " with extremely positive news sentiment" if news_sentiment_score > 75 else ""
-                    metrics["sentiment"] = {"value": "Extremely Bullish", "score": sentiment_score, "status": "positive", 
-                                           "description": f"Market sentiment is extremely optimistic{news_desc}"}
-                elif sentiment_score >= 65:
-                    news_desc = " with positive news sentiment" if news_sentiment_score > 60 else ""
-                    metrics["sentiment"] = {"value": "Bullish", "score": sentiment_score, "status": "positive", 
-                                           "description": f"Market sentiment shows optimism{news_desc}"}
-                elif sentiment_score >= 55:
-                    news_desc = " with mildly positive news" if news_sentiment_score > 55 else ""
-                    metrics["sentiment"] = {"value": "Mildly Bullish", "score": sentiment_score, "status": "positive", 
-                                           "description": f"Market sentiment is cautiously optimistic{news_desc}"}
-                elif sentiment_score >= 45:
-                    metrics["sentiment"] = {"value": "Neutral", "score": sentiment_score, "status": "neutral", 
-                                           "description": "Market sentiment is balanced"}
-                elif sentiment_score >= 35:
-                    news_desc = " with mildly negative news" if news_sentiment_score < 45 else ""
-                    metrics["sentiment"] = {"value": "Mildly Bearish", "score": sentiment_score, "status": "negative", 
-                                           "description": f"Market sentiment is cautiously pessimistic{news_desc}"}
-                elif sentiment_score >= 20:
-                    news_desc = " with negative news sentiment" if news_sentiment_score < 40 else ""
-                    metrics["sentiment"] = {"value": "Bearish", "score": sentiment_score, "status": "negative", 
-                                           "description": f"Market sentiment shows pessimism{news_desc}"}
-                else:
-                    news_desc = " with extremely negative news sentiment" if news_sentiment_score < 25 else ""
-                    metrics["sentiment"] = {"value": "Extremely Bearish", "score": sentiment_score, "status": "negative", 
-                                           "description": f"Market sentiment is extremely pessimistic{news_desc}"}
-        
-        # Calculate AI confidence based on real vs. demo data
-        if 'SPX' in processed_data and len(processed_data) >= 3:
-            # Higher confidence if we have more market data
-            confidence_score = min(len(processed_data) * 15, 75)
-            
-            # Add news sentiment component to confidence
-            if news_sentiment_score > 0:
-                # Higher confidence with news data
-                confidence_score = min(confidence_score + 15, 85)
-                
-            # Adjust value based on score
-            if confidence_score >= 80:
-                metrics["aiConfidence"] = {"value": "Very High", "score": confidence_score, "status": "positive", 
-                                          "description": "AI models have high confidence with comprehensive market data"}
-            elif confidence_score >= 65:
-                metrics["aiConfidence"] = {"value": "High", "score": confidence_score, "status": "positive", 
-                                          "description": "AI models show good confidence with sufficient data"}
-            elif confidence_score >= 50:
-                metrics["aiConfidence"] = {"value": "Moderate", "score": confidence_score, "status": "neutral", 
-                                          "description": "AI models show moderate confidence with available data"}
-            elif confidence_score >= 30:
-                metrics["aiConfidence"] = {"value": "Low", "score": confidence_score, "status": "negative", 
-                                          "description": "AI models have limited confidence due to data constraints"}
-            else:
-                metrics["aiConfidence"] = {"value": "Very Low", "score": confidence_score, "status": "negative", 
-                                          "description": "AI models have very low confidence with limited data"}
-        
         return metrics
-    
+        
     except Exception as e:
         app.logger.error(f"Error calculating market metrics: {str(e)}")
+        # Return default metrics in case of error
         return {
-            "momentum": {"value": "Error", "score": 5.0, "status": "neutral", "description": "Error calculating momentum"},
-            "volatility": {"value": "Error", "score": 15.0, "status": "neutral", "description": "Error calculating volatility"},
-            "breadth": {"value": "Error", "score": 50, "status": "neutral", "description": "Error calculating market breadth"},
-            "sentiment": {"value": "Error", "score": 50, "status": "neutral", "description": "Error calculating sentiment"},
-            "technical": {"value": "Error", "score": 5.0, "status": "neutral", "description": "Error calculating technical indicators"},
-            "aiConfidence": {"value": "Error", "score": 50, "status": "neutral", "description": "Error calculating AI confidence"}
+            "momentum": {"value": "Error", "score": 50.0, "status": "neutral", "description": "Error calculating momentum"},
+            "volatility": {"value": "Moderate", "score": 50.0, "status": "neutral", "description": "Volatility near historical average"},
+            "breadth": {"value": "Mixed", "score": 50, "status": "neutral", "description": "Equal numbers of advancing and declining stocks"},
+            "sentiment": {"value": "Neutral", "score": 50, "status": "neutral", "description": "Balanced sentiment indicators"},
+            "technical": {"value": "Neutral", "score": 5.0, "status": "neutral", "description": "Equal bullish and bearish indicators"},
+            "aiConfidence": {"value": "Low", "score": 20, "status": "negative", "description": "Technical error reduced confidence"}
         }
 
 @app.route('/api/portfolio-optimization', methods=['POST'])
@@ -3505,337 +3226,89 @@ def portfolio_optimization():
     if 'user' not in session:
         return jsonify({"error": "Authentication required"}), 401
     
-    # Get request data
-    req_data = request.get_json()
-    
-    if not req_data:
-        return jsonify({"error": "No request data provided"}), 400
-    
-    # Extract parameters
-    symbols = req_data.get('symbols')
-    risk_tolerance = req_data.get('risk_tolerance', 'moderate')
-    optimization_method = req_data.get('method', 'mpt')  # 'mpt' or 'risk_parity'
-    historical_days = req_data.get('historical_days', 365 * 2)
-    custom_risk_budget = req_data.get('custom_risk_budget')
-    
-    # Validate symbols
-    if not symbols or not isinstance(symbols, list) or len(symbols) < 2:
-        return jsonify({
-            "error": "At least two valid symbols are required for portfolio optimization"
-        }), 400
-    
-    # Path to AI experiments directory
-    ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
-    app.logger.info(f"AI directory path: {ai_dir}")
-    
-    # Add AI directory to path
-    if ai_dir not in sys.path:
-        sys.path.append(ai_dir)
-    
     try:
-        # Import our portfolio optimizer module
-        from portfolio_optimizer import MPTOptimizer, RiskParityOptimizer
-        app.logger.info("Successfully imported portfolio optimizer module")
-    except ImportError as e:
-        app.logger.error(f"Import error: {str(e)}")
-        return jsonify({
-            "error": "Failed to import portfolio optimizer module"
-        }), 500
-    
-    try:
-        # Create optimizer based on method
-        if optimization_method.lower() == 'risk_parity':
-            optimizer = RiskParityOptimizer(symbols, historical_days=historical_days)
-            
-            # Custom risk budget optimization for risk parity
-            if custom_risk_budget and isinstance(custom_risk_budget, dict):
-                # Validate custom risk budget
-                if not all(symbol in symbols for symbol in custom_risk_budget) or \
-                   not all(isinstance(weight, (int, float)) for weight in custom_risk_budget.values()):
-                    return jsonify({
-                        "error": "Invalid custom risk budget provided"
-                    }), 400
-                
-                # Complete missing symbols with equal weights
-                total_specified_weight = sum(custom_risk_budget.values())
-                remaining_weight = 1.0 - total_specified_weight
-                unspecified_symbols = [s for s in symbols if s not in custom_risk_budget]
-                
-                if unspecified_symbols and remaining_weight > 0:
-                    weight_per_symbol = remaining_weight / len(unspecified_symbols)
-                    for symbol in unspecified_symbols:
-                        custom_risk_budget[symbol] = weight_per_symbol
-                
-                app.logger.info(f"Using custom risk budget: {custom_risk_budget}")
-                result = optimizer.optimize_with_custom_risk(custom_risk_budget)
-            else:
-                # Standard risk parity optimization
-                result = optimizer.optimize(risk_tolerance)
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/portfolio-optimization', method='post', data=data)
+        
+        if ai_response and 'optimization' in ai_response:
+            return jsonify(ai_response)
         else:
-            # Default to MPT optimization
-            optimizer = MPTOptimizer(symbols, historical_days=historical_days)
-            result = optimizer.optimize(risk_tolerance)
-        
-        # Add additional metadata
-        result['optimization_method'] = optimization_method
-        result['historical_days'] = historical_days
-        result['request_timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-        # Include raw asset data (last 30 days) for charting
-        if optimizer.data is not None and not optimizer.data.empty:
-            # Get last 30 days of data
-            last_30_days = optimizer.data.iloc[-30:].copy()
-            # Convert index to string for JSON serialization
-            last_30_days.index = last_30_days.index.strftime('%Y-%m-%d')
-            # Convert to dictionary for JSON response
-            result['asset_data'] = {
-                'dates': last_30_days.index.tolist(),
-                'prices': {symbol: last_30_days[symbol].tolist() for symbol in symbols if symbol in last_30_days.columns}
-            }
-            
-            # Calculate correlation matrix
-            if optimizer.returns is not None and not optimizer.returns.empty:
-                correlation_matrix = optimizer.returns.corr().round(3)
-                result['correlation_matrix'] = correlation_matrix.to_dict()
-        
-        return jsonify(result), 200
-        
+            app.logger.error("AI server returned invalid response")
+            return jsonify({"error": "Error in portfolio optimization"}), 500
+    
     except Exception as e:
-        app.logger.error(f"An unexpected error occurred: {str(e)}")
-        return jsonify({
-            "error": "An internal error has occurred"
-        }), 500
-        app.logger.error(f"Error during portfolio optimization: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
-        
-        return jsonify({
-            "error": "Failed to optimize portfolio",
-            "details": str(e)
-        }), 500
+        app.logger.error(f"Error in portfolio optimization: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/alerts', methods=['GET'])
 def get_alerts():
-    """API endpoint to get all alert rules."""
+    """API endpoint for retrieving alerts."""
     if 'user' not in session:
         return jsonify({"error": "Authentication required"}), 401
     
-    # Path to AI experiments directory
-    ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
-    
-    # Add AI directory to path if needed
-    if ai_dir not in sys.path:
-        sys.path.append(ai_dir)
-    
     try:
-        # Import our alert system module
-        from alert_system import AlertManager
-        app.logger.info("Successfully imported alert system module")
-    except ImportError as e:
-        app.logger.error(f"Import error: {str(e)}")
-        return jsonify({
-            "error": "Failed to import alert system module"
-        }), 500
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/alerts')
+        
+        if ai_response and 'alerts' in ai_response:
+            return jsonify(ai_response)
+        else:
+            app.logger.error("AI server returned invalid response")
+            return jsonify({"error": "Error retrieving alerts"}), 500
     
-    # Get user_id from session
-    user_id = session['user'].get('id')
-    
-    try:
-        # Get alert rules from database
-        cursor = get_db_connection().cursor(dictionary=True)
-        cursor.execute(
-            "SELECT * FROM alert_rules WHERE user_id = %s ORDER BY created_at DESC",
-            (user_id,)
-        )
-        alert_rules = cursor.fetchall()
-        cursor.close()
-        
-        # Format response
-        response = {
-            "alert_rules": []
-        }
-        
-        for rule in alert_rules:
-            # Parse rule parameters from JSON
-            rule_params = json.loads(rule['rule_params'])
-            
-            # Add formatted rule to response
-            response["alert_rules"].append({
-                "id": rule['id'],
-                "name": rule['name'],
-                "type": rule['rule_type'],
-                "enabled": rule['enabled'],
-                "params": rule_params,
-                "last_triggered": rule['last_triggered'],
-                "created_at": rule['created_at'].isoformat() if rule['created_at'] else None
-            })
-        
-        return jsonify(response), 200
-        
     except Exception as e:
-        app.logger.error(f"Error getting alert rules: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
-        
-        return jsonify({
-            "error": "Failed to retrieve alert rules"
-        }), 500
-
+        app.logger.error(f"Error retrieving alerts: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/alerts', methods=['POST'])
 def create_alert():
-    """API endpoint to create a new alert rule."""
+    """API endpoint for creating an alert."""
     if 'user' not in session:
         return jsonify({"error": "Authentication required"}), 401
     
-    # Get request data
-    req_data = request.get_json()
-    
-    if not req_data:
-        return jsonify({"error": "No request data provided"}), 400
-    
-    # Extract parameters
-    name = req_data.get('name')
-    rule_type = req_data.get('type')
-    rule_params = req_data.get('params', {})
-    enabled = req_data.get('enabled', True)
-    
-    # Validate parameters
-    if not name or not rule_type:
-        return jsonify({
-            "error": "Missing required parameters: name and type are required"
-        }), 400
-    
-    # Validate rule_type
-    valid_rule_types = ['price', 'prediction', 'portfolio']
-    if rule_type not in valid_rule_types:
-        return jsonify({
-            "error": f"Invalid rule type: {rule_type}. Must be one of: {', '.join(valid_rule_types)}"
-        }), 400
-    
-    # Validate rule_params based on rule_type
-    if rule_type == 'price':
-        required_params = ['symbol', 'threshold', 'condition']
-        if not all(param in rule_params for param in required_params):
-            return jsonify({
-                "error": f"Missing required parameters for price alert: {', '.join(required_params)}"
-            }), 400
-    elif rule_type == 'prediction':
-        required_params = ['symbol', 'metric', 'threshold', 'condition']
-        if not all(param in rule_params for param in required_params):
-            return jsonify({
-                "error": f"Missing required parameters for prediction alert: {', '.join(required_params)}"
-            }), 400
-    elif rule_type == 'portfolio':
-        required_params = ['portfolio_id', 'metric', 'threshold', 'condition']
-        if not all(param in rule_params for param in required_params):
-            return jsonify({
-                "error": f"Missing required parameters for portfolio alert: {', '.join(required_params)}"
-            }), 400
-    
-    # Path to AI experiments directory
-    ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
-    
-    # Add AI directory to path if needed
-    if ai_dir not in sys.path:
-        sys.path.append(ai_dir)
-    
     try:
-        # Import our alert system module
-        from alert_system import AlertManager, PriceAlertRule, PredictionAlertRule, PortfolioAlertRule
-        app.logger.info("Successfully imported alert system module")
-    except ImportError as e:
-        app.logger.error(f"Import error: {str(e)}")
-        return jsonify({
-            "error": "Failed to import alert system module",
-            "details": str(e)
-        }), 500
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/alerts', method='post', data=data)
+        
+        if ai_response and 'alert_id' in ai_response:
+            return jsonify(ai_response)
+        else:
+            app.logger.error("AI server returned invalid response")
+            return jsonify({"error": "Error creating alert"}), 500
     
-    # Get user_id from session
-    user_id = session['user'].get('id')
-    
-    try:
-        # Insert alert rule into database
-        cursor = get_db_connection().cursor()
-        cursor.execute(
-            """
-            INSERT INTO alert_rules 
-            (user_id, name, rule_type, rule_params, enabled, created_at) 
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """,
-            (user_id, name, rule_type, json.dumps(rule_params), enabled, datetime.now())
-        )
-        
-        # Get the ID of the inserted rule
-        rule_id = cursor.lastrowid
-        get_db_connection().commit()
-        cursor.close()
-        
-        # Return the created rule
-        return jsonify({
-            "id": rule_id,
-            "name": name,
-            "type": rule_type,
-            "params": rule_params,
-            "enabled": enabled,
-            "created_at": datetime.now().isoformat()
-        }), 201
-        
     except Exception as e:
-        app.logger.error(f"Error creating alert rule: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
-        
-        return jsonify({
-            "error": "Failed to create alert rule"
-        }), 500
-
+        app.logger.error(f"Error creating alert: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/alerts/<int:rule_id>', methods=['DELETE'])
 def delete_alert(rule_id):
-    """API endpoint to delete an alert rule."""
+    """API endpoint for deleting an alert."""
     if 'user' not in session:
         return jsonify({"error": "Authentication required"}), 401
     
-    # Get user_id from session
-    user_id = session['user'].get('id')
-    
     try:
-        # Check if the rule exists and belongs to the user
-        cursor = get_db_connection().cursor(dictionary=True)
-        cursor.execute(
-            "SELECT id FROM alert_rules WHERE id = %s AND user_id = %s",
-            (rule_id, user_id)
-        )
-        rule = cursor.fetchone()
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api(f'/api/alerts/{rule_id}', method='delete')
         
-        if not rule:
-            cursor.close()
-            return jsonify({
-                "error": "Alert rule not found or you don't have permission to delete it"
-            }), 404
-        
-        # Delete the rule
-        cursor.execute(
-            "DELETE FROM alert_rules WHERE id = %s",
-            (rule_id,)
-        )
-        get_db_connection().commit()
-        cursor.close()
-        
-        return jsonify({
-            "success": True,
-            "message": f"Alert rule {rule_id} deleted successfully"
-        }), 200
-        
+        if ai_response and 'result' in ai_response and ai_response['result'] == 'success':
+            return jsonify({"success": True})
+        else:
+            app.logger.error("AI server returned invalid response")
+            return jsonify({"error": "Error deleting alert"}), 500
+    
     except Exception as e:
-        app.logger.error(f"Error deleting alert rule: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
-        
-        return jsonify({
-            "error": "Failed to delete alert rule"
-        }), 500
+        app.logger.error(f"Error deleting alert: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/ai-dashboard')
 def ai_dashboard():
@@ -3869,305 +3342,73 @@ def ai_status():
     This endpoint is used by the frontend to monitor AI service health.
     """
     try:
-        # In a real-world scenario, we would check actual AI service health
-        # For now, we'll return a mock status based on the server being up
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/ai-status')
         
-        # Check if any required API keys are missing
-        required_keys = ["ALPHA_VANTAGE_API_KEY"]
-        missing_keys = [key for key in required_keys if not os.environ.get(key)]
-        
-        # Get authentication status
-        is_authenticated = 'user' in session
-        
-        if missing_keys:
-            app.logger.warning(f"AI status check: Missing required API keys: {', '.join(missing_keys)}")
-            status = "degraded"
-            message = f"Missing API keys: {', '.join(missing_keys)}"
+        if ai_response and 'status' in ai_response:
+            return jsonify(ai_response)
         else:
-            status = "active"
-            message = "All AI systems operational"
-        
-        return jsonify({
-            "status": status,
-            "message": message,
-            "authenticated": is_authenticated,
-            "timestamp": datetime.now().isoformat()
-        })
-    except Exception as e:
-        # Log the detailed exception message
-        app.logger.error(f"Exception occurred in AI status check: {str(e)}")
-        return jsonify({
-            "status": "inactive",
-            "message": "AI systems are currently experiencing issues. Please try again later.",
-            "last_checked": datetime.now().isoformat(),
-            "services": {
-                "prediction_engine": "offline",
-                "market_data": "offline",
-                "news_sentiment": "offline",
-                "portfolio_optimization": "offline"
+            # Create fallback status response if API call fails
+            status = {
+                "status": {
+                    "health": "degraded",
+                    "message": "AI server unreachable",
+                    "api_endpoints": [
+                        "/api/ai-insights",
+                        "/api/market-indices",
+                        "/api/portfolio-optimization",
+                        "/api/alerts",
+                        "/api/economic-indicators",
+                        "/api/news-sentiment"
+                    ],
+                    "timestamp": datetime.now().isoformat()
+                }
             }
-        })
+            return jsonify(status)
+    
+    except Exception as e:
+        app.logger.error(f"Error checking AI status: {str(e)}")
+        return jsonify({
+            "status": {
+                "health": "error",
+                "message": f"Error checking AI status: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
+        }), 500
 
 @app.route('/api/economic-indicators')
 def economic_indicators():
-    """
-    Provide economic indicators data for the dashboard.
-    This endpoint returns key economic indicators with their latest values.
-    """
+    """API endpoint for economic indicators."""
     try:
-        # In a production environment, this would fetch real data from sources like:
-        # - Federal Reserve Economic Data (FRED)
-        # - Bureau of Labor Statistics
-        # - Trading Economics API
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/economic-indicators')
         
-        # For now, we'll return sample data
-        indicators = [
-            {
-                "name": "GDP Growth Rate",
-                "value": 0.0251,
-                "previous": 0.0212,
-                "forecast": 0.0230,
-                "category": "Growth",
-                "importance": 3,
-                "release_date": (datetime.now() - timedelta(days=25)).isoformat()
-            },
-            {
-                "name": "Inflation Rate",
-                "value": 0.0312,
-                "previous": 0.0345,
-                "forecast": 0.0325,
-                "category": "Prices",
-                "importance": 3,
-                "release_date": (datetime.now() - timedelta(days=10)).isoformat()
-            },
-            {
-                "name": "Unemployment Rate",
-                "value": 0.0375,
-                "previous": 0.0389,
-                "forecast": 0.0370,
-                "category": "Labor",
-                "importance": 3,
-                "release_date": (datetime.now() - timedelta(days=5)).isoformat()
-            },
-            {
-                "name": "Interest Rate",
-                "value": 0.0525,
-                "previous": 0.0525,
-                "forecast": 0.0500,
-                "category": "Central Bank",
-                "importance": 3,
-                "release_date": (datetime.now() - timedelta(days=15)).isoformat()
-            },
-            {
-                "name": "Consumer Confidence",
-                "value": 102.5,
-                "previous": 101.8,
-                "forecast": 102.0,
-                "category": "Sentiment",
-                "importance": 2,
-                "release_date": (datetime.now() - timedelta(days=8)).isoformat()
-            },
-            {
-                "name": "Retail Sales MoM",
-                "value": 0.0041,
-                "previous": 0.0028,
-                "forecast": 0.0035,
-                "category": "Consumption",
-                "importance": 2,
-                "release_date": (datetime.now() - timedelta(days=12)).isoformat()
-            },
-            {
-                "name": "Housing Starts",
-                "value": 1.425,
-                "previous": 1.392,
-                "forecast": 1.410,
-                "category": "Real Estate",
-                "importance": 2,
-                "release_date": (datetime.now() - timedelta(days=9)).isoformat()
-            },
-            {
-                "name": "Manufacturing PMI",
-                "value": 51.2,
-                "previous": 49.8,
-                "forecast": 50.5,
-                "category": "Manufacturing",
-                "importance": 2,
-                "release_date": (datetime.now() - timedelta(days=7)).isoformat()
-            },
-            {
-                "name": "Services PMI",
-                "value": 53.6,
-                "previous": 52.9,
-                "forecast": 53.0,
-                "category": "Services",
-                "importance": 2,
-                "release_date": (datetime.now() - timedelta(days=7)).isoformat()
-            },
-            {
-                "name": "Balance of Trade",
-                "value": -68.2,
-                "previous": -70.5,
-                "forecast": -69.0,
-                "category": "Trade",
-                "importance": 2,
-                "release_date": (datetime.now() - timedelta(days=20)).isoformat()
-            },
-            {
-                "name": "Government Debt to GDP",
-                "value": 1.28,
-                "previous": 1.26,
-                "forecast": 1.29,
-                "category": "Government",
-                "importance": 1,
-                "release_date": (datetime.now() - timedelta(days=90)).isoformat()
-            },
-            {
-                "name": "Industrial Production MoM",
-                "value": 0.0029,
-                "previous": -0.0016,
-                "forecast": 0.0025,
-                "category": "Production",
-                "importance": 1,
-                "release_date": (datetime.now() - timedelta(days=14)).isoformat()
-            }
-        ]
-        
-        return jsonify({
-            "indicators": indicators,
-            "last_updated": datetime.now().isoformat()
-        })
-        
+        if ai_response and 'indicators' in ai_response:
+            return jsonify(ai_response)
+        else:
+            app.logger.error("AI server returned invalid response")
+            return jsonify({"error": "Error retrieving economic indicators"}), 500
+    
     except Exception as e:
-        # Log the detailed exception message
-        app.logger.error(f"Exception occurred while retrieving economic indicators: {str(e)}")
-        return jsonify({
-            "error": "Failed to retrieve economic indicators. Please try again later."
-        }), 500
+        app.logger.error(f"Error retrieving economic indicators: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/news-sentiment')
 def news_sentiment():
-    """
-    Provide news articles with sentiment analysis.
-    This endpoint returns recent news articles with sentiment scores.
-    """
+    """API endpoint for news sentiment analysis."""
     try:
-        # In a production environment, this would fetch real news and analyze sentiment using:
-        # - News APIs (Guardian, NewsAPI, etc.)
-        # - Natural Language Processing for sentiment analysis
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/news-sentiment')
         
-        # For now, we'll return sample data
-        articles = [
-            {
-                "title": "Tech Stocks Rally on Strong Earnings Reports",
-                "summary": "Major technology companies reported better-than-expected quarterly earnings, leading to a rally in tech stocks. Investors are optimistic about the sector's growth prospects.",
-                "url": "https://example.com/tech-stocks-rally",
-                "source": "Financial Times",
-                "published_at": (datetime.now() - timedelta(hours=4)).isoformat(),
-                "sentiment": "positive",
-                "sentiment_score": 0.78,
-                "entities": [
-                    {"name": "Tech Stocks", "type": "FINANCIAL_INSTRUMENT"},
-                    {"name": "Earnings", "type": "FINANCIAL_CONCEPT"},
-                    {"name": "Investors", "type": "ENTITY"}
-                ]
-            },
-            {
-                "title": "Federal Reserve Signals Potential Rate Cut in Coming Months",
-                "summary": "The Federal Reserve has indicated it may begin cutting interest rates in the coming months as inflation shows signs of cooling. Markets responded positively to the news.",
-                "url": "https://example.com/fed-rate-cut-signal",
-                "source": "Wall Street Journal",
-                "published_at": (datetime.now() - timedelta(hours=7)).isoformat(),
-                "sentiment": "positive",
-                "sentiment_score": 0.65,
-                "entities": [
-                    {"name": "Federal Reserve", "type": "ORGANIZATION"},
-                    {"name": "Interest Rates", "type": "FINANCIAL_CONCEPT"},
-                    {"name": "Inflation", "type": "ECONOMIC_INDICATOR"}
-                ]
-            },
-            {
-                "title": "Oil Prices Drop Amid Supply Concerns",
-                "summary": "Oil prices fell sharply today due to concerns about oversupply in the global market. OPEC+ members are considering increasing production despite weak demand forecasts.",
-                "url": "https://example.com/oil-prices-drop",
-                "source": "Reuters",
-                "published_at": (datetime.now() - timedelta(hours=10)).isoformat(),
-                "sentiment": "negative",
-                "sentiment_score": -0.55,
-                "entities": [
-                    {"name": "Oil Prices", "type": "COMMODITY"},
-                    {"name": "OPEC+", "type": "ORGANIZATION"},
-                    {"name": "Supply", "type": "ECONOMIC_CONCEPT"}
-                ]
-            },
-            {
-                "title": "Retail Sales Growth Slows in Q2",
-                "summary": "Retail sales growth slowed in the second quarter as consumers cut back on discretionary spending. Analysts cite inflation and economic uncertainty as key factors.",
-                "url": "https://example.com/retail-sales-slow",
-                "source": "Bloomberg",
-                "published_at": (datetime.now() - timedelta(hours=13)).isoformat(),
-                "sentiment": "negative",
-                "sentiment_score": -0.42,
-                "entities": [
-                    {"name": "Retail Sales", "type": "ECONOMIC_INDICATOR"},
-                    {"name": "Q2", "type": "TIME_PERIOD"},
-                    {"name": "Consumers", "type": "ENTITY"}
-                ]
-            },
-            {
-                "title": "New AI Regulations May Impact Tech Sector",
-                "summary": "Proposed regulations for artificial intelligence technologies could impact the tech sector, as companies may face new compliance requirements and limitations.",
-                "url": "https://example.com/ai-regulations",
-                "source": "CNBC",
-                "published_at": (datetime.now() - timedelta(hours=16)).isoformat(),
-                "sentiment": "neutral",
-                "sentiment_score": -0.05,
-                "entities": [
-                    {"name": "AI Regulations", "type": "REGULATION"},
-                    {"name": "Tech Sector", "type": "INDUSTRY"},
-                    {"name": "Compliance", "type": "BUSINESS_CONCEPT"}
-                ]
-            },
-            {
-                "title": "Housing Market Shows Signs of Stabilization",
-                "summary": "After months of declining prices, the housing market is showing signs of stabilization. Mortgage rates have decreased slightly, leading to increased buyer interest.",
-                "url": "https://example.com/housing-market-stabilizes",
-                "source": "Market Watch",
-                "published_at": (datetime.now() - timedelta(hours=21)).isoformat(),
-                "sentiment": "positive",
-                "sentiment_score": 0.38,
-                "entities": [
-                    {"name": "Housing Market", "type": "MARKET"},
-                    {"name": "Mortgage Rates", "type": "FINANCIAL_CONCEPT"},
-                    {"name": "Prices", "type": "ECONOMIC_CONCEPT"}
-                ]
-            }
-        ]
-        
-        # Calculate sentiment summary
-        positive_count = sum(1 for article in articles if article["sentiment"] == "positive")
-        negative_count = sum(1 for article in articles if article["sentiment"] == "negative")
-        neutral_count = sum(1 for article in articles if article["sentiment"] == "neutral")
-        
-        avg_sentiment = sum(article["sentiment_score"] for article in articles) / len(articles)
-        
-        sentiment_summary = {
-            "positive_count": positive_count,
-            "negative_count": negative_count,
-            "neutral_count": neutral_count,
-            "average_score": avg_sentiment
-        }
-        
-        return jsonify({
-            "articles": articles,
-            "sentiment_summary": sentiment_summary,
-            "last_updated": datetime.now().isoformat()
-        })
-        
+        if ai_response and 'sentiment' in ai_response:
+            return jsonify(ai_response)
+        else:
+            app.logger.error("AI server returned invalid response")
+            return jsonify({"error": "Error retrieving news sentiment"}), 500
+    
     except Exception as e:
-        app.logger.error(f"Failed to retrieve news sentiment: {str(e)}")
-        return jsonify({
-            "error": "An internal error has occurred. Please try again later."
-        }), 500
+        app.logger.error(f"Error retrieving news sentiment: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/analyze')
 def analyze_news_data():
@@ -4533,446 +3774,29 @@ def fetch_news_for_section(section, page_size=50):
         print(f"Error fetching news for section {section}: {str(e)}")
         return []
 
-# Use try-except for importing the transformer predictions function
-try:
-    from ai_experiments.transformer_pipeline import generate_market_predictions_for_dashboard as generate_transformer_predictions
-    print("Successfully imported transformer pipeline")
-except ImportError as e:
-    # Create a mock function if import fails
-    print(f"Could not import transformer pipeline: {e}")
-    print("Using mock implementation for transformer predictions")
+# Define the AI server base URL - will be set based on Docker network
+AI_SERVER_BASE_URL = os.getenv('AI_SERVER_URL', 'http://ai_server:5002')
+
+def call_ai_api(endpoint, params=None, method='get', data=None):
+    """Make a call to the AI server API."""
+    url = f"{AI_SERVER_BASE_URL}{endpoint}"
+    app.logger.info(f"Calling AI API: {url}")
     
-    def generate_transformer_predictions(market_indices=None, prediction_days=5):
-        """Mock implementation when transformer module is not available"""
-        import random
-        from datetime import datetime, timedelta
-        import numpy as np # type: ignore
-        
-        if market_indices is None:
-            from ai_experiments.alpha_vantage_pipeline import MARKET_INDICES
-            market_indices = MARKET_INDICES
-        
-        mock_data = {}
-        
-        for index_name, symbol in market_indices.items():
-            # Generate random direction, magnitude, and confidence
-            direction = 'up' if random.random() > 0.4 else 'down'
-            magnitude = random.uniform(0.5, 2.5)
-            confidence = random.uniform(0.6, 0.85)
-            
-            # Use realistic values for current_price
-            index_prices = {
-                'DJI': 38500.0,
-                'SPX': 5100.0,
-                'IXIC': 16200.0,
-                'VIX': 15.0,
-                'TNX': 4.2
-            }
-            current_price = index_prices.get(index_name, 100.0) * (1 + random.uniform(-0.01, 0.01))
-            
-            # Calculate predicted price
-            symbol_key = symbol.replace('^', '')  # Remove ^ for indices
-            factor = 1 + (magnitude / 100) if direction == 'up' else 1 - (magnitude / 100)
-            predicted_price = current_price * factor
-            
-            # Generate dates
-            today = datetime.now()
-            
-            mock_data[symbol_key] = {
-                'symbol': symbol,
-                'latest_date': today.strftime('%Y-%m-%d'),
-                'latest_close': float(current_price),
-                'prediction_dates': [(today + timedelta(days=i+1)).strftime('%Y-%m-%d') for i in range(prediction_days)],
-                'predicted_prices': [float(current_price * (1 + (i+1) * ((magnitude/100) if direction == 'up' else -(magnitude/100)))) for i in range(prediction_days)],
-                'direction': direction,
-                'magnitude': float(magnitude),
-                'confidence': float(confidence),
-                'model_type': 'transformer (mocked)'
-            }
-        
-        return mock_data
-
-# Add this import near other similar imports
-from ai_experiments.alternative_data_sources import (
-    get_entity_sentiment, 
-    get_reddit_sentiment,
-    get_retail_satellite_data,
-    get_agricultural_satellite_data
-)
-
-# Add this as a new route
-@app.route('/api/alternative-data/news-sentiment')
-@limiter.limit("20 per minute")
-def news_sentiment_api():
-    """API endpoint for news sentiment from web scraping."""
     try:
-        # Try to get data from cache with 6-hour expiry
-        entity_sentiment = get_entity_sentiment(max_age_hours=6)
+        if method.lower() == 'get':
+            response = requests.get(url, params=params, timeout=10)
+        elif method.lower() == 'post':
+            response = requests.post(url, json=data, timeout=10)
+        else:
+            app.logger.error(f"Unsupported HTTP method: {method}")
+            return None
         
-        # Check if we got any non-zero sentiment data
-        has_data = False
-        for entity_data in entity_sentiment.values():
-            if entity_data.get('sentiment_count', 0) > 0:
-                has_data = True
-                break
-        
-        # If no real data is available, generate mock data
-        if not has_data:
-            app.logger.warning("No real news sentiment data available, generating mock data")
-            entity_sentiment = generate_mock_news_sentiment()
-        
-        # Return sentiment data
-        return jsonify({
-            'generated_at': datetime.now().isoformat(),
-            'entities': entity_sentiment
-        })
-    except Exception as e:
-        app.logger.error(f"Error getting news sentiment data: {str(e)}")
-        # Generate mock data when an error occurs
-        mock_data = generate_mock_news_sentiment()
-        return jsonify({
-            'error_info': str(e),
-            'generated_at': datetime.now().isoformat(),
-            'entities': mock_data
-        })
-
-def generate_mock_news_sentiment():
-    """Generate mock news sentiment data for the frontend."""
-    entities = ["AAPL", "AMZN", "MSFT", "GOOGL", "META", "TSLA", "SPY", "QQQ", "BTC", "ETH"]
-    mock_data = {}
+        response.raise_for_status()
+        return response.json()
     
-    for entity in entities:
-        # Generate random sentiments with positive bias for some entities
-        positive_bias = random.choice([True, False])
-        sentiment_score = random.uniform(-0.5, 0.8) if not positive_bias else random.uniform(0.1, 0.8)
-        
-        # Calculate distribution of sentiment categories
-        very_positive = random.randint(3, 15) if sentiment_score > 0.3 else random.randint(0, 5)
-        positive = random.randint(10, 30) if sentiment_score > 0 else random.randint(5, 15)
-        neutral = random.randint(20, 40)
-        negative = random.randint(5, 20) if sentiment_score < 0 else random.randint(3, 10)
-        very_negative = random.randint(3, 10) if sentiment_score < -0.3 else random.randint(0, 3)
-        
-        # Total article count
-        article_count = random.randint(5, 30)
-        
-        # Generate mock headlines
-        headlines = []
-        for i in range(min(3, article_count)):
-            sentiment = random.uniform(-0.7, 0.7)
-            if sentiment > 0.2:
-                headline_template = random.choice([
-                    f"{entity} shows promising growth potential",
-                    f"Analysts bullish on {entity} after earnings",
-                    f"{entity} launches new innovative product line",
-                    f"{entity} exceeds market expectations"
-                ])
-            elif sentiment < -0.2:
-                headline_template = random.choice([
-                    f"{entity} faces regulatory challenges",
-                    f"Disappointing quarterly results for {entity}",
-                    f"{entity} stock downgraded by major analysts",
-                    f"Concerns emerge about {entity}'s market position"
-                ])
-            else:
-                headline_template = random.choice([
-                    f"{entity} maintains stable market presence",
-                    f"{entity} in line with quarterly projections",
-                    f"{entity} navigating market uncertainties"
-                ])
-            
-            headlines.append({
-                "title": headline_template,
-                "url": "#",
-                "date": (datetime.now() - timedelta(days=random.randint(0, 5))).isoformat(),
-                "sentiment": sentiment
-            })
-        
-        mock_data[entity] = {
-            "article_count": article_count,
-            "avg_sentiment": sentiment_score,
-            "sentiment_sum": sentiment_score * article_count,
-            "sentiment_count": article_count,
-            "very_positive": very_positive,
-            "positive": positive,
-            "neutral": neutral,
-            "negative": negative,
-            "very_negative": very_negative,
-            "recent_headlines": headlines
-        }
-    
-    return mock_data
-
-@app.route('/api/alternative-data/reddit-sentiment')
-@limiter.limit("20 per minute")
-def reddit_sentiment_api():
-    """API endpoint for Reddit sentiment analysis."""
-    try:
-        # Get Reddit client credentials from environment variables
-        reddit_client_id = os.environ.get('REDDIT_CLIENT_ID')
-        reddit_client_secret = os.environ.get('REDDIT_CLIENT_SECRET')
-        reddit_user_agent = os.environ.get('REDDIT_USER_AGENT', 'web:financial-dashboard:v1.0 (by /u/your_username)')
-        
-        # Get Reddit sentiment data with 6-hour expiry
-        reddit_data = get_reddit_sentiment(
-            reddit_client_id=reddit_client_id,
-            reddit_client_secret=reddit_client_secret,
-            reddit_user_agent=reddit_user_agent,
-            max_age_hours=6
-        )
-        
-        return jsonify(reddit_data)
-    except Exception as e:
-        app.logger.error(f"Error getting Reddit sentiment data: {str(e)}")
-        return jsonify({
-            'error': str(e),
-            'generated_at': datetime.now().isoformat(),
-            'entities': {},
-            'subreddits': {}
-        })
-
-@app.route('/api/alternative-data/retail-satellite')
-@limiter.limit("20 per minute")
-def retail_satellite_api():
-    """API endpoint for retail satellite imagery analysis."""
-    try:
-        # Get satellite API key from environment variables
-        satellite_api_key = os.environ.get('SATELLITE_API_KEY')
-        
-        # Use mock data by default
-        use_mock = request.args.get('use_mock', 'true').lower() == 'true'
-        
-        # Get retail satellite data
-        retail_data = get_retail_satellite_data(
-            api_key=satellite_api_key,
-            use_mock=use_mock
-        )
-        
-        return jsonify(retail_data)
-    except Exception as e:
-        app.logger.error(f"Error getting retail satellite data: {str(e)}")
-        return jsonify({
-            'error': str(e),
-            'generated_at': datetime.now().isoformat(),
-            'locations': {}
-        })
-
-@app.route('/api/alternative-data/agricultural-satellite')
-@limiter.limit("20 per minute")
-def agricultural_satellite_api():
-    """API endpoint for agricultural satellite imagery analysis."""
-    try:
-        # Get satellite API key from environment variables
-        satellite_api_key = os.environ.get('SATELLITE_API_KEY')
-        
-        # Use mock data by default
-        use_mock = request.args.get('use_mock', 'true').lower() == 'true'
-        
-        # Get agricultural satellite data
-        agricultural_data = get_agricultural_satellite_data(
-            api_key=satellite_api_key,
-            use_mock=use_mock
-        )
-        
-        return jsonify(agricultural_data)
-    except Exception as e:
-        app.logger.error(f"Error getting agricultural satellite data: {str(e)}")
-        return jsonify({
-            'error': str(e),
-            'generated_at': datetime.now().isoformat(),
-            'regions': {}
-        })
-
-@app.route('/api/alternative-data/summary')
-@limiter.limit("20 per minute")
-def alternative_data_summary_api():
-    """API endpoint for a summary of all alternative data sources."""
-    try:
-        # Get data from all sources
-        entity_sentiment = get_entity_sentiment(max_age_hours=6)
-        
-        # Get Reddit client credentials
-        reddit_client_id = os.environ.get('REDDIT_CLIENT_ID')
-        reddit_client_secret = os.environ.get('REDDIT_CLIENT_SECRET')
-        reddit_user_agent = os.environ.get('REDDIT_USER_AGENT', 'web:financial-dashboard:v1.0 (by /u/your_username)')
-        
-        # Get Reddit sentiment data
-        reddit_data = get_reddit_sentiment(
-            reddit_client_id=reddit_client_id,
-            reddit_client_secret=reddit_client_secret,
-            reddit_user_agent=reddit_user_agent,
-            max_age_hours=6
-        )
-        
-        # Get satellite API key
-        satellite_api_key = os.environ.get('SATELLITE_API_KEY')
-        
-        # Use mock data for satellite
-        retail_data = get_retail_satellite_data(
-            api_key=satellite_api_key,
-            use_mock=True
-        )
-        
-        agricultural_data = get_agricultural_satellite_data(
-            api_key=satellite_api_key,
-            use_mock=True
-        )
-        
-        # Create summary data
-        summary = {
-            'generated_at': datetime.now().isoformat(),
-            'sentiment_analysis': {
-                'news': {
-                    'source_count': len(entity_sentiment) if entity_sentiment else 0,
-                    'top_positive': _get_top_sentiment_entities(entity_sentiment, 'positive', 3),
-                    'top_negative': _get_top_sentiment_entities(entity_sentiment, 'negative', 3)
-                },
-                'social': {
-                    'analyzed_posts': reddit_data.get('analyzed_posts', 0),
-                    'analyzed_comments': reddit_data.get('analyzed_comments', 0),
-                    'top_entities': _get_top_reddit_entities(reddit_data, 5)
-                }
-            },
-            'satellite_data': {
-                'retail': {
-                    'locations_count': len(retail_data.get('locations', {})),
-                    'high_traffic_locations': _get_high_traffic_retail(retail_data, 3),
-                    'stock_impact': _get_retail_stock_impact(retail_data, 3)
-                },
-                'agricultural': {
-                    'regions_count': len(agricultural_data.get('regions', {})),
-                    'yield_changes': _get_agricultural_yield_changes(agricultural_data, 3),
-                    'price_impact': _get_agricultural_price_impact(agricultural_data, 3)
-                }
-            }
-        }
-        
-        return jsonify(summary)
-    except Exception as e:
-        app.logger.error(f"Error getting alternative data summary: {str(e)}")
-        return jsonify({
-            'error': str(e),
-            'generated_at': datetime.now().isoformat()
-        })
-
-# Helper functions for alternative data summary
-def _get_top_sentiment_entities(entity_sentiment, sentiment_type, count=3):
-    """Get top entities by sentiment."""
-    if not entity_sentiment:
-        return []
-    
-    # For positive sentiment, sort by avg_sentiment desc
-    # For negative sentiment, sort by avg_sentiment asc
-    entities = []
-    for symbol, data in entity_sentiment.items():
-        if data.get('article_count', 0) > 0:
-            entities.append({
-                'symbol': symbol,
-                'avg_sentiment': data.get('avg_sentiment', 0),
-                'article_count': data.get('article_count', 0)
-            })
-    
-    if sentiment_type == 'positive':
-        sorted_entities = sorted(entities, key=lambda x: x['avg_sentiment'], reverse=True)
-    else:
-        sorted_entities = sorted(entities, key=lambda x: x['avg_sentiment'])
-    
-    return sorted_entities[:count]
-
-def _get_top_reddit_entities(reddit_data, count=5):
-    """Get top entities from Reddit data by mention count."""
-    if not reddit_data or 'entities' not in reddit_data:
-        return []
-    
-    entities = []
-    for symbol, data in reddit_data.get('entities', {}).items():
-        if data.get('mentions', 0) > 0:
-            entities.append({
-                'symbol': symbol,
-                'mentions': data.get('mentions', 0),
-                'avg_sentiment': data.get('avg_sentiment', 0)
-            })
-    
-    sorted_entities = sorted(entities, key=lambda x: x['mentions'], reverse=True)
-    return sorted_entities[:count]
-
-def _get_high_traffic_retail(retail_data, count=3):
-    """Get retail locations with highest traffic."""
-    if not retail_data or 'locations' not in retail_data:
-        return []
-    
-    locations = []
-    for location_id, data in retail_data.get('locations', {}).items():
-        occupancy = data.get('analysis', {}).get('occupied_percentage', 0)
-        locations.append({
-            'name': data.get('name', ''),
-            'ticker': data.get('ticker', ''),
-            'occupancy': occupancy,
-            'category': data.get('analysis', {}).get('traffic_category', '')
-        })
-    
-    sorted_locations = sorted(locations, key=lambda x: x['occupancy'], reverse=True)
-    return sorted_locations[:count]
-
-def _get_retail_stock_impact(retail_data, count=3):
-    """Get retail stock impact data."""
-    if not retail_data or 'locations' not in retail_data:
-        return []
-    
-    impacts = []
-    for location_id, data in retail_data.get('locations', {}).items():
-        if 'stock_impact' in data:
-            impacts.append({
-                'name': data.get('name', ''),
-                'ticker': data.get('stock_impact', {}).get('ticker', ''),
-                'traffic_change': data.get('stock_impact', {}).get('traffic_change', 0),
-                'estimated_impact': data.get('stock_impact', {}).get('estimated_impact', 0)
-            })
-    
-    # Sort by absolute estimated impact
-    sorted_impacts = sorted(impacts, key=lambda x: abs(x['estimated_impact']), reverse=True)
-    return sorted_impacts[:count]
-
-def _get_agricultural_yield_changes(agricultural_data, count=3):
-    """Get agricultural regions with largest yield changes."""
-    if not agricultural_data or 'regions' not in agricultural_data:
-        return []
-    
-    regions = []
-    for region_id, data in agricultural_data.get('regions', {}).items():
-        yield_change = data.get('analysis', {}).get('yield_change', 0)
-        regions.append({
-            'name': data.get('name', ''),
-            'crop': data.get('crop', ''),
-            'ticker': data.get('ticker', ''),
-            'yield_change': yield_change,
-            'crop_health': data.get('analysis', {}).get('crop_health', '')
-        })
-    
-    # Sort by absolute yield change
-    sorted_regions = sorted(regions, key=lambda x: abs(x['yield_change']), reverse=True)
-    return sorted_regions[:count]
-
-def _get_agricultural_price_impact(agricultural_data, count=3):
-    """Get agricultural price impact data."""
-    if not agricultural_data or 'regions' not in agricultural_data:
-        return []
-    
-    impacts = []
-    for region_id, data in agricultural_data.get('regions', {}).items():
-        if 'price_impact' in data:
-            impacts.append({
-                'name': data.get('name', ''),
-                'crop': data.get('crop', ''),
-                'ticker': data.get('ticker', ''),
-                'price_change': data.get('price_impact', {}).get('price_change_percent', 0),
-                'direction': data.get('price_impact', {}).get('price_direction', ''),
-                'confidence': data.get('price_impact', {}).get('confidence', 0)
-            })
-    
-    # Sort by absolute price change
-    sorted_impacts = sorted(impacts, key=lambda x: abs(x['price_change']), reverse=True)
-    return sorted_impacts[:count]
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f"Error calling AI API: {e}")
+        return None
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.

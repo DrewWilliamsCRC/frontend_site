@@ -1,0 +1,147 @@
+FROM python:3.11-slim as builder
+
+# Add build args to support CI environment
+ARG CI_BUILD=false
+ARG SKIP_ML_FRAMEWORKS=false
+
+# Set environment variables for build
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/usr/local/bin:$PATH" \
+    CI_BUILD=${CI_BUILD} \
+    SKIP_ML_FRAMEWORKS=${SKIP_ML_FRAMEWORKS}
+
+# Create and set working directory
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    gcc \
+    python3-dev \
+    wget \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install scientific build dependencies
+RUN apt-get update && apt-get install -y \
+    libblas-dev \
+    liblapack-dev \
+    libatlas-base-dev \
+    gfortran \
+    pkg-config \
+    libfreetype6-dev \
+    libpng-dev \
+    libjpeg-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python tools first
+RUN pip install --upgrade pip setuptools wheel
+
+# Install critical packages first - these rarely change
+COPY build-helpers/ai-critical-requirements.txt ./critical-requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r critical-requirements.txt
+
+# Copy AI requirements but filter ML frameworks if in CI
+COPY ai_experiments/requirements.txt ./ai_requirements.txt
+RUN if [ "$SKIP_ML_FRAMEWORKS" = "true" ]; then \
+        # If in CI build, filter out tensorflow and torch to save space
+        grep -v "tensorflow\|torch\|prophet\|gymnasium" ./ai_requirements.txt > ./ai_requirements_filtered.txt && \
+        mv ./ai_requirements_filtered.txt ./ai_requirements.txt && \
+        echo "CI Build: Skipping large ML frameworks to save disk space"; \
+    fi && \
+    cat ./ai_requirements.txt
+
+# Install in steps for better error handling
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r ai_requirements.txt || echo "Some dependencies failed to install, continuing with core packages" && \
+    pip install pandas numpy matplotlib seaborn scikit-learn || true
+
+# Install mock packages for tensorflow and pytorch when in CI mode
+RUN if [ "$SKIP_ML_FRAMEWORKS" = "true" ]; then \
+        # Create a more comprehensive mock for TensorFlow
+        mkdir -p /build/tensorflow_mock/tensorflow && \
+        echo "class MockTensorFlow: pass" > /build/tensorflow_mock/tensorflow/__init__.py && \
+        # Create keras submodule
+        mkdir -p /build/tensorflow_mock/tensorflow/keras && \
+        echo "class Sequential: pass\ndef Model(*args, **kwargs): pass" > /build/tensorflow_mock/tensorflow/keras/__init__.py && \
+        echo "def Dense(*args, **kwargs): pass\ndef LSTM(*args, **kwargs): pass" > /build/tensorflow_mock/tensorflow/keras/layers.py && \
+        # Create core submodule
+        mkdir -p /build/tensorflow_mock/tensorflow/core && \
+        echo "# Mock implementation" > /build/tensorflow_mock/tensorflow/core/__init__.py && \
+        # Create setup.py
+        echo "from setuptools import setup, find_packages; setup(name='tensorflow', version='2.15.0', packages=find_packages())" > /build/tensorflow_mock/setup.py && \
+        pip install -e /build/tensorflow_mock && \
+        # Create a more comprehensive mock for PyTorch
+        mkdir -p /build/torch_mock/torch && \
+        echo "def cuda(*args, **kwargs): return False\ndef tensor(*args, **kwargs): return []" > /build/torch_mock/torch/__init__.py && \
+        mkdir -p /build/torch_mock/torch/nn && \
+        echo "class Module: pass\nclass Linear: pass" > /build/torch_mock/torch/nn/__init__.py && \
+        echo "from setuptools import setup, find_packages; setup(name='torch', version='2.1.0', packages=find_packages())" > /build/torch_mock/setup.py && \
+        pip install -e /build/torch_mock && \
+        echo "Installed enhanced mock packages for CI build"; \
+    fi
+
+# Add a health check script for CI builds
+RUN echo '#!/bin/bash\n\
+# Simple health check script for AI server\n\
+if curl -s http://localhost:5002/health > /dev/null; then\n\
+    exit 0\n\
+else\n\
+    exit 1\n\
+fi' > /usr/local/bin/healthcheck.sh && \
+    chmod +x /usr/local/bin/healthcheck.sh
+
+# Final stage
+FROM python:3.11-slim
+
+# Set runtime environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    FLASK_ENV=production \
+    PATH="/usr/local/bin:$PATH"
+
+# Create and set working directory
+WORKDIR /app
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy from builder stage only what's needed
+COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
+
+# Create non-root user
+RUN useradd -m aiuser
+
+# Copy entrypoint script
+COPY ai_entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/ai_entrypoint.sh
+
+# Copy AI application code
+COPY ai_experiments/ /app/ai_experiments/
+COPY ai_server.py /app/
+
+# Create data and logs directories in the same layer as the application code
+# to reduce the number of layers and make the export more efficient
+RUN mkdir -p /app/data /app/logs /app/ai_experiments/data /app/ai_experiments/models \
+    && chown -R aiuser:aiuser /app \
+    && chmod -R 755 /app/logs /app/data /app/ai_experiments/data /app/ai_experiments/models
+
+# Switch to non-root user
+USER aiuser
+
+# Expose port for the AI API
+EXPOSE 5002
+
+# Set entrypoint and default command
+ENTRYPOINT ["ai_entrypoint.sh"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5002", "--workers", "2", "ai_server:app"] 

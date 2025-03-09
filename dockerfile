@@ -20,29 +20,24 @@ RUN apk add --no-cache \
     musl-dev \
     linux-headers
 
-# Install scientific build dependencies - separate layer for better caching
+# Install basic build dependencies - we don't need the extensive AI dependencies anymore
 RUN apk add --no-cache \
     build-base \
     python3-dev \
-    openblas-dev \
-    lapack-dev \
     freetype-dev \
     libpng-dev \
     libjpeg-turbo-dev \
-    pkgconfig \
-    gfortran \
-    cmake
+    pkgconfig
 
 # Install Python tools first - this changes less frequently
 RUN pip install --upgrade pip setuptools wheel
 
 # Copy only requirements first for better layer caching
-COPY requirements.txt ./
+COPY requirements-frontend.txt ./requirements.txt
 COPY build-helpers/ ./build-helpers/
 
 # Install critical packages first - these rarely change
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install Flask flask-caching Flask-WTF gunicorn python-dotenv Flask-Limiter requests psycopg2-binary click urllib3 zipp
+RUN pip install Flask flask-caching Flask-WTF gunicorn python-dotenv Flask-Limiter requests psycopg2-binary click urllib3 zipp
 
 # Install remaining dependencies
 RUN chmod +x ./build-helpers/install-deps.sh && \
@@ -66,11 +61,7 @@ WORKDIR /app
 RUN apk add --no-cache \
     postgresql-client \
     curl \
-    libstdc++ \
-    git \
-    jpeg-dev \
-    zlib-dev \
-    libjpeg
+    libstdc++
 
 # Copy from builder stage only what's needed
 COPY --from=builder /usr/local/lib/python3.10/site-packages/ /usr/local/lib/python3.10/site-packages/
@@ -78,20 +69,7 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
 # Install critical Python packages directly in the final stage too
 # This ensures they're available even in case of any issues with the copied site-packages
-RUN pip install python-dotenv flask flask-caching flask-wtf flask-limiter gunicorn requests psycopg2-binary click urllib3 pandas numpy matplotlib seaborn
-
-# Install all necessary dependencies for alternative data sources
-RUN pip install --no-cache-dir \
-    beautifulsoup4==4.12.3 \
-    bs4==0.0.2 \
-    lxml==5.1.0 \
-    git+https://github.com/nltk/nltk.git \
-    praw==7.7.1 \
-    scikit-learn \
-    pillow \
-    requests \
-    && python -c "import nltk; nltk.download('vader_lexicon'); nltk.download('punkt'); nltk.download('stopwords'); nltk.download('wordnet')" \
-    && python -c "from bs4 import BeautifulSoup; import praw; import nltk; import PIL; print('All required packages installed successfully')"
+RUN pip install python-dotenv flask flask-caching flask-wtf flask-limiter gunicorn requests psycopg2-binary click urllib3
 
 # Create non-root user early for better layer caching
 RUN adduser -D appuser
@@ -101,7 +79,10 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Copy application code (changes most frequently, keep at end)
-COPY . .
+COPY app.py wsgi.py ./
+COPY static/ ./static/
+COPY templates/ ./templates/
+COPY src/ ./src/
 
 # Set permissions after copying all files
 RUN chown -R appuser:appuser /app

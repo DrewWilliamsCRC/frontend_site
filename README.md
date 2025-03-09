@@ -107,7 +107,6 @@ The application now includes a comprehensive AI Financial Dashboard with the fol
 - **Portfolio Optimization**: AI-driven portfolio strategy recommendations
 - **Predictive Feature Importance**: Visualization of the most important factors in market predictions
 - **Alert System**: Configurable alerts for market conditions
-- **Alternative Data Integration**: Insights from non-traditional data sources like news sentiment, social media, and satellite imagery
 
 ### AI Dashboard Components
 
@@ -115,18 +114,6 @@ The application now includes a comprehensive AI Financial Dashboard with the fol
 - **Market Indices Cards**: Short, wide cards showing key market information at a glance
 - **Prediction History Chart**: Collapsible chart showing prediction accuracy over time
 - **Economic Indicators**: Visual representation of economic data with trend indicators
-- **Alternative Data Insights**: Interactive panels showing insights from news sentiment, social media, retail traffic, and agricultural analysis
-
-### Alternative Data Sources
-
-The dashboard now includes powerful alternative data sources that provide unique market insights:
-
-- **News Sentiment Analysis**: Tracks sentiment from financial news sources with entity detection and sentiment scoring
-- **Social Media Sentiment**: Analyzes Reddit discussions from financial subreddits to identify trends and sentiment
-- **Retail Satellite Analysis**: Uses satellite imagery of retail parking lots to estimate store traffic and predict sales
-- **Agricultural Satellite Analysis**: Monitors crop health and agricultural regions to predict commodity price movements
-
-See [Alternative Data Documentation](docs/alternative_data.md) for detailed setup and usage instructions.
 
 ### Performance Optimizations
 

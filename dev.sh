@@ -101,9 +101,13 @@ show_help() {
     echo "  down     - Stop the development environment"
     echo "  restart  - Restart the development environment"
     echo "  rebuild  - Rebuild containers and start"
-    echo "  logs     - Show logs from containers"
+    echo "  logs     - Show logs from all containers"
+    echo "  logs-ai  - Show logs from the AI server container"
+    echo "  logs-fe  - Show logs from the frontend container"
+    echo "  logs-db  - Show logs from the database container"
     echo "  ps       - Show container status"
     echo "  exec     - Open a shell in the frontend container"
+    echo "  exec-ai  - Open a shell in the AI server container"
     echo "  db       - Open PostgreSQL CLI in the database container"
     echo "  help     - Show this help message"
 }
@@ -115,6 +119,7 @@ case "$1" in
         ${DOCKER_COMPOSE} -f docker-compose.dev.yml up -d
         echo -e "${GREEN}Development environment started!${NC}"
         echo "Frontend available at: http://localhost:5001"
+        echo "AI Server available at: http://localhost:5002"
         echo "PostgreSQL available at: localhost:5432"
         ;;
     down)
@@ -129,6 +134,7 @@ case "$1" in
         ${DOCKER_COMPOSE} -f docker-compose.dev.yml up -d
         echo -e "${GREEN}Development environment restarted!${NC}"
         echo "Frontend available at: http://localhost:5001"
+        echo "AI Server available at: http://localhost:5002"
         echo "PostgreSQL available at: localhost:5432"
         ;;
     rebuild)
@@ -144,12 +150,28 @@ case "$1" in
     logs)
         ${DOCKER_COMPOSE} -f docker-compose.dev.yml logs -f
         ;;
+    logs-ai)
+        echo -e "${GREEN}Showing logs from AI server container...${NC}"
+        ${DOCKER_COMPOSE} -f docker-compose.dev.yml logs -f ai_server
+        ;;
+    logs-fe)
+        echo -e "${GREEN}Showing logs from frontend container...${NC}"
+        ${DOCKER_COMPOSE} -f docker-compose.dev.yml logs -f frontend
+        ;;
+    logs-db)
+        echo -e "${GREEN}Showing logs from database container...${NC}"
+        ${DOCKER_COMPOSE} -f docker-compose.dev.yml logs -f db
+        ;;
     ps)
         ${DOCKER_COMPOSE} -f docker-compose.dev.yml ps
         ;;
     exec)
         echo -e "${GREEN}Opening shell in frontend container...${NC}"
-        ${DOCKER_COMPOSE} -f docker-compose.dev.yml exec frontend /bin/bash
+        ${DOCKER_COMPOSE} -f docker-compose.dev.yml exec frontend /bin/sh
+        ;;
+    exec-ai)
+        echo -e "${GREEN}Opening shell in AI server container...${NC}"
+        ${DOCKER_COMPOSE} -f docker-compose.dev.yml exec ai_server /bin/sh
         ;;
     db)
         echo -e "${GREEN}Opening PostgreSQL CLI in database container...${NC}"

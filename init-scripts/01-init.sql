@@ -57,26 +57,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     news_categories VARCHAR(255) DEFAULT 'general',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    role VARCHAR(10) NOT NULL DEFAULT 'user',
-    last_login TIMESTAMP,
-    active BOOLEAN NOT NULL DEFAULT TRUE,
-    city_name VARCHAR(100) DEFAULT 'New York',
-    button_width INTEGER DEFAULT 200,
-    button_height INTEGER DEFAULT 200
-);
-
--- Create settings table for backward compatibility
-CREATE TABLE IF NOT EXISTS settings (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    city_name VARCHAR(100) DEFAULT 'New York',
-    button_width INTEGER DEFAULT 200,
-    button_height INTEGER DEFAULT 200,
-    news_categories VARCHAR(255) DEFAULT 'general',
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create api_usage table
@@ -88,10 +69,7 @@ CREATE TABLE IF NOT EXISTS api_usage (
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     user_id UUID REFERENCES users(id),
     response_status INTEGER,
-    response_time DOUBLE PRECISION,
-    request_count INTEGER NOT NULL DEFAULT 0,
-    rate_limit INTEGER,
-    rate_limit_reset TIMESTAMP
+    response_time DOUBLE PRECISION
 );
 
 -- Create indexes
