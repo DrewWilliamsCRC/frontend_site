@@ -8,7 +8,7 @@ to allow testing without requiring the full TensorFlow installation.
 import os
 import logging
 import json
-import numpy as np
+import numpy as np # type: ignore
 
 logger = logging.getLogger(__name__)
 
