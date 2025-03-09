@@ -340,9 +340,10 @@ jobs:
           docker compose -f docker-compose.ci.yml up -d db
           sleep 10
           
-          # Test database schema
-          echo "Applying test schema..."
-          docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -f /docker-entrypoint-initdb.d/test_init_db.sql
+          # Copy schema file into container and apply it
+          echo "Copying and applying schema..."
+          docker compose -f docker-compose.ci.yml cp test_init_db.sql db:/test_init_db.sql
+          docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -f /test_init_db.sql
           
           # Verify schema
           echo "Verifying database schema..."
