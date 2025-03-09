@@ -20,24 +20,20 @@ RUN apk add --no-cache \
     musl-dev \
     linux-headers
 
-# Install scientific build dependencies - separate layer for better caching
+# Install basic build dependencies - we don't need the extensive AI dependencies anymore
 RUN apk add --no-cache \
     build-base \
     python3-dev \
-    openblas-dev \
-    lapack-dev \
     freetype-dev \
     libpng-dev \
     libjpeg-turbo-dev \
-    pkgconfig \
-    gfortran \
-    cmake
+    pkgconfig
 
 # Install Python tools first - this changes less frequently
 RUN pip install --upgrade pip setuptools wheel
 
 # Copy only requirements first for better layer caching
-COPY requirements.txt ./
+COPY requirements-frontend.txt ./requirements.txt
 COPY build-helpers/ ./build-helpers/
 
 # Install critical packages first - these rarely change
@@ -73,7 +69,7 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
 # Install critical Python packages directly in the final stage too
 # This ensures they're available even in case of any issues with the copied site-packages
-RUN pip install python-dotenv flask flask-caching flask-wtf flask-limiter gunicorn requests psycopg2-binary click urllib3 pandas numpy matplotlib seaborn
+RUN pip install python-dotenv flask flask-caching flask-wtf flask-limiter gunicorn requests psycopg2-binary click urllib3
 
 # Create non-root user early for better layer caching
 RUN adduser -D appuser
@@ -83,7 +79,10 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Copy application code (changes most frequently, keep at end)
-COPY . .
+COPY app.py wsgi.py ./
+COPY static/ ./static/
+COPY templates/ ./templates/
+COPY src/ ./src/
 
 # Set permissions after copying all files
 RUN chown -R appuser:appuser /app

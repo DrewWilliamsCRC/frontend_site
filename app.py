@@ -2748,75 +2748,18 @@ def get_ai_insights():
     app.logger.info(f"Requested period: {period}")
     
     try:
-        # Path to AI experiments directory
-        ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
-        app.logger.info(f"AI directory path: {ai_dir}")
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/ai-insights', params={'period': period})
         
-        # Add AI directory to path
-        sys.path.append(ai_dir)
-        
-        try:
-            # Import our AI modules
-            from alpha_vantage_pipeline import AlphaVantageAPI, MARKET_INDICES
-            app.logger.info("Successfully imported AI modules")
-        except ImportError as e:
-            app.logger.error(f"Import error: {str(e)}")
-            return jsonify({
-                "error": "Failed to import AI modules",
-                "details": str(e)
-            }), 500
-        
-        # Create Alpha Vantage API instance - use default behavior which loads from environment
-        api = AlphaVantageAPI()
-        app.logger.info("AlphaVantageAPI instance created")
-        
-        # Try to get current market data
-        app.logger.info("Starting to fetch market data")
-        market_data = {}
-        indices = {}
-        
-        try:
-            for symbol_key, symbol in MARKET_INDICES.items():
-                # Get quote data
-                app.logger.info(f"Fetching quote for {symbol}")
-                quote = api.call_api('GLOBAL_QUOTE', symbol=symbol)
-                
-                if quote and 'Global Quote' in quote:
-                    quote_data = quote['Global Quote']
-                    indices[symbol_key] = {
-                        'price': quote_data.get('05. price', '0.00'),
-                        'change': quote_data.get('09. change', '0.00'),
-                        'changePercent': quote_data.get('10. change percent', '0.00%').replace('%', ''),
-                        'high': quote_data.get('03. high', '0.00'),
-                        'low': quote_data.get('04. low', '0.00'),
-                        'volume': quote_data.get('06. volume', '0')
-                    }
-                    app.logger.info(f"Successfully fetched quote for {symbol}")
-                else:
-                    app.logger.warning(f"No quote data returned for {symbol}")
-                
-                time.sleep(0.5)  # Rate limit protection
-        except Exception as e:
-            app.logger.error(f"Error fetching market data: {str(e)}")
-            # If we failed to fetch live data, fall back to demo data
+        if ai_response and 'insights' in ai_response:
+            return jsonify(ai_response)
+        else:
+            app.logger.error("AI server returned invalid response")
             return generate_demo_ai_insights()
-        
-        # If we at least got market data but not the rest of the AI features,
-        # return a hybrid response with live market data and demo AI data
-        if indices:
-            demo_data = generate_demo_ai_insights()
-            demo_data.json['indices'] = indices
-            return demo_data
-            
-        # If we failed to get any data, return demo data
-        return generate_demo_ai_insights()
-            
+    
     except Exception as e:
-        app.logger.error(f"Error in AI insights API: {str(e)}")
-        return jsonify({
-            "error": "Server error",
-            "details": str(e)
-        }), 500
+        app.logger.error(f"Error in AI insights: {str(e)}")
+        return generate_demo_ai_insights()
 
 def generate_demo_ai_insights():
     """Generate demo data for AI insights"""
@@ -3099,6 +3042,13 @@ def generate_demo_ai_insights():
 def calculate_market_metrics(processed_data, period='1d'):
     """Calculate market metrics based on processed data."""
     try:
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/ai-insights', params={'period': period})
+        
+        if ai_response and 'insights' in ai_response and 'metrics' in ai_response['insights']:
+            return ai_response['insights']['metrics']
+        
+        # Fallback to default metrics if API call fails
         metrics = {
             "momentum": {"value": "Mixed", "score": 5.0, "status": "neutral", "description": "Mixed signals in recent market action"},
             "volatility": {"value": "Moderate", "score": 15.0, "status": "neutral", "description": "Volatility near historical average"},
@@ -3108,391 +3058,18 @@ def calculate_market_metrics(processed_data, period='1d'):
             "aiConfidence": {"value": "Moderate", "score": 50, "status": "neutral", "description": "AI models show moderate confidence"}
         }
         
-        # Add AI experiments directory to path
-        ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
-        sys.path.append(ai_dir)
-        
-        # Import Alpha Vantage API
-        from alpha_vantage_pipeline import AlphaVantageAPI
-        
-        # Create Alpha Vantage API instance - use default behavior which loads from environment
-        api = AlphaVantageAPI()
-        
-        # Fetch market news sentiment
-        news_data = api.get_market_news(limit=20)
-        
-        # Calculate average sentiment score from news
-        news_sentiment_score = 0
-        if 'feed' in news_data and news_data['feed']:
-            sentiment_scores = []
-            for item in news_data['feed']:
-                if 'overall_sentiment_score' in item:
-                    sentiment_scores.append(float(item['overall_sentiment_score']))
-            
-            if sentiment_scores:
-                avg_sentiment = sum(sentiment_scores) / len(sentiment_scores)
-                # Convert to 0-100 scale (Alpha Vantage sentiment is approximately -1 to 1)
-                news_sentiment_score = (avg_sentiment + 1) * 50
-        
-        # Map period to the appropriate timeframe for calculations
-        period_map = {
-            '1d': 1,      # 1 day look-back
-            '1w': 5,      # 5 trading days (1 week)
-            '1m': 21,     # 21 trading days (1 month)
-            '3m': 63,     # 63 trading days (3 months)
-            '1y': 252     # 252 trading days (1 year)
-        }
-        
-        # Get the number of days for calculations based on the selected period
-        days = period_map.get(period, 1)
-        
-        # Calculate technical indicators if data is available
-        if 'SPX' in processed_data:
-            df = processed_data['SPX']
-            
-            # Calculate momentum (based on recent returns for the selected period)
-            if len(df) >= days:
-                recent_returns = df['close'].pct_change(days).dropna()
-                if len(recent_returns) > 0:
-                    momentum_value = recent_returns.iloc[-1] * 100
-                    
-                    # Adjust thresholds based on the period (longer periods have naturally larger returns)
-                    period_adjustments = {
-                        '1d': {'strong': 1.5, 'positive': 0.5, 'negative': -0.5, 'strong_negative': -1.5},
-                        '1w': {'strong': 2.5, 'positive': 1.0, 'negative': -1.0, 'strong_negative': -2.5},
-                        '1m': {'strong': 5.0, 'positive': 2.0, 'negative': -2.0, 'strong_negative': -5.0},
-                        '3m': {'strong': 8.0, 'positive': 3.0, 'negative': -3.0, 'strong_negative': -8.0},
-                        '1y': {'strong': 15.0, 'positive': 8.0, 'negative': -8.0, 'strong_negative': -15.0}
-                    }
-                    
-                    thresholds = period_adjustments.get(period, period_adjustments['1d'])
-                    
-                    period_desc = {
-                        '1d': 'day',
-                        '1w': 'week',
-                        '1m': 'month',
-                        '3m': '3 months',
-                        '1y': 'year'
-                    }.get(period, 'period')
-                    
-                    if momentum_value > thresholds['strong']:
-                        metrics["momentum"] = {"value": "Strong", "score": 8.0, "status": "positive", 
-                                              "description": f"Strong upward momentum: {momentum_value:.1f}% over the past {period_desc}"}
-                    elif momentum_value > thresholds['positive']:
-                        metrics["momentum"] = {"value": "Positive", "score": 7.0, "status": "positive", 
-                                              "description": f"Positive momentum: {momentum_value:.1f}% over the past {period_desc}"}
-                    elif momentum_value > 0:
-                        metrics["momentum"] = {"value": "Mild", "score": 6.0, "status": "positive", 
-                                              "description": f"Mild upward momentum: {momentum_value:.1f}% over the past {period_desc}"}
-                    elif momentum_value > thresholds['negative']:
-                        metrics["momentum"] = {"value": "Weak", "score": 4.0, "status": "neutral", 
-                                              "description": f"Weak momentum: {momentum_value:.1f}% over the past {period_desc}"}
-                    elif momentum_value > thresholds['strong_negative']:
-                        metrics["momentum"] = {"value": "Negative", "score": 3.0, "status": "negative", 
-                                              "description": f"Negative momentum: {momentum_value:.1f}% over the past {period_desc}"}
-                    else:
-                        metrics["momentum"] = {"value": "Strong Negative", "score": 2.0, "status": "negative", 
-                                              "description": f"Strong downward momentum: {momentum_value:.1f}% over the past {period_desc}"}
-            
-            # Calculate volatility for the given period
-            volatility_window = min(days, 21)  # Use days for shorter periods, cap at 21 for longer ones
-            if len(df) >= volatility_window:
-                # For longer periods, calculate realized volatility over the period
-                if period in ['3m', '1y']:
-                    recent_volatility = df['close'].pct_change().rolling(volatility_window).std().dropna() * 100 * np.sqrt(252) # type: ignore
-                    if len(recent_volatility) > 0:
-                        # For longer periods, calculate average volatility over the period
-                        recent_window = min(days, len(recent_volatility))
-                        vol_value = recent_volatility.iloc[-recent_window:].mean()
-                else:
-                    # For shorter periods, use the most recent volatility calculation
-                    recent_volatility = df['close'].pct_change().rolling(volatility_window).std().dropna() * 100 * np.sqrt(252) # type: ignore
-                    if len(recent_volatility) > 0:
-                        vol_value = recent_volatility.iloc[-1]
-                
-                if 'vol_value' in locals():
-                    period_desc = {
-                        '1d': 'current',
-                        '1w': 'weekly',
-                        '1m': 'monthly',
-                        '3m': 'quarterly',
-                        '1y': 'yearly'
-                    }.get(period, '')
-                    
-                    if vol_value < 10:
-                        metrics["volatility"] = {"value": "Low", "score": vol_value, "status": "positive", 
-                                                "description": f"Low {period_desc} volatility: {vol_value:.1f}% annualized"}
-                    elif vol_value < 15:
-                        metrics["volatility"] = {"value": "Moderate", "score": vol_value, "status": "neutral", 
-                                                "description": f"Moderate {period_desc} volatility: {vol_value:.1f}% annualized"}
-                    elif vol_value < 25:
-                        metrics["volatility"] = {"value": "Elevated", "score": vol_value, "status": "neutral", 
-                                                "description": f"Elevated {period_desc} volatility: {vol_value:.1f}% annualized"}
-                    else:
-                        metrics["volatility"] = {"value": "High", "score": vol_value, "status": "negative", 
-                                                "description": f"High {period_desc} volatility: {vol_value:.1f}% annualized"}
-            
-            # Calculate technical score based on the selected period
-            if 'rsi_14' in df.columns and 'macd_hist' in df.columns:
-                # Use lookback for different periods
-                lookback = min(days, len(df) - 1)  # Ensure we don't go beyond data length
-                
-                # For different periods, we'll check technical indicators over time
-                if period in ['3m', '1y']:
-                    # For longer periods, check how often indicators were bullish
-                    bullish_days = 0
-                    total_days = 0
-                    
-                    for i in range(min(lookback, len(df) - 1)):
-                        row = df.iloc[-(i+1)]
-                        day_bullish = 0
-                        day_signals = 0
-                        
-                        # RSI
-                        if 'rsi_14' in row:
-                            day_signals += 1
-                            if row['rsi_14'] > 50:
-                                day_bullish += 1
-                        
-                        # MACD
-                        if 'macd_hist' in row:
-                            day_signals += 1
-                            if row['macd_hist'] > 0:
-                                day_bullish += 1
-                        
-                        # Moving Averages
-                        if 'sma_50' in row and 'close' in row:
-                            day_signals += 1
-                            if row['close'] > row['sma_50']:
-                                day_bullish += 1
-                        
-                        if 'sma_200' in row and 'close' in row:
-                            day_signals += 1
-                            if row['close'] > row['sma_200']:
-                                day_bullish += 1
-                        
-                        # Bollinger Bands
-                        if 'bb_upper' in row and 'bb_lower' in row and 'close' in row:
-                            day_signals += 1
-                            bb_position = (row['close'] - row['bb_lower']) / (row['bb_upper'] - row['bb_lower'])
-                            if bb_position > 0.5:
-                                day_bullish += 1
-                        
-                        if day_signals > 0:
-                            bullish_days += (day_bullish / day_signals) > 0.5
-                            total_days += 1
-                    
-                    if total_days > 0:
-                        tech_score = (bullish_days / total_days) * 10
-                        period_desc = '3 months' if period == '3m' else 'year'
-                        
-                        if tech_score >= 7.5:
-                            metrics["technical"] = {"value": "Bullish", "score": tech_score, "status": "positive", 
-                                                   "description": f"Bullish technical indicators for {bullish_days} of {total_days} days over the past {period_desc}"}
-                        elif tech_score >= 6:
-                            metrics["technical"] = {"value": "Mildly Bullish", "score": tech_score, "status": "positive", 
-                                                   "description": f"Mildly bullish technical indicators over the past {period_desc}"}
-                        elif tech_score > 4:
-                            metrics["technical"] = {"value": "Neutral", "score": tech_score, "status": "neutral", 
-                                                   "description": f"Mixed technical indicators over the past {period_desc}"}
-                        elif tech_score >= 2.5:
-                            metrics["technical"] = {"value": "Mildly Bearish", "score": tech_score, "status": "negative", 
-                                                   "description": f"Mildly bearish technical indicators over the past {period_desc}"}
-                        else:
-                            metrics["technical"] = {"value": "Bearish", "score": tech_score, "status": "negative", 
-                                                   "description": f"Bearish technical indicators for {total_days - bullish_days} of {total_days} days over the past {period_desc}"}
-                else:
-                    # For shorter periods, use the most recent data
-                    last_row = df.iloc[-1]
-                    
-                    # Count bullish signals
-                    bullish_count = 0
-                    total_signals = 0
-                    
-                    # RSI
-                    if 'rsi_14' in last_row:
-                        total_signals += 1
-                        if last_row['rsi_14'] > 50:
-                            bullish_count += 1
-                    
-                    # MACD
-                    if 'macd_hist' in last_row:
-                        total_signals += 1
-                        if last_row['macd_hist'] > 0:
-                            bullish_count += 1
-                    
-                    # Moving Averages
-                    if 'sma_50' in last_row and 'close' in last_row:
-                        total_signals += 1
-                        if last_row['close'] > last_row['sma_50']:
-                            bullish_count += 1
-                    
-                    if 'sma_200' in last_row and 'close' in last_row:
-                        total_signals += 1
-                        if last_row['close'] > last_row['sma_200']:
-                            bullish_count += 1
-                    
-                    # Bollinger Bands
-                    if 'bb_upper' in last_row and 'bb_lower' in last_row and 'close' in last_row:
-                        total_signals += 1
-                        bb_position = (last_row['close'] - last_row['bb_lower']) / (last_row['bb_upper'] - last_row['bb_lower'])
-                        if bb_position > 0.5:
-                            bullish_count += 1
-                    
-                    if total_signals > 0:
-                        tech_score = (bullish_count / total_signals) * 10
-                        period_desc = {
-                            '1d': 'current',
-                            '1w': 'recent',
-                            '1m': 'monthly'
-                        }.get(period, '')
-                        
-                        if tech_score >= 7.5:
-                            metrics["technical"] = {"value": "Bullish", "score": tech_score, "status": "positive", 
-                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
-                        elif tech_score >= 6:
-                            metrics["technical"] = {"value": "Mildly Bullish", "score": tech_score, "status": "positive", 
-                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
-                        elif tech_score > 4:
-                            metrics["technical"] = {"value": "Neutral", "score": tech_score, "status": "neutral", 
-                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
-                        elif tech_score >= 2.5:
-                            metrics["technical"] = {"value": "Mildly Bearish", "score": tech_score, "status": "negative", 
-                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
-                        else:
-                            metrics["technical"] = {"value": "Bearish", "score": tech_score, "status": "negative", 
-                                                   "description": f"{bullish_count} of {total_signals} {period_desc} indicators are bullish"}
-        
-        # Use S&P, VIX relationship and news sentiment for combined sentiment calculation
-        if 'SPX' in processed_data and 'VIX' in processed_data:
-            spx_df = processed_data['SPX']
-            vix_df = processed_data['VIX']
-            
-            lookback_days = period_map.get(period, 5)
-            
-            if len(spx_df) > lookback_days and len(vix_df) > lookback_days:
-                # Calculate returns for the selected period
-                spx_return = spx_df['close'].pct_change(lookback_days).iloc[-1] * 100
-                vix_change = vix_df['close'].pct_change(lookback_days).iloc[-1] * 100
-                
-                # Calculate sentiment score (negative correlation expected)
-                sentiment_score = 50  # Neutral baseline
-                
-                # Adjust thresholds based on the period
-                period_adjustments = {
-                    '1d': {'strong': 1.5, 'positive': 0.5, 'negative': -0.5, 'strong_negative': -1.5, 'vix_thresholds': [-5, -2, 0, 2, 5]},
-                    '1w': {'strong': 2.5, 'positive': 1.0, 'negative': -1.0, 'strong_negative': -2.5, 'vix_thresholds': [-10, -5, 0, 5, 10]},
-                    '1m': {'strong': 5.0, 'positive': 2.0, 'negative': -2.0, 'strong_negative': -5.0, 'vix_thresholds': [-15, -8, 0, 8, 15]},
-                    '3m': {'strong': 8.0, 'positive': 3.0, 'negative': -3.0, 'strong_negative': -8.0, 'vix_thresholds': [-20, -10, 0, 10, 20]},
-                    '1y': {'strong': 15.0, 'positive': 8.0, 'negative': -8.0, 'strong_negative': -15.0, 'vix_thresholds': [-30, -15, 0, 15, 30]}
-                }
-                
-                thresholds = period_adjustments.get(period, period_adjustments['1d'])
-                
-                # Adjust based on SPX return
-                if spx_return > thresholds['strong']:
-                    sentiment_score += 15
-                elif spx_return > thresholds['positive']:
-                    sentiment_score += 10
-                elif spx_return > 0:
-                    sentiment_score += 5
-                elif spx_return > thresholds['negative']:
-                    sentiment_score -= 5
-                elif spx_return > thresholds['strong_negative']:
-                    sentiment_score -= 10
-                else:
-                    sentiment_score -= 15
-                
-                # Adjust based on VIX change (inversely)
-                vix_thresholds = thresholds['vix_thresholds']
-                if vix_change < vix_thresholds[0]:
-                    sentiment_score += 15
-                elif vix_change < vix_thresholds[1]:
-                    sentiment_score += 10
-                elif vix_change < vix_thresholds[2]:
-                    sentiment_score += 5
-                elif vix_change < vix_thresholds[3]:
-                    sentiment_score -= 5
-                elif vix_change < vix_thresholds[4]:
-                    sentiment_score -= 10
-                else:
-                    sentiment_score -= 15
-                
-                # Add news sentiment if available (with higher weight)
-                if news_sentiment_score > 0:
-                    # Weighted average: 60% price/VIX signals, 40% news sentiment
-                    sentiment_score = sentiment_score * 0.6 + news_sentiment_score * 0.4
-                
-                # Cap between 0 and 100
-                sentiment_score = max(0, min(100, sentiment_score))
-                
-                # Assign sentiment category
-                if sentiment_score >= 80:
-                    news_desc = " with extremely positive news sentiment" if news_sentiment_score > 75 else ""
-                    metrics["sentiment"] = {"value": "Extremely Bullish", "score": sentiment_score, "status": "positive", 
-                                           "description": f"Market sentiment is extremely optimistic{news_desc}"}
-                elif sentiment_score >= 65:
-                    news_desc = " with positive news sentiment" if news_sentiment_score > 60 else ""
-                    metrics["sentiment"] = {"value": "Bullish", "score": sentiment_score, "status": "positive", 
-                                           "description": f"Market sentiment shows optimism{news_desc}"}
-                elif sentiment_score >= 55:
-                    news_desc = " with mildly positive news" if news_sentiment_score > 55 else ""
-                    metrics["sentiment"] = {"value": "Mildly Bullish", "score": sentiment_score, "status": "positive", 
-                                           "description": f"Market sentiment is cautiously optimistic{news_desc}"}
-                elif sentiment_score >= 45:
-                    metrics["sentiment"] = {"value": "Neutral", "score": sentiment_score, "status": "neutral", 
-                                           "description": "Market sentiment is balanced"}
-                elif sentiment_score >= 35:
-                    news_desc = " with mildly negative news" if news_sentiment_score < 45 else ""
-                    metrics["sentiment"] = {"value": "Mildly Bearish", "score": sentiment_score, "status": "negative", 
-                                           "description": f"Market sentiment is cautiously pessimistic{news_desc}"}
-                elif sentiment_score >= 20:
-                    news_desc = " with negative news sentiment" if news_sentiment_score < 40 else ""
-                    metrics["sentiment"] = {"value": "Bearish", "score": sentiment_score, "status": "negative", 
-                                           "description": f"Market sentiment shows pessimism{news_desc}"}
-                else:
-                    news_desc = " with extremely negative news sentiment" if news_sentiment_score < 25 else ""
-                    metrics["sentiment"] = {"value": "Extremely Bearish", "score": sentiment_score, "status": "negative", 
-                                           "description": f"Market sentiment is extremely pessimistic{news_desc}"}
-        
-        # Calculate AI confidence based on real vs. demo data
-        if 'SPX' in processed_data and len(processed_data) >= 3:
-            # Higher confidence if we have more market data
-            confidence_score = min(len(processed_data) * 15, 75)
-            
-            # Add news sentiment component to confidence
-            if news_sentiment_score > 0:
-                # Higher confidence with news data
-                confidence_score = min(confidence_score + 15, 85)
-                
-            # Adjust value based on score
-            if confidence_score >= 80:
-                metrics["aiConfidence"] = {"value": "Very High", "score": confidence_score, "status": "positive", 
-                                          "description": "AI models have high confidence with comprehensive market data"}
-            elif confidence_score >= 65:
-                metrics["aiConfidence"] = {"value": "High", "score": confidence_score, "status": "positive", 
-                                          "description": "AI models show good confidence with sufficient data"}
-            elif confidence_score >= 50:
-                metrics["aiConfidence"] = {"value": "Moderate", "score": confidence_score, "status": "neutral", 
-                                          "description": "AI models show moderate confidence with available data"}
-            elif confidence_score >= 30:
-                metrics["aiConfidence"] = {"value": "Low", "score": confidence_score, "status": "negative", 
-                                          "description": "AI models have limited confidence due to data constraints"}
-            else:
-                metrics["aiConfidence"] = {"value": "Very Low", "score": confidence_score, "status": "negative", 
-                                          "description": "AI models have very low confidence with limited data"}
-        
         return metrics
-    
+        
     except Exception as e:
         app.logger.error(f"Error calculating market metrics: {str(e)}")
+        # Return default metrics in case of error
         return {
-            "momentum": {"value": "Error", "score": 5.0, "status": "neutral", "description": "Error calculating momentum"},
-            "volatility": {"value": "Error", "score": 15.0, "status": "neutral", "description": "Error calculating volatility"},
-            "breadth": {"value": "Error", "score": 50, "status": "neutral", "description": "Error calculating market breadth"},
-            "sentiment": {"value": "Error", "score": 50, "status": "neutral", "description": "Error calculating sentiment"},
-            "technical": {"value": "Error", "score": 5.0, "status": "neutral", "description": "Error calculating technical indicators"},
-            "aiConfidence": {"value": "Error", "score": 50, "status": "neutral", "description": "Error calculating AI confidence"}
+            "momentum": {"value": "Error", "score": 50.0, "status": "neutral", "description": "Error calculating momentum"},
+            "volatility": {"value": "Moderate", "score": 50.0, "status": "neutral", "description": "Volatility near historical average"},
+            "breadth": {"value": "Mixed", "score": 50, "status": "neutral", "description": "Equal numbers of advancing and declining stocks"},
+            "sentiment": {"value": "Neutral", "score": 50, "status": "neutral", "description": "Balanced sentiment indicators"},
+            "technical": {"value": "Neutral", "score": 5.0, "status": "neutral", "description": "Equal bullish and bearish indicators"},
+            "aiConfidence": {"value": "Low", "score": 20, "status": "negative", "description": "Technical error reduced confidence"}
         }
 
 @app.route('/api/portfolio-optimization', methods=['POST'])
@@ -3501,337 +3078,89 @@ def portfolio_optimization():
     if 'user' not in session:
         return jsonify({"error": "Authentication required"}), 401
     
-    # Get request data
-    req_data = request.get_json()
-    
-    if not req_data:
-        return jsonify({"error": "No request data provided"}), 400
-    
-    # Extract parameters
-    symbols = req_data.get('symbols')
-    risk_tolerance = req_data.get('risk_tolerance', 'moderate')
-    optimization_method = req_data.get('method', 'mpt')  # 'mpt' or 'risk_parity'
-    historical_days = req_data.get('historical_days', 365 * 2)
-    custom_risk_budget = req_data.get('custom_risk_budget')
-    
-    # Validate symbols
-    if not symbols or not isinstance(symbols, list) or len(symbols) < 2:
-        return jsonify({
-            "error": "At least two valid symbols are required for portfolio optimization"
-        }), 400
-    
-    # Path to AI experiments directory
-    ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
-    app.logger.info(f"AI directory path: {ai_dir}")
-    
-    # Add AI directory to path
-    if ai_dir not in sys.path:
-        sys.path.append(ai_dir)
-    
     try:
-        # Import our portfolio optimizer module
-        from portfolio_optimizer import MPTOptimizer, RiskParityOptimizer
-        app.logger.info("Successfully imported portfolio optimizer module")
-    except ImportError as e:
-        app.logger.error(f"Import error: {str(e)}")
-        return jsonify({
-            "error": "Failed to import portfolio optimizer module"
-        }), 500
-    
-    try:
-        # Create optimizer based on method
-        if optimization_method.lower() == 'risk_parity':
-            optimizer = RiskParityOptimizer(symbols, historical_days=historical_days)
-            
-            # Custom risk budget optimization for risk parity
-            if custom_risk_budget and isinstance(custom_risk_budget, dict):
-                # Validate custom risk budget
-                if not all(symbol in symbols for symbol in custom_risk_budget) or \
-                   not all(isinstance(weight, (int, float)) for weight in custom_risk_budget.values()):
-                    return jsonify({
-                        "error": "Invalid custom risk budget provided"
-                    }), 400
-                
-                # Complete missing symbols with equal weights
-                total_specified_weight = sum(custom_risk_budget.values())
-                remaining_weight = 1.0 - total_specified_weight
-                unspecified_symbols = [s for s in symbols if s not in custom_risk_budget]
-                
-                if unspecified_symbols and remaining_weight > 0:
-                    weight_per_symbol = remaining_weight / len(unspecified_symbols)
-                    for symbol in unspecified_symbols:
-                        custom_risk_budget[symbol] = weight_per_symbol
-                
-                app.logger.info(f"Using custom risk budget: {custom_risk_budget}")
-                result = optimizer.optimize_with_custom_risk(custom_risk_budget)
-            else:
-                # Standard risk parity optimization
-                result = optimizer.optimize(risk_tolerance)
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/portfolio-optimization', method='post', data=data)
+        
+        if ai_response and 'optimization' in ai_response:
+            return jsonify(ai_response)
         else:
-            # Default to MPT optimization
-            optimizer = MPTOptimizer(symbols, historical_days=historical_days)
-            result = optimizer.optimize(risk_tolerance)
-        
-        # Add additional metadata
-        result['optimization_method'] = optimization_method
-        result['historical_days'] = historical_days
-        result['request_timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-        # Include raw asset data (last 30 days) for charting
-        if optimizer.data is not None and not optimizer.data.empty:
-            # Get last 30 days of data
-            last_30_days = optimizer.data.iloc[-30:].copy()
-            # Convert index to string for JSON serialization
-            last_30_days.index = last_30_days.index.strftime('%Y-%m-%d')
-            # Convert to dictionary for JSON response
-            result['asset_data'] = {
-                'dates': last_30_days.index.tolist(),
-                'prices': {symbol: last_30_days[symbol].tolist() for symbol in symbols if symbol in last_30_days.columns}
-            }
-            
-            # Calculate correlation matrix
-            if optimizer.returns is not None and not optimizer.returns.empty:
-                correlation_matrix = optimizer.returns.corr().round(3)
-                result['correlation_matrix'] = correlation_matrix.to_dict()
-        
-        return jsonify(result), 200
-        
+            app.logger.error("AI server returned invalid response")
+            return jsonify({"error": "Error in portfolio optimization"}), 500
+    
     except Exception as e:
-        app.logger.error(f"An unexpected error occurred: {str(e)}")
-        return jsonify({
-            "error": "An internal error has occurred"
-        }), 500
-        app.logger.error(f"Error during portfolio optimization: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
-        
-        return jsonify({
-            "error": "Failed to optimize portfolio",
-            "details": str(e)
-        }), 500
+        app.logger.error(f"Error in portfolio optimization: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/alerts', methods=['GET'])
 def get_alerts():
-    """API endpoint to get all alert rules."""
+    """API endpoint for retrieving alerts."""
     if 'user' not in session:
         return jsonify({"error": "Authentication required"}), 401
     
-    # Path to AI experiments directory
-    ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
-    
-    # Add AI directory to path if needed
-    if ai_dir not in sys.path:
-        sys.path.append(ai_dir)
-    
     try:
-        # Import our alert system module
-        from alert_system import AlertManager
-        app.logger.info("Successfully imported alert system module")
-    except ImportError as e:
-        app.logger.error(f"Import error: {str(e)}")
-        return jsonify({
-            "error": "Failed to import alert system module"
-        }), 500
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/alerts')
+        
+        if ai_response and 'alerts' in ai_response:
+            return jsonify(ai_response)
+        else:
+            app.logger.error("AI server returned invalid response")
+            return jsonify({"error": "Error retrieving alerts"}), 500
     
-    # Get user_id from session
-    user_id = session['user'].get('id')
-    
-    try:
-        # Get alert rules from database
-        cursor = get_db_connection().cursor(dictionary=True)
-        cursor.execute(
-            "SELECT * FROM alert_rules WHERE user_id = %s ORDER BY created_at DESC",
-            (user_id,)
-        )
-        alert_rules = cursor.fetchall()
-        cursor.close()
-        
-        # Format response
-        response = {
-            "alert_rules": []
-        }
-        
-        for rule in alert_rules:
-            # Parse rule parameters from JSON
-            rule_params = json.loads(rule['rule_params'])
-            
-            # Add formatted rule to response
-            response["alert_rules"].append({
-                "id": rule['id'],
-                "name": rule['name'],
-                "type": rule['rule_type'],
-                "enabled": rule['enabled'],
-                "params": rule_params,
-                "last_triggered": rule['last_triggered'],
-                "created_at": rule['created_at'].isoformat() if rule['created_at'] else None
-            })
-        
-        return jsonify(response), 200
-        
     except Exception as e:
-        app.logger.error(f"Error getting alert rules: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
-        
-        return jsonify({
-            "error": "Failed to retrieve alert rules"
-        }), 500
-
+        app.logger.error(f"Error retrieving alerts: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/alerts', methods=['POST'])
 def create_alert():
-    """API endpoint to create a new alert rule."""
+    """API endpoint for creating an alert."""
     if 'user' not in session:
         return jsonify({"error": "Authentication required"}), 401
     
-    # Get request data
-    req_data = request.get_json()
-    
-    if not req_data:
-        return jsonify({"error": "No request data provided"}), 400
-    
-    # Extract parameters
-    name = req_data.get('name')
-    rule_type = req_data.get('type')
-    rule_params = req_data.get('params', {})
-    enabled = req_data.get('enabled', True)
-    
-    # Validate parameters
-    if not name or not rule_type:
-        return jsonify({
-            "error": "Missing required parameters: name and type are required"
-        }), 400
-    
-    # Validate rule_type
-    valid_rule_types = ['price', 'prediction', 'portfolio']
-    if rule_type not in valid_rule_types:
-        return jsonify({
-            "error": f"Invalid rule type: {rule_type}. Must be one of: {', '.join(valid_rule_types)}"
-        }), 400
-    
-    # Validate rule_params based on rule_type
-    if rule_type == 'price':
-        required_params = ['symbol', 'threshold', 'condition']
-        if not all(param in rule_params for param in required_params):
-            return jsonify({
-                "error": f"Missing required parameters for price alert: {', '.join(required_params)}"
-            }), 400
-    elif rule_type == 'prediction':
-        required_params = ['symbol', 'metric', 'threshold', 'condition']
-        if not all(param in rule_params for param in required_params):
-            return jsonify({
-                "error": f"Missing required parameters for prediction alert: {', '.join(required_params)}"
-            }), 400
-    elif rule_type == 'portfolio':
-        required_params = ['portfolio_id', 'metric', 'threshold', 'condition']
-        if not all(param in rule_params for param in required_params):
-            return jsonify({
-                "error": f"Missing required parameters for portfolio alert: {', '.join(required_params)}"
-            }), 400
-    
-    # Path to AI experiments directory
-    ai_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ai_experiments')
-    
-    # Add AI directory to path if needed
-    if ai_dir not in sys.path:
-        sys.path.append(ai_dir)
-    
     try:
-        # Import our alert system module
-        from alert_system import AlertManager, PriceAlertRule, PredictionAlertRule, PortfolioAlertRule
-        app.logger.info("Successfully imported alert system module")
-    except ImportError as e:
-        app.logger.error(f"Import error: {str(e)}")
-        return jsonify({
-            "error": "Failed to import alert system module",
-            "details": str(e)
-        }), 500
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/alerts', method='post', data=data)
+        
+        if ai_response and 'alert_id' in ai_response:
+            return jsonify(ai_response)
+        else:
+            app.logger.error("AI server returned invalid response")
+            return jsonify({"error": "Error creating alert"}), 500
     
-    # Get user_id from session
-    user_id = session['user'].get('id')
-    
-    try:
-        # Insert alert rule into database
-        cursor = get_db_connection().cursor()
-        cursor.execute(
-            """
-            INSERT INTO alert_rules 
-            (user_id, name, rule_type, rule_params, enabled, created_at) 
-            VALUES (%s, %s, %s, %s, %s, %s)
-            """,
-            (user_id, name, rule_type, json.dumps(rule_params), enabled, datetime.now())
-        )
-        
-        # Get the ID of the inserted rule
-        rule_id = cursor.lastrowid
-        get_db_connection().commit()
-        cursor.close()
-        
-        # Return the created rule
-        return jsonify({
-            "id": rule_id,
-            "name": name,
-            "type": rule_type,
-            "params": rule_params,
-            "enabled": enabled,
-            "created_at": datetime.now().isoformat()
-        }), 201
-        
     except Exception as e:
-        app.logger.error(f"Error creating alert rule: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
-        
-        return jsonify({
-            "error": "Failed to create alert rule"
-        }), 500
-
+        app.logger.error(f"Error creating alert: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/alerts/<int:rule_id>', methods=['DELETE'])
 def delete_alert(rule_id):
-    """API endpoint to delete an alert rule."""
+    """API endpoint for deleting an alert."""
     if 'user' not in session:
         return jsonify({"error": "Authentication required"}), 401
     
-    # Get user_id from session
-    user_id = session['user'].get('id')
-    
     try:
-        # Check if the rule exists and belongs to the user
-        cursor = get_db_connection().cursor(dictionary=True)
-        cursor.execute(
-            "SELECT id FROM alert_rules WHERE id = %s AND user_id = %s",
-            (rule_id, user_id)
-        )
-        rule = cursor.fetchone()
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api(f'/api/alerts/{rule_id}', method='delete')
         
-        if not rule:
-            cursor.close()
-            return jsonify({
-                "error": "Alert rule not found or you don't have permission to delete it"
-            }), 404
-        
-        # Delete the rule
-        cursor.execute(
-            "DELETE FROM alert_rules WHERE id = %s",
-            (rule_id,)
-        )
-        get_db_connection().commit()
-        cursor.close()
-        
-        return jsonify({
-            "success": True,
-            "message": f"Alert rule {rule_id} deleted successfully"
-        }), 200
-        
+        if ai_response and 'result' in ai_response and ai_response['result'] == 'success':
+            return jsonify({"success": True})
+        else:
+            app.logger.error("AI server returned invalid response")
+            return jsonify({"error": "Error deleting alert"}), 500
+    
     except Exception as e:
-        app.logger.error(f"Error deleting alert rule: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
-        
-        return jsonify({
-            "error": "Failed to delete alert rule"
-        }), 500
+        app.logger.error(f"Error deleting alert: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/ai-dashboard')
 def ai_dashboard():
@@ -3865,305 +3194,73 @@ def ai_status():
     This endpoint is used by the frontend to monitor AI service health.
     """
     try:
-        # In a real-world scenario, we would check actual AI service health
-        # For now, we'll return a mock status based on the server being up
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/ai-status')
         
-        # Check if any required API keys are missing
-        required_keys = ["ALPHA_VANTAGE_API_KEY"]
-        missing_keys = [key for key in required_keys if not os.environ.get(key)]
-        
-        # Get authentication status
-        is_authenticated = 'user' in session
-        
-        if missing_keys:
-            app.logger.warning(f"AI status check: Missing required API keys: {', '.join(missing_keys)}")
-            status = "degraded"
-            message = f"Missing API keys: {', '.join(missing_keys)}"
+        if ai_response and 'status' in ai_response:
+            return jsonify(ai_response)
         else:
-            status = "active"
-            message = "All AI systems operational"
-        
-        return jsonify({
-            "status": status,
-            "message": message,
-            "authenticated": is_authenticated,
-            "timestamp": datetime.now().isoformat()
-        })
-    except Exception as e:
-        # Log the detailed exception message
-        app.logger.error(f"Exception occurred in AI status check: {str(e)}")
-        return jsonify({
-            "status": "inactive",
-            "message": "AI systems are currently experiencing issues. Please try again later.",
-            "last_checked": datetime.now().isoformat(),
-            "services": {
-                "prediction_engine": "offline",
-                "market_data": "offline",
-                "news_sentiment": "offline",
-                "portfolio_optimization": "offline"
+            # Create fallback status response if API call fails
+            status = {
+                "status": {
+                    "health": "degraded",
+                    "message": "AI server unreachable",
+                    "api_endpoints": [
+                        "/api/ai-insights",
+                        "/api/market-indices",
+                        "/api/portfolio-optimization",
+                        "/api/alerts",
+                        "/api/economic-indicators",
+                        "/api/news-sentiment"
+                    ],
+                    "timestamp": datetime.now().isoformat()
+                }
             }
-        })
+            return jsonify(status)
+    
+    except Exception as e:
+        app.logger.error(f"Error checking AI status: {str(e)}")
+        return jsonify({
+            "status": {
+                "health": "error",
+                "message": f"Error checking AI status: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
+        }), 500
 
 @app.route('/api/economic-indicators')
 def economic_indicators():
-    """
-    Provide economic indicators data for the dashboard.
-    This endpoint returns key economic indicators with their latest values.
-    """
+    """API endpoint for economic indicators."""
     try:
-        # In a production environment, this would fetch real data from sources like:
-        # - Federal Reserve Economic Data (FRED)
-        # - Bureau of Labor Statistics
-        # - Trading Economics API
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/economic-indicators')
         
-        # For now, we'll return sample data
-        indicators = [
-            {
-                "name": "GDP Growth Rate",
-                "value": 0.0251,
-                "previous": 0.0212,
-                "forecast": 0.0230,
-                "category": "Growth",
-                "importance": 3,
-                "release_date": (datetime.now() - timedelta(days=25)).isoformat()
-            },
-            {
-                "name": "Inflation Rate",
-                "value": 0.0312,
-                "previous": 0.0345,
-                "forecast": 0.0325,
-                "category": "Prices",
-                "importance": 3,
-                "release_date": (datetime.now() - timedelta(days=10)).isoformat()
-            },
-            {
-                "name": "Unemployment Rate",
-                "value": 0.0375,
-                "previous": 0.0389,
-                "forecast": 0.0370,
-                "category": "Labor",
-                "importance": 3,
-                "release_date": (datetime.now() - timedelta(days=5)).isoformat()
-            },
-            {
-                "name": "Interest Rate",
-                "value": 0.0525,
-                "previous": 0.0525,
-                "forecast": 0.0500,
-                "category": "Central Bank",
-                "importance": 3,
-                "release_date": (datetime.now() - timedelta(days=15)).isoformat()
-            },
-            {
-                "name": "Consumer Confidence",
-                "value": 102.5,
-                "previous": 101.8,
-                "forecast": 102.0,
-                "category": "Sentiment",
-                "importance": 2,
-                "release_date": (datetime.now() - timedelta(days=8)).isoformat()
-            },
-            {
-                "name": "Retail Sales MoM",
-                "value": 0.0041,
-                "previous": 0.0028,
-                "forecast": 0.0035,
-                "category": "Consumption",
-                "importance": 2,
-                "release_date": (datetime.now() - timedelta(days=12)).isoformat()
-            },
-            {
-                "name": "Housing Starts",
-                "value": 1.425,
-                "previous": 1.392,
-                "forecast": 1.410,
-                "category": "Real Estate",
-                "importance": 2,
-                "release_date": (datetime.now() - timedelta(days=9)).isoformat()
-            },
-            {
-                "name": "Manufacturing PMI",
-                "value": 51.2,
-                "previous": 49.8,
-                "forecast": 50.5,
-                "category": "Manufacturing",
-                "importance": 2,
-                "release_date": (datetime.now() - timedelta(days=7)).isoformat()
-            },
-            {
-                "name": "Services PMI",
-                "value": 53.6,
-                "previous": 52.9,
-                "forecast": 53.0,
-                "category": "Services",
-                "importance": 2,
-                "release_date": (datetime.now() - timedelta(days=7)).isoformat()
-            },
-            {
-                "name": "Balance of Trade",
-                "value": -68.2,
-                "previous": -70.5,
-                "forecast": -69.0,
-                "category": "Trade",
-                "importance": 2,
-                "release_date": (datetime.now() - timedelta(days=20)).isoformat()
-            },
-            {
-                "name": "Government Debt to GDP",
-                "value": 1.28,
-                "previous": 1.26,
-                "forecast": 1.29,
-                "category": "Government",
-                "importance": 1,
-                "release_date": (datetime.now() - timedelta(days=90)).isoformat()
-            },
-            {
-                "name": "Industrial Production MoM",
-                "value": 0.0029,
-                "previous": -0.0016,
-                "forecast": 0.0025,
-                "category": "Production",
-                "importance": 1,
-                "release_date": (datetime.now() - timedelta(days=14)).isoformat()
-            }
-        ]
-        
-        return jsonify({
-            "indicators": indicators,
-            "last_updated": datetime.now().isoformat()
-        })
-        
+        if ai_response and 'indicators' in ai_response:
+            return jsonify(ai_response)
+        else:
+            app.logger.error("AI server returned invalid response")
+            return jsonify({"error": "Error retrieving economic indicators"}), 500
+    
     except Exception as e:
-        # Log the detailed exception message
-        app.logger.error(f"Exception occurred while retrieving economic indicators: {str(e)}")
-        return jsonify({
-            "error": "Failed to retrieve economic indicators. Please try again later."
-        }), 500
+        app.logger.error(f"Error retrieving economic indicators: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/news-sentiment')
 def news_sentiment():
-    """
-    Provide news articles with sentiment analysis.
-    This endpoint returns recent news articles with sentiment scores.
-    """
+    """API endpoint for news sentiment analysis."""
     try:
-        # In a production environment, this would fetch real news and analyze sentiment using:
-        # - News APIs (Guardian, NewsAPI, etc.)
-        # - Natural Language Processing for sentiment analysis
+        # Call AI server API instead of direct import
+        ai_response = call_ai_api('/api/news-sentiment')
         
-        # For now, we'll return sample data
-        articles = [
-            {
-                "title": "Tech Stocks Rally on Strong Earnings Reports",
-                "summary": "Major technology companies reported better-than-expected quarterly earnings, leading to a rally in tech stocks. Investors are optimistic about the sector's growth prospects.",
-                "url": "https://example.com/tech-stocks-rally",
-                "source": "Financial Times",
-                "published_at": (datetime.now() - timedelta(hours=4)).isoformat(),
-                "sentiment": "positive",
-                "sentiment_score": 0.78,
-                "entities": [
-                    {"name": "Tech Stocks", "type": "FINANCIAL_INSTRUMENT"},
-                    {"name": "Earnings", "type": "FINANCIAL_CONCEPT"},
-                    {"name": "Investors", "type": "ENTITY"}
-                ]
-            },
-            {
-                "title": "Federal Reserve Signals Potential Rate Cut in Coming Months",
-                "summary": "The Federal Reserve has indicated it may begin cutting interest rates in the coming months as inflation shows signs of cooling. Markets responded positively to the news.",
-                "url": "https://example.com/fed-rate-cut-signal",
-                "source": "Wall Street Journal",
-                "published_at": (datetime.now() - timedelta(hours=7)).isoformat(),
-                "sentiment": "positive",
-                "sentiment_score": 0.65,
-                "entities": [
-                    {"name": "Federal Reserve", "type": "ORGANIZATION"},
-                    {"name": "Interest Rates", "type": "FINANCIAL_CONCEPT"},
-                    {"name": "Inflation", "type": "ECONOMIC_INDICATOR"}
-                ]
-            },
-            {
-                "title": "Oil Prices Drop Amid Supply Concerns",
-                "summary": "Oil prices fell sharply today due to concerns about oversupply in the global market. OPEC+ members are considering increasing production despite weak demand forecasts.",
-                "url": "https://example.com/oil-prices-drop",
-                "source": "Reuters",
-                "published_at": (datetime.now() - timedelta(hours=10)).isoformat(),
-                "sentiment": "negative",
-                "sentiment_score": -0.55,
-                "entities": [
-                    {"name": "Oil Prices", "type": "COMMODITY"},
-                    {"name": "OPEC+", "type": "ORGANIZATION"},
-                    {"name": "Supply", "type": "ECONOMIC_CONCEPT"}
-                ]
-            },
-            {
-                "title": "Retail Sales Growth Slows in Q2",
-                "summary": "Retail sales growth slowed in the second quarter as consumers cut back on discretionary spending. Analysts cite inflation and economic uncertainty as key factors.",
-                "url": "https://example.com/retail-sales-slow",
-                "source": "Bloomberg",
-                "published_at": (datetime.now() - timedelta(hours=13)).isoformat(),
-                "sentiment": "negative",
-                "sentiment_score": -0.42,
-                "entities": [
-                    {"name": "Retail Sales", "type": "ECONOMIC_INDICATOR"},
-                    {"name": "Q2", "type": "TIME_PERIOD"},
-                    {"name": "Consumers", "type": "ENTITY"}
-                ]
-            },
-            {
-                "title": "New AI Regulations May Impact Tech Sector",
-                "summary": "Proposed regulations for artificial intelligence technologies could impact the tech sector, as companies may face new compliance requirements and limitations.",
-                "url": "https://example.com/ai-regulations",
-                "source": "CNBC",
-                "published_at": (datetime.now() - timedelta(hours=16)).isoformat(),
-                "sentiment": "neutral",
-                "sentiment_score": -0.05,
-                "entities": [
-                    {"name": "AI Regulations", "type": "REGULATION"},
-                    {"name": "Tech Sector", "type": "INDUSTRY"},
-                    {"name": "Compliance", "type": "BUSINESS_CONCEPT"}
-                ]
-            },
-            {
-                "title": "Housing Market Shows Signs of Stabilization",
-                "summary": "After months of declining prices, the housing market is showing signs of stabilization. Mortgage rates have decreased slightly, leading to increased buyer interest.",
-                "url": "https://example.com/housing-market-stabilizes",
-                "source": "Market Watch",
-                "published_at": (datetime.now() - timedelta(hours=21)).isoformat(),
-                "sentiment": "positive",
-                "sentiment_score": 0.38,
-                "entities": [
-                    {"name": "Housing Market", "type": "MARKET"},
-                    {"name": "Mortgage Rates", "type": "FINANCIAL_CONCEPT"},
-                    {"name": "Prices", "type": "ECONOMIC_CONCEPT"}
-                ]
-            }
-        ]
-        
-        # Calculate sentiment summary
-        positive_count = sum(1 for article in articles if article["sentiment"] == "positive")
-        negative_count = sum(1 for article in articles if article["sentiment"] == "negative")
-        neutral_count = sum(1 for article in articles if article["sentiment"] == "neutral")
-        
-        avg_sentiment = sum(article["sentiment_score"] for article in articles) / len(articles)
-        
-        sentiment_summary = {
-            "positive_count": positive_count,
-            "negative_count": negative_count,
-            "neutral_count": neutral_count,
-            "average_score": avg_sentiment
-        }
-        
-        return jsonify({
-            "articles": articles,
-            "sentiment_summary": sentiment_summary,
-            "last_updated": datetime.now().isoformat()
-        })
-        
+        if ai_response and 'sentiment' in ai_response:
+            return jsonify(ai_response)
+        else:
+            app.logger.error("AI server returned invalid response")
+            return jsonify({"error": "Error retrieving news sentiment"}), 500
+    
     except Exception as e:
-        app.logger.error(f"Failed to retrieve news sentiment: {str(e)}")
-        return jsonify({
-            "error": "An internal error has occurred. Please try again later."
-        }), 500
+        app.logger.error(f"Error retrieving news sentiment: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/analyze')
 def analyze_news_data():
@@ -4528,6 +3625,30 @@ def fetch_news_for_section(section, page_size=50):
     except Exception as e:
         print(f"Error fetching news for section {section}: {str(e)}")
         return []
+
+# Define the AI server base URL - will be set based on Docker network
+AI_SERVER_BASE_URL = os.getenv('AI_SERVER_URL', 'http://ai_server:5002')
+
+def call_ai_api(endpoint, params=None, method='get', data=None):
+    """Make a call to the AI server API."""
+    url = f"{AI_SERVER_BASE_URL}{endpoint}"
+    app.logger.info(f"Calling AI API: {url}")
+    
+    try:
+        if method.lower() == 'get':
+            response = requests.get(url, params=params, timeout=10)
+        elif method.lower() == 'post':
+            response = requests.post(url, json=data, timeout=10)
+        else:
+            app.logger.error(f"Unsupported HTTP method: {method}")
+            return None
+        
+        response.raise_for_status()
+        return response.json()
+    
+    except RequestException as e:
+        app.logger.error(f"Error calling AI API: {e}")
+        return None
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.

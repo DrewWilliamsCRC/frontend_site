@@ -44,6 +44,62 @@ services:
     networks:
       - app_network
 
+  ai_server:
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+      args:
+        - TARGETPLATFORM=linux/amd64
+        - BUILDPLATFORM=linux/amd64
+    platform: linux/amd64
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - SECRET_KEY=${SECRET_KEY}
+      - OWM_API_KEY=${OWM_API_KEY}
+      - FLASK_DEBUG=${FLASK_DEBUG}
+      - FLASK_ENV=${FLASK_ENV}
+      - PORT=5002
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
+    ports:
+      - "127.0.0.1:5002:5002"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5002/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:exec,mode=1777,size=512M
+      - /run:mode=1777,size=64M
+      - /var/run:mode=1777,size=64M
+      - /app/logs:mode=1777,size=64M
+      - /app/ai_experiments/data:mode=1777,size=64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+    networks:
+      - app_network
+
   frontend:
     build:
       context: .
@@ -64,10 +120,13 @@ services:
       - FLASK_ENV=${FLASK_ENV}
       - PORT=${PORT}
       - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
+      - AI_SERVER_URL=http://ai_server:5002
     ports:
       - "127.0.0.1:${PORT}:${PORT}"
     depends_on:
       db:
+        condition: service_healthy
+      ai_server:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${PORT}/health || exit 1"]

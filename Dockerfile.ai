@@ -1,0 +1,91 @@
+FROM python:3.11-slim as builder
+
+# Set environment variables for build
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/usr/local/bin:$PATH"
+
+# Create and set working directory
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    gcc \
+    python3-dev \
+    wget \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install scientific build dependencies
+RUN apt-get update && apt-get install -y \
+    libblas-dev \
+    liblapack-dev \
+    libatlas-base-dev \
+    gfortran \
+    pkg-config \
+    libfreetype6-dev \
+    libpng-dev \
+    libjpeg-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python tools first
+RUN pip install --upgrade pip setuptools wheel
+
+# Install critical packages first
+RUN pip install flask flask-restful gunicorn python-dotenv psycopg2-binary requests
+
+# Copy and install AI-specific requirements
+COPY ai_experiments/requirements.txt ./ai_requirements.txt
+RUN pip install -r ai_requirements.txt
+
+# Final stage
+FROM python:3.11-slim
+
+# Set runtime environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    FLASK_ENV=production \
+    PATH="/usr/local/bin:$PATH"
+
+# Create and set working directory
+WORKDIR /app
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy from builder stage only what's needed
+COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
+
+# Create non-root user
+RUN useradd -m aiuser
+
+# Copy entrypoint script
+COPY ai_entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/ai_entrypoint.sh
+
+# Copy AI application code
+COPY ai_experiments/ /app/ai_experiments/
+COPY ai_server.py /app/
+
+# Create data and logs directories
+RUN mkdir -p /app/data /app/logs \
+    && chown -R aiuser:aiuser /app
+
+# Switch to non-root user
+USER aiuser
+
+# Expose port for the AI API
+EXPOSE 5002
+
+# Set entrypoint and default command
+ENTRYPOINT ["ai_entrypoint.sh"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5002", "--workers", "2", "ai_server:app"] 
