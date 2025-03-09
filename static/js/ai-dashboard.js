@@ -13,7 +13,8 @@ const dashboardState = {
     selectedOptimizationStrategy: 'max_sharpe',
     refreshInterval: null,
     lastUpdated: null,
-    data: null
+    data: null,
+    selectedPredictionModel: 'ensemble'  // Options: 'ensemble', 'transformer'
 };
 
 // Log that script has finished initialization
@@ -48,11 +49,20 @@ function initDashboard() {
 // Set up event listeners for dashboard controls
 function setupEventListeners() {
     // Model selector change listener
-    const modelSelector = document.getElementById('prediction-model-selector');
+    const modelSelector = document.getElementById('model-selector');
     if (modelSelector) {
         modelSelector.addEventListener('change', function() {
             dashboardState.selectedModel = this.value;
-            updateMarketPrediction();
+            updatePredictionVisuals();
+        });
+    }
+    
+    // Prediction model selector change listener
+    const predictionModelSelector = document.getElementById('prediction-model-selector');
+    if (predictionModelSelector) {
+        predictionModelSelector.addEventListener('change', function() {
+            dashboardState.selectedPredictionModel = this.value;
+            loadMarketPredictions();
         });
     }
     
@@ -1465,4 +1475,159 @@ function deleteAlert(alertId) {
     
     // Update the UI
     updateAlertSystem();
+}
+
+// Update the loadMarketPredictions function to handle different model types
+function loadMarketPredictions() {
+    const container = document.getElementById('market-predictions');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="text-center my-5"><div class="spinner-border" role="status"></div><p class="mt-2">Loading predictions...</p></div>';
+    
+    // Determine which endpoint to use based on selected model
+    const endpoint = dashboardState.selectedPredictionModel === 'transformer' 
+        ? '/api/market/transformer-predictions'
+        : '/api/market/predictions';
+    
+    fetch(endpoint)
+        .then(response => response.json())
+        .then(data => {
+            if (!data || !data.predictions) {
+                container.innerHTML = '<div class="alert alert-warning">No prediction data available.</div>';
+                return;
+            }
+            
+            // Update last generated timestamp
+            const lastUpdated = new Date(data.generated_at);
+            container.innerHTML = `
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="mb-0">Market Predictions</h3>
+                        <div class="form-group mb-0">
+                            <select id="prediction-model-selector" class="form-select form-select-sm">
+                                <option value="ensemble" ${dashboardState.selectedPredictionModel === 'ensemble' ? 'selected' : ''}>Ensemble Model</option>
+                                <option value="transformer" ${dashboardState.selectedPredictionModel === 'transformer' ? 'selected' : ''}>Transformer Model</option>
+                            </select>
+                        </div>
+                    </div>
+                    <p class="text-muted small">Generated: ${lastUpdated.toLocaleString()}</p>
+                </div>
+                <div class="row prediction-cards">
+                    ${renderPredictionCards(data.predictions)}
+                </div>
+                <div class="mt-3 mb-2">
+                    <p class="text-muted small">
+                        <i class="fas fa-info-circle me-1"></i>
+                        ${getModelDescription(dashboardState.selectedPredictionModel)}
+                    </p>
+                </div>
+            `;
+            
+            // Re-attach event listener for the prediction model selector
+            const modelSelector = document.getElementById('prediction-model-selector');
+            if (modelSelector) {
+                modelSelector.addEventListener('change', function() {
+                    dashboardState.selectedPredictionModel = this.value;
+                    loadMarketPredictions();
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading market predictions:', error);
+            container.innerHTML = `<div class="alert alert-danger">Error loading predictions: ${error.message}</div>`;
+        });
+}
+
+// Helper function to get model description
+function getModelDescription(modelType) {
+    if (modelType === 'transformer') {
+        return 'Transformer model uses multi-headed attention mechanisms to capture complex temporal patterns in market data.';
+    } else {
+        return 'Ensemble model combines multiple algorithms to produce more stable and accurate predictions.';
+    }
+}
+
+// Update the renderPredictionCards function to handle different model types
+function renderPredictionCards(predictions) {
+    if (!predictions || Object.keys(predictions).length === 0) {
+        return '<div class="col-12"><div class="alert alert-warning">No predictions available.</div></div>';
+    }
+    
+    let html = '';
+    for (const [key, prediction] of Object.entries(predictions)) {
+        // Determine confidence display based on model type
+        let confidenceHtml = '';
+        if (dashboardState.selectedPredictionModel === 'transformer') {
+            confidenceHtml = `
+                <div class="confidence-meter">
+                    <div class="confidence-label">Confidence:</div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar ${getConfidenceClass(prediction.confidence)}" 
+                            role="progressbar" 
+                            style="width: ${prediction.confidence * 100}%" 
+                            aria-valuenow="${prediction.confidence * 100}" 
+                            aria-valuemin="0" 
+                            aria-valuemax="100"></div>
+                    </div>
+                    <span class="confidence-value">${Math.round(prediction.confidence * 100)}%</span>
+                </div>
+                <div class="model-badge">
+                    <span class="badge bg-primary">Transformer</span>
+                </div>
+            `;
+        } else {
+            confidenceHtml = `
+                <div class="confidence-meter">
+                    <div class="confidence-label">Confidence:</div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar ${getConfidenceClass(prediction.confidence)}" 
+                            role="progressbar" 
+                            style="width: ${prediction.confidence * 100}%" 
+                            aria-valuenow="${prediction.confidence * 100}" 
+                            aria-valuemin="0" 
+                            aria-valuemax="100"></div>
+                    </div>
+                    <span class="confidence-value">${Math.round(prediction.confidence * 100)}%</span>
+                </div>
+            `;
+        }
+        
+        // Create prediction card
+        html += `
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card prediction-card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            ${prediction.symbol}
+                            <span class="prediction-direction-badge ${prediction.direction === 'up' ? 'up' : 'down'}">
+                                <i class="fas fa-arrow-${prediction.direction}"></i>
+                                ${prediction.magnitude.toFixed(2)}%
+                            </span>
+                        </h5>
+                        <div class="prediction-details">
+                            <div class="current-price">
+                                Current: $${prediction.latest_close.toFixed(2)}
+                                <span class="prediction-date">${prediction.latest_date}</span>
+                            </div>
+                            <div class="predicted-price">
+                                Predicted: $${prediction.predicted_prices[0].toFixed(2)}
+                                <span class="prediction-date">${prediction.prediction_dates[0]}</span>
+                            </div>
+                            ${confidenceHtml}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    return html;
+}
+
+// Helper function for confidence class
+function getConfidenceClass(confidence) {
+    if (confidence >= 0.8) return 'bg-success';
+    if (confidence >= 0.6) return 'bg-info';
+    if (confidence >= 0.4) return 'bg-warning';
+    return 'bg-danger';
 } 

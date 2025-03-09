@@ -32,6 +32,7 @@ import torch # type: ignore
 import torch.nn as nn # type: ignore
 import torch.optim as optim # type: ignore
 from torch.utils.data import Dataset, DataLoader, TensorDataset # type: ignore
+import math
 
 # Configure logging
 logging.basicConfig(
@@ -914,4 +915,618 @@ if __name__ == "__main__":
         print(f"{metric}: {value:.4f}")
     
     # Save model
-    model.save_model(os.path.join(MODELS_DIR, "lstm_example.h5")) 
+    model.save_model(os.path.join(MODELS_DIR, "lstm_example.h5"))
+
+
+class TimeSeriesTransformerDataset(Dataset):
+    """Dataset class for time series data used by the transformer model."""
+    
+    def __init__(self, data: np.ndarray, seq_len: int, pred_len: int, 
+                 target_idx: Optional[int] = None, transform: Optional[Callable] = None):
+        """
+        Initialize the dataset for time series transformer models.
+        
+        Args:
+            data (np.ndarray): Input data array of shape (n_samples, n_features)
+            seq_len (int): Sequence length (look-back window)
+            pred_len (int): Prediction length (forecast horizon)
+            target_idx (Optional[int]): Index of target variable (if None, use last column)
+            transform (Optional[Callable]): Optional transform to apply to the data
+        """
+        self.data = torch.FloatTensor(data)
+        self.seq_len = seq_len
+        self.pred_len = pred_len
+        self.transform = transform
+        self.target_idx = -1 if target_idx is None else target_idx
+        
+        # Calculate valid indices
+        self.indices = self._get_valid_indices()
+        
+    def _get_valid_indices(self) -> List[int]:
+        """Get valid start indices that allow full sequence and prediction windows."""
+        return list(range(len(self.data) - self.seq_len - self.pred_len + 1))
+    
+    def __len__(self) -> int:
+        """Return the number of samples in the dataset."""
+        return len(self.indices)
+    
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get sample by index.
+        
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: (input_sequence, target_sequence)
+        """
+        # Get start index for this sample
+        start_idx = self.indices[idx]
+        
+        # Extract input sequence
+        input_seq = self.data[start_idx:start_idx + self.seq_len]
+        
+        # Extract target sequence
+        if self.target_idx == -1:  # Use the entire data for prediction
+            target_seq = self.data[
+                start_idx + self.seq_len:start_idx + self.seq_len + self.pred_len
+            ]
+        else:  # Use only the target column
+            target_seq = self.data[
+                start_idx + self.seq_len:start_idx + self.seq_len + self.pred_len, 
+                self.target_idx
+            ].unsqueeze(-1)
+        
+        # Apply transform if needed
+        if self.transform:
+            input_seq = self.transform(input_seq)
+            
+        return input_seq, target_seq
+
+
+class PositionalEncoding(nn.Module):
+    """
+    Positional encoding for transformer models to provide 
+    temporal information about sequence position.
+    """
+    
+    def __init__(self, d_model: int, max_len: int = 5000):
+        """
+        Initialize the positional encoding.
+        
+        Args:
+            d_model (int): Embedding dimension
+            max_len (int): Maximum sequence length
+        """
+        super(PositionalEncoding, self).__init__()
+        
+        # Create positional encoding matrix
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
+        )
+        
+        # Calculate sine and cosine positional encodings
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0).transpose(0, 1)
+        
+        # Register buffer (persistent state that's not a parameter)
+        self.register_buffer('pe', pe)
+        
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Add positional encoding to input tensor.
+        
+        Args:
+            x (torch.Tensor): Input tensor of shape (seq_len, batch_size, d_model)
+        
+        Returns:
+            torch.Tensor: Output tensor with positional encoding added
+        """
+        return x + self.pe[:x.size(0), :]
+
+
+class TimeSeriesTransformer(nn.Module):
+    """
+    Transformer model adapted for time series forecasting with 
+    multi-headed attention mechanisms.
+    """
+    
+    def __init__(self, 
+                 input_dim: int, 
+                 output_dim: int,
+                 d_model: int = 64, 
+                 nhead: int = 4, 
+                 num_encoder_layers: int = 3,
+                 num_decoder_layers: int = 3,
+                 dim_feedforward: int = 256, 
+                 dropout: float = 0.1, 
+                 activation: str = 'relu'):
+        """
+        Initialize the time series transformer model.
+        
+        Args:
+            input_dim (int): Number of input features
+            output_dim (int): Number of output features
+            d_model (int): Hidden dimension of the model
+            nhead (int): Number of attention heads
+            num_encoder_layers (int): Number of encoder layers
+            num_decoder_layers (int): Number of decoder layers
+            dim_feedforward (int): Dimension of feedforward network
+            dropout (float): Dropout rate
+            activation (str): Activation function
+        """
+        super(TimeSeriesTransformer, self).__init__()
+        
+        # Input embedding layer
+        self.input_embedding = nn.Linear(input_dim, d_model)
+        
+        # Positional encoding
+        self.pos_encoder = PositionalEncoding(d_model)
+        
+        # Transformer encoder and decoder
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model, 
+            nhead=nhead, 
+            dim_feedforward=dim_feedforward, 
+            dropout=dropout, 
+            activation=activation
+        )
+        decoder_layer = nn.TransformerDecoderLayer(
+            d_model=d_model, 
+            nhead=nhead, 
+            dim_feedforward=dim_feedforward, 
+            dropout=dropout, 
+            activation=activation
+        )
+        
+        self.transformer_encoder = nn.TransformerEncoder(
+            encoder_layer, 
+            num_layers=num_encoder_layers
+        )
+        self.transformer_decoder = nn.TransformerDecoder(
+            decoder_layer, 
+            num_layers=num_decoder_layers
+        )
+        
+        # Output projection layer
+        self.output_projection = nn.Linear(d_model, output_dim)
+        
+        # Initialize parameters
+        self._init_parameters()
+        
+    def _init_parameters(self):
+        """Initialize model parameters."""
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+    
+    def _generate_square_subsequent_mask(self, sz: int) -> torch.Tensor:
+        """
+        Generate a square mask for the sequence to mask future positions.
+        
+        Args:
+            sz (int): Sequence length
+            
+        Returns:
+            torch.Tensor: Square mask tensor
+        """
+        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+        return mask
+    
+    def forward(self, 
+                src: torch.Tensor, 
+                tgt: torch.Tensor, 
+                src_mask: Optional[torch.Tensor] = None,
+                tgt_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """
+        Forward pass through the model.
+        
+        Args:
+            src (torch.Tensor): Source sequence [seq_len, batch_size, features]
+            tgt (torch.Tensor): Target sequence [tgt_len, batch_size, features]
+            src_mask (Optional[torch.Tensor]): Source sequence mask
+            tgt_mask (Optional[torch.Tensor]): Target sequence mask
+            
+        Returns:
+            torch.Tensor: Output predictions
+        """
+        # If src is [batch_size, seq_len, features], transpose to [seq_len, batch_size, features]
+        if src.size(0) != src.size(1) and src.size(0) > src.size(2):
+            src = src.transpose(0, 1)
+            tgt = tgt.transpose(0, 1)
+            
+        # Generate masks if not provided
+        if src_mask is None:
+            src_mask = torch.zeros(src.size(0), src.size(0)).to(src.device)
+        if tgt_mask is None:
+            tgt_mask = self._generate_square_subsequent_mask(tgt.size(0)).to(tgt.device)
+            
+        # Embed input sequences
+        src = self.input_embedding(src) * math.sqrt(self.input_embedding.out_features)
+        tgt = self.input_embedding(tgt) * math.sqrt(self.input_embedding.out_features)
+        
+        # Add positional encoding
+        src = self.pos_encoder(src)
+        tgt = self.pos_encoder(tgt)
+        
+        # Encode and decode sequences
+        memory = self.transformer_encoder(src, src_mask)
+        output = self.transformer_decoder(tgt, memory, tgt_mask)
+        
+        # Project to output dimension
+        output = self.output_projection(output)
+        
+        return output
+
+
+class MarketPredictionTransformer:
+    """
+    Wrapper class for training and using the TimeSeriesTransformer for market prediction.
+    """
+    
+    def __init__(self, 
+                 input_dim: int, 
+                 output_dim: int,
+                 seq_len: int = 20, 
+                 pred_len: int = 5, 
+                 d_model: int = 64,
+                 learning_rate: float = 0.001,
+                 batch_size: int = 32,
+                 device: str = 'cuda' if torch.cuda.is_available() else 'cpu'):
+        """
+        Initialize the market prediction transformer.
+        
+        Args:
+            input_dim (int): Number of input features
+            output_dim (int): Number of output features
+            seq_len (int): Input sequence length
+            pred_len (int): Prediction sequence length
+            d_model (int): Model hidden dimension
+            learning_rate (float): Learning rate
+            batch_size (int): Batch size
+            device (str): Device to use ('cuda' or 'cpu')
+        """
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.seq_len = seq_len
+        self.pred_len = pred_len
+        self.d_model = d_model
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.device = device
+        
+        # Create model
+        self.model = TimeSeriesTransformer(
+            input_dim=input_dim,
+            output_dim=output_dim,
+            d_model=d_model
+        ).to(device)
+        
+        # Setup optimizer
+        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+        
+        # Loss function
+        self.criterion = nn.MSELoss()
+        
+        logger.info(f"Initialized MarketPredictionTransformer on {device}")
+    
+    def prepare_data(self, data: np.ndarray, target_idx: Optional[int] = None) -> Tuple[DataLoader, DataLoader]:
+        """
+        Prepare data loaders for training and validation.
+        
+        Args:
+            data (np.ndarray): Input data array
+            target_idx (Optional[int]): Target index
+            
+        Returns:
+            Tuple[DataLoader, DataLoader]: Training and validation data loaders
+        """
+        # Split data into train and validation
+        train_ratio = 0.8
+        train_size = int(len(data) * train_ratio)
+        
+        train_data = data[:train_size]
+        val_data = data[train_size - self.seq_len - self.pred_len + 1:]
+        
+        # Create datasets
+        train_dataset = TimeSeriesTransformerDataset(
+            data=train_data, 
+            seq_len=self.seq_len, 
+            pred_len=self.pred_len,
+            target_idx=target_idx
+        )
+        
+        val_dataset = TimeSeriesTransformerDataset(
+            data=val_data, 
+            seq_len=self.seq_len, 
+            pred_len=self.pred_len,
+            target_idx=target_idx
+        )
+        
+        # Create data loaders
+        train_loader = DataLoader(
+            train_dataset, 
+            batch_size=self.batch_size, 
+            shuffle=True
+        )
+        
+        val_loader = DataLoader(
+            val_dataset, 
+            batch_size=self.batch_size, 
+            shuffle=False
+        )
+        
+        return train_loader, val_loader
+    
+    def train(self, 
+              train_loader: DataLoader, 
+              val_loader: DataLoader, 
+              epochs: int = 50,
+              patience: int = 10,
+              verbose: bool = True) -> Dict[str, List[float]]:
+        """
+        Train the model.
+        
+        Args:
+            train_loader (DataLoader): Training data loader
+            val_loader (DataLoader): Validation data loader
+            epochs (int): Number of epochs
+            patience (int): Early stopping patience
+            verbose (bool): Whether to print progress
+            
+        Returns:
+            Dict[str, List[float]]: Training history
+        """
+        # Training history
+        history = {
+            'train_loss': [],
+            'val_loss': []
+        }
+        
+        # Early stopping variables
+        best_val_loss = float('inf')
+        no_improve_epochs = 0
+        best_model_state = None
+        
+        logger.info(f"Starting training for {epochs} epochs")
+        
+        # Training loop
+        for epoch in range(epochs):
+            # Train for one epoch
+            self.model.train()
+            train_loss = 0
+            
+            for batch_idx, (src, tgt_true) in enumerate(train_loader):
+                src, tgt_true = src.to(self.device), tgt_true.to(self.device)
+                
+                # Create initial decoder input (teacher forcing)
+                tgt_input = torch.zeros_like(tgt_true)
+                tgt_input = tgt_input.to(self.device)
+                
+                # Zero gradients
+                self.optimizer.zero_grad()
+                
+                # Forward pass
+                output = self.model(src, tgt_input)
+                
+                # Calculate loss
+                loss = self.criterion(output, tgt_true)
+                
+                # Backward pass
+                loss.backward()
+                
+                # Update weights
+                self.optimizer.step()
+                
+                # Accumulate loss
+                train_loss += loss.item()
+            
+            # Calculate epoch average loss
+            train_loss /= len(train_loader)
+            history['train_loss'].append(train_loss)
+            
+            # Evaluate on validation set
+            self.model.eval()
+            val_loss = 0
+            
+            with torch.no_grad():
+                for src, tgt_true in val_loader:
+                    src, tgt_true = src.to(self.device), tgt_true.to(self.device)
+                    
+                    # Create initial decoder input
+                    tgt_input = torch.zeros_like(tgt_true)
+                    tgt_input = tgt_input.to(self.device)
+                    
+                    # Forward pass
+                    output = self.model(src, tgt_input)
+                    
+                    # Calculate loss
+                    loss = self.criterion(output, tgt_true)
+                    
+                    # Accumulate loss
+                    val_loss += loss.item()
+            
+            # Calculate epoch average validation loss
+            val_loss /= len(val_loader)
+            history['val_loss'].append(val_loss)
+            
+            if verbose:
+                logger.info(f"Epoch {epoch+1}/{epochs} - Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+            
+            # Check for improvement
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                no_improve_epochs = 0
+                best_model_state = self.model.state_dict()
+            else:
+                no_improve_epochs += 1
+            
+            # Early stopping
+            if no_improve_epochs >= patience:
+                logger.info(f"Early stopping at epoch {epoch+1}")
+                break
+        
+        # Load best model
+        if best_model_state is not None:
+            self.model.load_state_dict(best_model_state)
+            
+        logger.info(f"Training complete. Best validation loss: {best_val_loss:.4f}")
+        
+        return history
+    
+    def predict(self, data: np.ndarray, target_idx: Optional[int] = None) -> np.ndarray:
+        """
+        Generate predictions for input data.
+        
+        Args:
+            data (np.ndarray): Input data
+            target_idx (Optional[int]): Target index
+            
+        Returns:
+            np.ndarray: Predictions
+        """
+        # Create dataset
+        dataset = TimeSeriesTransformerDataset(
+            data=data, 
+            seq_len=self.seq_len, 
+            pred_len=self.pred_len,
+            target_idx=target_idx
+        )
+        
+        # Create data loader
+        data_loader = DataLoader(
+            dataset, 
+            batch_size=self.batch_size, 
+            shuffle=False
+        )
+        
+        # Switch to evaluation mode
+        self.model.eval()
+        
+        # Generate predictions
+        predictions = []
+        
+        with torch.no_grad():
+            for src, _ in data_loader:
+                src = src.to(self.device)
+                
+                # Create initial decoder input
+                tgt_input = torch.zeros(self.pred_len, src.size(0), src.size(2)).to(self.device)
+                
+                # Forward pass
+                output = self.model(src, tgt_input)
+                
+                # Store predictions
+                predictions.append(output.cpu().numpy())
+        
+        # Concatenate predictions
+        return np.concatenate(predictions, axis=1)
+    
+    def save(self, path: str):
+        """
+        Save model to disk.
+        
+        Args:
+            path (str): Save path
+        """
+        torch.save({
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'input_dim': self.input_dim,
+            'output_dim': self.output_dim,
+            'seq_len': self.seq_len,
+            'pred_len': self.pred_len,
+            'd_model': self.d_model,
+            'learning_rate': self.learning_rate,
+            'batch_size': self.batch_size
+        }, path)
+        
+        logger.info(f"Model saved to {path}")
+    
+    @classmethod
+    def load(cls, path: str, device: Optional[str] = None):
+        """
+        Load model from disk.
+        
+        Args:
+            path (str): Load path
+            device (Optional[str]): Device to load model on
+            
+        Returns:
+            MarketPredictionTransformer: Loaded model
+        """
+        if device is None:
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            
+        checkpoint = torch.load(path, map_location=device)
+        
+        # Create model instance
+        model = cls(
+            input_dim=checkpoint['input_dim'],
+            output_dim=checkpoint['output_dim'],
+            seq_len=checkpoint['seq_len'],
+            pred_len=checkpoint['pred_len'],
+            d_model=checkpoint['d_model'],
+            learning_rate=checkpoint['learning_rate'],
+            batch_size=checkpoint['batch_size'],
+            device=device
+        )
+        
+        # Load state dictionaries
+        model.model.load_state_dict(checkpoint['model_state_dict'])
+        model.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        
+        logger.info(f"Model loaded from {path}")
+        
+        return model
+
+
+# Function to train and use the transformer model for market prediction
+def train_market_transformer(data, target_column=None, sequence_length=20, prediction_length=5, epochs=50):
+    """
+    Train a transformer model for market prediction.
+    
+    Args:
+        data (pd.DataFrame): Input data frame
+        target_column (str): Target column name
+        sequence_length (int): Input sequence length
+        prediction_length (int): Prediction sequence length
+        epochs (int): Number of training epochs
+        
+    Returns:
+        MarketPredictionTransformer: Trained model
+    """
+    # Convert to numpy array
+    if isinstance(data, pd.DataFrame):
+        if target_column is not None:
+            target_idx = data.columns.get_loc(target_column)
+        else:
+            target_idx = None
+        data = data.values
+    else:
+        target_idx = None
+    
+    # Normalize data
+    scaler = StandardScaler()
+    data = scaler.fit_transform(data)
+    
+    # Determine dimensions
+    input_dim = data.shape[1]
+    output_dim = 1 if target_idx is not None else input_dim
+    
+    # Create model
+    transformer = MarketPredictionTransformer(
+        input_dim=input_dim,
+        output_dim=output_dim,
+        seq_len=sequence_length,
+        pred_len=prediction_length
+    )
+    
+    # Prepare data
+    train_loader, val_loader = transformer.prepare_data(data, target_idx)
+    
+    # Train model
+    history = transformer.train(train_loader, val_loader, epochs=epochs)
+    
+    return transformer, scaler, history 
