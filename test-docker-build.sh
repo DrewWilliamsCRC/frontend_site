@@ -135,7 +135,7 @@ if [ "$IS_CI" = "true" ]; then
     chmod -R 777 logs data
     
     # Create minimal test container with debug command - skip entrypoint
-    docker run --name ai_debug -e CI_BUILD=true -e PYTHONUNBUFFERED=1 --entrypoint="" ai_server:test bash -c "
+    docker run --name ai_debug -e CI_BUILD=true -e PYTHONUNBUFFERED=1 --entrypoint="" ai_server:test sh -c "
 mkdir -p /app/logs
 chmod 777 /app/logs
 echo 'Running debug tests...'

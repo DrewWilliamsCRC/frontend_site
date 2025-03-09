@@ -236,7 +236,12 @@ jobs:
           
       - name: Run Docker tests
         run: |
+          # Basic diagnostics
+          echo "Alpine container shell information:"
+          docker run --rm alpine sh -c "which sh && ls -la /bin/sh && grep -A2 'Available shells' /etc/passwd || echo Not available"
+          
           # Create simplified AI server for CI (avoid YAML heredoc issues)
+          echo "Creating simplified AI server..."
           echo '#!/usr/bin/env python3' > ci_ai_server.py
           echo '"""' >> ci_ai_server.py
           echo 'Simplified AI Server for CI Testing' >> ci_ai_server.py
@@ -274,11 +279,16 @@ jobs:
           chmod +x ci_ai_server.py
           cat ci_ai_server.py
           
+          # Check docker-compose file syntax
+          echo "Verifying docker-compose.ci.yml syntax and shell commands..."
+          cat docker-compose.ci.yml | grep command
+          
           # Verify docker-compose.ci.yml exists
           if [ ! -f "docker-compose.ci.yml" ]; then
             echo "Error: docker-compose.ci.yml is missing"
             exit 1
           fi
+          
           # Set environment variable to indicate CI environment
           export GITHUB_ACTIONS=true
           chmod +x test-docker-build.sh
