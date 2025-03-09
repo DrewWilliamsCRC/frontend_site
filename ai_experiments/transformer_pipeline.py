@@ -14,10 +14,10 @@ from datetime import datetime, timedelta
 import argparse
 from typing import Dict, List, Tuple, Optional, Union, Any
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np # type: ignore
+import pandas as pd # type: ignore
+import matplotlib.pyplot as plt # type: ignore
+import seaborn as sns # type: ignore
 
 # Make sure the directory containing this file is in the Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
