@@ -523,6 +523,13 @@ function drawPredictionHistoryChart() {
         predicted = predicted.slice(-maxDataPoints);
     }
     
+    // Check if dark mode is enabled
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    
+    // Set chart colors based on theme
+    const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    const textColor = isDarkMode ? '#e0e0e0' : '#666666';
+    
     // Create new chart
     new Chart(ctx, {
         type: 'line',
@@ -532,22 +539,22 @@ function drawPredictionHistoryChart() {
                 {
                     label: 'Actual',
                     data: actual.map(val => val ? 1 : 0),
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: isDarkMode ? '#69f0ae' : 'rgba(54, 162, 235, 1)',
+                    backgroundColor: isDarkMode ? 'rgba(105, 240, 174, 0.2)' : 'rgba(54, 162, 235, 0.2)',
                     borderWidth: 2,
-                    pointRadius: 3, // Smaller points
-                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                    pointRadius: 4,
+                    pointBackgroundColor: isDarkMode ? '#69f0ae' : 'rgba(54, 162, 235, 1)',
                     tension: 0.1
                 },
                 {
                     label: 'Predicted',
                     data: predicted.map(val => val ? 1 : 0),
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: isDarkMode ? '#ff8a80' : 'rgba(255, 99, 132, 1)',
+                    backgroundColor: isDarkMode ? 'rgba(255, 138, 128, 0.2)' : 'rgba(255, 99, 132, 0.2)',
                     borderWidth: 2,
                     borderDash: [5, 5],
-                    pointRadius: 3, // Smaller points
-                    pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                    pointRadius: 4,
+                    pointBackgroundColor: isDarkMode ? '#ff8a80' : 'rgba(255, 99, 132, 1)',
                     tension: 0.1
                 }
             ]
@@ -555,39 +562,49 @@ function drawPredictionHistoryChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: {
-                duration: 500 // Faster animations
-            },
-            scales: {
-                y: {
-                    ticks: {
-                        callback: function(value) {
-                            return value === 1 ? 'Up' : 'Down';
-                        }
-                    },
-                    min: -0.1,
-                    max: 1.1
-                },
-                x: {
-                    ticks: {
-                        maxRotation: 0, // Don't rotate x-axis labels
-                        autoSkip: true, // Skip labels that don't fit
-                        maxTicksLimit: 10 // Limit the number of ticks shown
-                    }
-                }
-            },
             plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const value = context.raw;
-                            return `${context.dataset.label}: ${value === 1 ? 'Up' : 'Down'}`;
-                        }
-                    }
-                },
                 legend: {
                     labels: {
-                        boxWidth: 10 // Smaller legend icons
+                        color: textColor,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: isDarkMode ? '#2c2c2c' : 'rgba(255, 255, 255, 0.9)',
+                    titleColor: isDarkMode ? '#e0e0e0' : '#666666',
+                    bodyColor: isDarkMode ? '#e0e0e0' : '#666666',
+                    borderColor: isDarkMode ? '#444' : '#ddd',
+                    borderWidth: 1
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: gridColor,
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: textColor,
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        color: gridColor,
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: textColor,
+                        font: {
+                            size: 11
+                        },
+                        callback: function(value) {
+                            return value === 1 ? 'Up' : value === 0 ? 'Down' : '';
+                        }
                     }
                 }
             }
@@ -880,12 +897,18 @@ function drawPortfolioChart(weights) {
     
     const ctx = chartCanvas.getContext('2d');
     
+    // Check if dark mode is enabled
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    
+    // Set chart colors based on theme
+    const textColor = isDarkMode ? '#e0e0e0' : '#666666';
+    
     // Extract labels and data
     const labels = Object.keys(weights);
     const data = Object.values(weights);
     
-    // Generate colors
-    const backgroundColors = generateChartColors(labels.length);
+    // Generate colors with proper opacity for dark mode
+    const backgroundColors = generateChartColors(labels.length, isDarkMode);
     
     // Create chart
     new Chart(ctx, {
@@ -895,7 +918,8 @@ function drawPortfolioChart(weights) {
             datasets: [{
                 data: data.map(w => (w * 100).toFixed(1)),
                 backgroundColor: backgroundColors,
-                borderWidth: 1
+                borderWidth: isDarkMode ? 2 : 1,
+                borderColor: isDarkMode ? '#2c2c2c' : '#ffffff'
             }]
         },
         options: {
@@ -905,11 +929,17 @@ function drawPortfolioChart(weights) {
                 legend: {
                     position: 'right',
                     labels: {
+                        color: textColor,
                         boxWidth: 15,
                         padding: 10
                     }
                 },
                 tooltip: {
+                    backgroundColor: isDarkMode ? '#2c2c2c' : '#ffffff',
+                    titleColor: isDarkMode ? '#e0e0e0' : '#666666',
+                    bodyColor: isDarkMode ? '#e0e0e0' : '#666666',
+                    borderColor: isDarkMode ? '#444' : '#ddd',
+                    borderWidth: 1,
                     callbacks: {
                         label: function(context) {
                             const value = context.raw;
@@ -922,19 +952,30 @@ function drawPortfolioChart(weights) {
     });
 }
 
-// Generate colors for charts
-function generateChartColors(count) {
-    const baseColors = [
+// Generate colors for charts with dark mode support
+function generateChartColors(count, isDarkMode = false) {
+    const baseColors = isDarkMode ? [
+        'rgba(100, 210, 255, 0.8)',  // Light Blue
+        'rgba(255, 130, 150, 0.8)',  // Light Red
+        'rgba(105, 240, 174, 0.8)',  // Light Green
+        'rgba(255, 209, 128, 0.8)',  // Light Orange
+        'rgba(187, 134, 252, 0.8)',  // Light Purple
+        'rgba(255, 205, 86, 0.8)',   // Light Yellow
+        'rgba(201, 203, 207, 0.8)',  // Light Grey
+        'rgba(130, 255, 160, 0.8)',  // Lighter Green
+        'rgba(255, 130, 255, 0.8)',  // Light Pink
+        'rgba(100, 255, 210, 0.8)'   // Light Teal
+    ] : [
         'rgba(54, 162, 235, 0.8)',   // Blue
-        'rgba(255, 99, 132, 0.8)',    // Red
-        'rgba(75, 192, 192, 0.8)',    // Green
-        'rgba(255, 159, 64, 0.8)',    // Orange
-        'rgba(153, 102, 255, 0.8)',   // Purple
-        'rgba(255, 205, 86, 0.8)',    // Yellow
-        'rgba(201, 203, 207, 0.8)',   // Grey
-        'rgba(99, 255, 132, 0.8)',    // Light Green
-        'rgba(255, 99, 255, 0.8)',    // Pink
-        'rgba(54, 235, 162, 0.8)'     // Teal
+        'rgba(255, 99, 132, 0.8)',   // Red
+        'rgba(75, 192, 192, 0.8)',   // Green
+        'rgba(255, 159, 64, 0.8)',   // Orange
+        'rgba(153, 102, 255, 0.8)',  // Purple
+        'rgba(255, 205, 86, 0.8)',   // Yellow
+        'rgba(201, 203, 207, 0.8)',  // Grey
+        'rgba(99, 255, 132, 0.8)',   // Light Green
+        'rgba(255, 99, 255, 0.8)',   // Pink
+        'rgba(54, 235, 162, 0.8)'    // Teal
     ];
     
     // If we need more colors than our base set, generate them
@@ -946,7 +987,9 @@ function generateChartColors(count) {
         // Generate additional colors
         for (let i = baseColors.length; i < count; i++) {
             const hue = (i * 137) % 360; // Use golden ratio to spread colors
-            colors.push(`hsla(${hue}, 70%, 60%, 0.8)`);
+            const saturation = isDarkMode ? '85%' : '70%';
+            const lightness = isDarkMode ? '70%' : '60%';
+            colors.push(`hsla(${hue}, ${saturation}, ${lightness}, 0.8)`);
         }
         
         return colors;

@@ -35,8 +35,8 @@
     }
     
     .dark-mode .status-indicator-panel {
-        background-color: #343a40;
-        border-color: #495057;
+        background-color: #2c2c2c;
+        border-color: #444;
     }
     
     /* Debug styling */
@@ -57,6 +57,112 @@
     }
     .debug-success {
         color: #28a745;
+    }
+
+    /* Additional dark mode styles */
+    .dark-mode .status-indicator-panel {
+        background-color: #2c2c2c;
+        border-color: #444;
+    }
+
+    .dark-mode #debug-timestamp {
+        color: #aaaaaa;
+    }
+
+    .dark-mode .debug-info {
+        background-color: #2c2c2c;
+        border-color: #444;
+        color: #e0e0e0;
+    }
+
+    .dark-mode .debug-error {
+        color: #ff8a80;
+    }
+
+    .dark-mode .debug-success {
+        color: #69f0ae;
+    }
+
+    /* Fix badge colors in dark mode */
+    .dark-mode #debug-css-badge,
+    .dark-mode #debug-js-badge,
+    .dark-mode #debug-api-badge {
+        background-color: #555;
+        color: #e0e0e0;
+    }
+
+    .dark-mode #debug-css-badge.loaded,
+    .dark-mode #debug-js-badge.loaded,
+    .dark-mode #debug-api-badge.loaded {
+        background-color: #2e7d32;
+    }
+
+    .dark-mode #debug-css-badge.error,
+    .dark-mode #debug-js-badge.error,
+    .dark-mode #debug-api-badge.error {
+        background-color: #c62828;
+    }
+
+    /* Card background fix for dark mode */
+    .dark-mode .card {
+        background-color: #1e1e1e;
+    }
+
+    .dark-mode .card-header {
+        background-color: #2c2c2c;
+        border-bottom-color: #333;
+    }
+
+    .dark-mode .card-body {
+        background-color: #1e1e1e;
+    }
+
+    .dark-mode .text-muted {
+        color: #aaaaaa !important;
+    }
+
+    /* Fix for white boxes */
+    .dark-mode #market-indices-container,
+    .dark-mode #market-prediction-container,
+    .dark-mode #news-sentiment-container,
+    .dark-mode #feature-importance-container,
+    .dark-mode #portfolio-optimization-container,
+    .dark-mode #economic-indicators-container,
+    .dark-mode #alerts-container,
+    .dark-mode .chart-container,
+    .dark-mode .news-sources-container,
+    .dark-mode .market-overview-container,
+    .dark-mode .sentiment-container,
+    .dark-mode .chart-wrapper,
+    .dark-mode .news-source-item,
+    .dark-mode .market-metric-card,
+    .dark-mode .white-box,
+    .dark-mode [class*="bg-white"],
+    .dark-mode [class*="bg-light"],
+    .dark-mode div[style*="background-color: rgb(255, 255, 255)"],
+    .dark-mode div[style*="background-color: #fff"],
+    .dark-mode div[style*="background: white"],
+    .dark-mode div[style*="background: #fff"] {
+        background-color: #1e1e1e !important;
+        color: #e0e0e0 !important;
+    }
+
+    /* Ensure all chart backgrounds are dark */
+    .dark-mode canvas {
+        background-color: #1e1e1e !important;
+    }
+
+    /* Fix any Bootstrap containers and rows */
+    .dark-mode .container-fluid,
+    .dark-mode .container,
+    .dark-mode .row > * {
+        background-color: #121212 !important;
+    }
+
+    /* Fix any remaining white backgrounds */
+    .dark-mode *[class*="white"],
+    .dark-mode *[class*="light"] {
+        background-color: #1e1e1e !important;
     }
 </style>
 {% endblock %}
@@ -371,6 +477,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Try to call the normal function if it exists
                 if (typeof loadMarketIndices === 'function') {
                     console.log('Calling loadMarketIndices function');
+                    
+                    // Set chart colors based on dark mode
+                    if (document.body.classList.contains('dark-mode')) {
+                        // Set dark mode chart colors
+                        Chart.defaults.color = '#e0e0e0';
+                        Chart.defaults.borderColor = '#444';
+                        Chart.defaults.backgroundColor = '#2c2c2c';
+                    } else {
+                        // Reset to light mode defaults
+                        Chart.defaults.color = '#666';
+                        Chart.defaults.borderColor = '#ddd';
+                        Chart.defaults.backgroundColor = '#f9f9f9';
+                    }
+                    
                     loadMarketIndices();
                 } else {
                     console.log('loadMarketIndices function not found');
@@ -399,6 +519,15 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(checkJsLoaded, 500);
     setTimeout(checkCssLoaded, 500);
     loadAiInsightsData();
+    
+    // Listen for theme changes
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', function() {
+            // Need to reload data to refresh charts with proper dark/light mode colors
+            setTimeout(loadAiInsightsData, 100);
+        });
+    }
 });
 </script>
 {% endblock %} 

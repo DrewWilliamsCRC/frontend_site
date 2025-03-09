@@ -120,11 +120,18 @@ body {
 .dark-mode .card {
   background-color: #1e1e1e;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  border-color: #333;
 }
 
 .dark-mode .card-header {
   background-color: #2c2c2c;
   border-bottom-color: #333;
+  color: #e0e0e0;
+}
+
+.dark-mode .card-body {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
 }
 
 .dark-mode .text-positive,
@@ -404,10 +411,14 @@ body {
 .dark-mode {
   --background: #121212;
   --surface: #1e1e1e;
+  --surface-variant: #2c2c2c;
   --text-primary: #ffffff;
-  --text-secondary: #ffffff;
+  --text-secondary: #e0e0e0;
   --primary: #bb86fc;
   --error: #cf6679;
+  --border-color: #333;
+  background-color: var(--background);
+  color: var(--text-primary);
 }
 
 /* Force ALL text white in dark mode - super simple approach */
@@ -471,7 +482,7 @@ body {
   color: white !important;
 }
 
-/* Loader in dark mode */
+/* Loader in dark mode - enhance existing styles */
 .dark-mode .loader {
   border-color: rgba(255, 255, 255, 0.2) !important;
   border-top-color: var(--primary) !important;
@@ -1140,4 +1151,714 @@ body {
   padding-right: calc(var(--bs-gutter-x) * .5);
   padding-left: calc(var(--bs-gutter-x) * .5);
   margin-top: var(--bs-gutter-y);
+}
+
+/* Index cards, indicator cards and metric boxes in dark mode */
+.dark-mode .index-card, 
+.dark-mode .indicator-card,
+.dark-mode .metric-box {
+  background-color: #2c2c2c !important;
+  border-color: #333 !important;
+  color: var(--text-secondary) !important;
+}
+
+.dark-mode .index-card:hover, 
+.dark-mode .indicator-card:hover {
+  background-color: #333333 !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Modal styling for dark mode */
+.dark-mode .modal-content {
+  background-color: var(--surface) !important;
+  border-color: var(--border-color) !important;
+}
+
+.dark-mode .modal-header,
+.dark-mode .modal-footer {
+  background-color: var(--surface-variant) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* AI specific components in dark mode */
+.dark-mode #market-indices-container,
+.dark-mode #market-prediction-container,
+.dark-mode #news-sentiment-container,
+.dark-mode #feature-importance-container,
+.dark-mode #portfolio-optimization-container,
+.dark-mode #economic-indicators-container,
+.dark-mode #alerts-container {
+  background-color: var(--surface) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Form controls in dark mode */
+.dark-mode #prediction-model-selector,
+.dark-mode #optimization-strategy-selector,
+.dark-mode .form-select {
+  background-color: #2a2a2a !important;
+  border-color: #444 !important;
+  color: var(--text-secondary) !important;
+}
+
+.dark-mode #prediction-model-selector option,
+.dark-mode #optimization-strategy-selector option,
+.dark-mode .form-select option {
+  background-color: #2a2a2a !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Debug panel styles for dark mode */
+.dark-mode .status-indicator-panel {
+  background-color: #2c2c2c !important;
+  border-color: #444 !important;
+  color: var(--text-secondary) !important;
+}
+
+.dark-mode #debug-timestamp {
+  color: #aaaaaa !important;
+}
+
+.dark-mode #debug-reload-btn {
+  color: #e0e0e0 !important;
+  border-color: #555 !important;
+}
+
+.dark-mode #debug-reload-btn:hover {
+  background-color: #444 !important;
+}
+
+.dark-mode .debug-info {
+  background-color: #2c2c2c !important;
+  border-color: #444 !important;
+  color: var(--text-secondary) !important;
+}
+
+.dark-mode .debug-loading {
+  color: #aaaaaa !important;
+}
+
+.dark-mode .debug-error {
+  color: #ff8a80 !important;
+}
+
+.dark-mode .debug-success {
+  color: #69f0ae !important;
+}
+
+/* Alerts System in dark mode */
+.dark-mode .alert {
+  background-color: #2c2c2c !important;
+  border-color: #444 !important;
+  color: var(--text-secondary) !important;
+}
+
+.dark-mode .alert-primary {
+  background-color: rgba(187, 134, 252, 0.15) !important;
+  border-color: rgba(187, 134, 252, 0.3) !important;
+}
+
+.dark-mode .alert-warning {
+  background-color: rgba(255, 209, 128, 0.15) !important;
+  border-color: rgba(255, 209, 128, 0.3) !important;
+}
+
+.dark-mode .alert-danger {
+  background-color: rgba(207, 102, 121, 0.15) !important;
+  border-color: rgba(207, 102, 121, 0.3) !important;
+}
+
+.dark-mode .alert-success {
+  background-color: rgba(105, 240, 174, 0.15) !important;
+  border-color: rgba(105, 240, 174, 0.3) !important;
+}
+
+/* Keep colored indicators */
+.dark-mode .text-positive { color: #69f0ae !important; }
+.dark-mode .text-negative { color: #ff8a80 !important; }
+.dark-mode .text-warning { color: #ffd180 !important; }
+.dark-mode .text-success { color: #69f0ae !important; }
+.dark-mode .text-danger { color: #ff8a80 !important; }
+.dark-mode .text-muted { color: #aaaaaa !important; }
+
+/* Buttons in dark mode */
+.dark-mode .btn-sm {
+  background-color: #2c2c2c !important;
+  border-color: #444 !important;
+  color: var(--text-secondary) !important;
+}
+
+.dark-mode .btn-sm:hover {
+  background-color: #333333 !important;
+}
+
+.dark-mode .btn-outline-secondary {
+  color: #e0e0e0 !important;
+  border-color: #555 !important;
+}
+
+.dark-mode .btn-outline-secondary:hover {
+  background-color: #333333 !important;
+}
+
+.dark-mode #create-alert-btn {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+.dark-mode #create-alert-btn:hover {
+  opacity: 0.9;
+}
+
+.dark-mode #save-alert-btn {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Form elements */
+.dark-mode .form-control {
+  background-color: #2a2a2a !important;
+  border-color: #444 !important;
+  color: var(--text-secondary) !important;
+}
+
+.dark-mode .form-control:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 0.25rem rgba(187, 134, 252, 0.25) !important;
+}
+
+.dark-mode .form-label {
+  color: var(--text-secondary) !important;
+}
+
+/* Tables */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--spacing-md);
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--spacing-sm);
+  text-align: left;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.data-table th {
+  font-weight: 500;
+}
+
+.dark-mode .data-table th,
+.dark-mode .data-table td {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Enhanced visibility for containers with loaders in dark mode */
+.dark-mode #market-indices-container .loader,
+.dark-mode #market-prediction-container .loader,
+.dark-mode #news-sentiment-container .loader,
+.dark-mode #feature-importance-container .loader,
+.dark-mode #portfolio-optimization-container .loader,
+.dark-mode #economic-indicators-container .loader,
+.dark-mode #alerts-container .loader {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  border-top-color: var(--primary) !important;
+}
+
+.dark-mode #market-indices-container,
+.dark-mode #market-prediction-container,
+.dark-mode #news-sentiment-container,
+.dark-mode #feature-importance-container,
+.dark-mode #portfolio-optimization-container,
+.dark-mode #economic-indicators-container,
+.dark-mode #alerts-container {
+  color: #e0e0e0 !important;
+}
+
+/* Chart elements in dark mode */
+.dark-mode .chart-container {
+  background-color: #1e1e1e !important;
+}
+
+.dark-mode .chart-container canvas {
+  filter: invert(0.85) hue-rotate(180deg);
+}
+
+/* Demo data note in dark mode */
+.dark-mode .demo-data-note {
+  background-color: rgba(187, 134, 252, 0.1) !important;
+  border-color: rgba(187, 134, 252, 0.3) !important;
+  color: #e0e0e0 !important;
+}
+
+/* Fix white boxes in dark mode */
+.dark-mode .news-sources-panel,
+.dark-mode .market-overview-panel,
+.dark-mode .sentiment-panel {
+    background-color: #1e1e1e !important;
+    border-color: #333 !important;
+    color: #e0e0e0 !important;
+}
+
+.dark-mode .news-source-item {
+    background-color: #2c2c2c !important;
+    border-color: #444 !important;
+    color: #e0e0e0 !important;
+}
+
+.dark-mode .news-source-percentage {
+    color: #69f0ae !important;
+}
+
+.dark-mode .market-overview-container,
+.dark-mode .sentiment-container {
+    background-color: #1e1e1e !important;
+    color: #e0e0e0 !important;
+}
+
+/* Fix any white backgrounds in panels */
+.dark-mode .panel,
+.dark-mode .panel-default,
+.dark-mode .white-panel {
+    background-color: #1e1e1e !important;
+    border-color: #333 !important;
+    color: #e0e0e0 !important;
+}
+
+/* Ensure all chart backgrounds are dark */
+.dark-mode .chart-wrapper,
+.dark-mode .chart-container,
+.dark-mode .chart-panel {
+    background-color: #1e1e1e !important;
+}
+
+/* Fix any Bootstrap white backgrounds */
+.dark-mode .bg-white,
+.dark-mode .bg-light {
+    background-color: #1e1e1e !important;
+}
+
+/* Additional dark mode fixes for content areas */
+.dark-mode .container-fluid,
+.dark-mode .content-area,
+.dark-mode .dashboard-section {
+    background-color: var(--background) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Fix any remaining white boxes */
+.dark-mode div[class*="white"],
+.dark-mode div[class*="light"],
+.dark-mode .bg-white,
+.dark-mode .bg-light,
+.dark-mode [class*="-light"] {
+    background-color: var(--surface) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Ensure nested content maintains dark theme */
+.dark-mode .card,
+.dark-mode .panel,
+.dark-mode .container,
+.dark-mode .content-box {
+    background-color: var(--surface) !important;
+}
+
+.dark-mode .card > *,
+.dark-mode .panel > *,
+.dark-mode .container > *,
+.dark-mode .content-box > * {
+    background-color: inherit;
+    color: inherit;
+}
+
+/* Fix any Bootstrap utility classes */
+.dark-mode .text-dark {
+    color: var(--text-primary) !important;
+}
+
+.dark-mode .border-light {
+    border-color: var(--border-color) !important;
+}
+
+/* News Sources in dark mode */
+.dark-mode .news-sources {
+    background-color: #1e1e1e !important;
+    border-color: #333 !important;
+}
+
+.dark-mode .news-source {
+    background-color: #2c2c2c !important;
+    border-color: #444 !important;
+    color: #e0e0e0 !important;
+}
+
+.dark-mode .news-source-percentage {
+    background-color: #1e1e1e !important;
+    color: #69f0ae !important;
+}
+
+.dark-mode .news-source-bar {
+    background-color: rgba(105, 240, 174, 0.2) !important;
+}
+
+/* Override any inline styles */
+.dark-mode [style*="background-color"] {
+    background-color: #1e1e1e !important;
+}
+
+.dark-mode [style*="background-color"]:not(.chart-container):not(canvas):not(.news-source):not(.news-source-percentage) {
+    background-color: #1e1e1e !important;
+}
+
+.dark-mode .news-source[style*="background-color"],
+.dark-mode .metric-box[style*="background-color"] {
+    background-color: #2c2c2c !important;
+}
+
+/* Fix any remaining white backgrounds */
+.dark-mode .bg-white,
+.dark-mode .bg-light,
+.dark-mode [class*="bg-white"],
+.dark-mode [class*="bg-light"],
+.dark-mode div[style*="background: rgb(255, 255, 255)"],
+.dark-mode div[style*="background-color: rgb(255, 255, 255)"],
+.dark-mode div[style*="background: #fff"],
+.dark-mode div[style*="background-color: #fff"],
+.dark-mode div[style*="background: white"],
+.dark-mode div[style*="background-color: white"] {
+    background-color: #1e1e1e !important;
+}
+
+/* Ensure all containers have dark backgrounds */
+.dark-mode .container,
+.dark-mode .container-fluid,
+.dark-mode .content-wrapper,
+.dark-mode .dashboard-content,
+.dark-mode main,
+.dark-mode section,
+.dark-mode .card,
+.dark-mode .panel {
+    background-color: #1e1e1e !important;
+}
+
+/* Force dark background on any element with inline background styles */
+.dark-mode *[style*="background"] {
+    background-color: #1e1e1e !important;
+}
+
+/* Comprehensive dark mode fixes for AI Dashboard */
+.dark-mode {
+    --background: #121212;
+    --surface: #1e1e1e;
+    --surface-elevated: #2c2c2c;
+    --text-primary: #e0e0e0;
+    --text-secondary: #aaaaaa;
+    --border-color: #333;
+}
+
+/* Fix all white boxes and containers */
+.dark-mode .container,
+.dark-mode .container-fluid,
+.dark-mode .content-wrapper,
+.dark-mode .row,
+.dark-mode .col,
+.dark-mode .col-md-6,
+.dark-mode .card,
+.dark-mode .card-body,
+.dark-mode .chart-container,
+.dark-mode .prediction-history-container,
+.dark-mode .market-overview-container,
+.dark-mode .sentiment-container,
+.dark-mode .portfolio-stats-container,
+.dark-mode .stats-list,
+.dark-mode .metric-box,
+.dark-mode [class*="bg-white"],
+.dark-mode [class*="bg-light"],
+.dark-mode div[style*="background"],
+.dark-mode canvas {
+    background-color: var(--surface) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Fix gauge and chart backgrounds */
+.dark-mode .gauge-container,
+.dark-mode .gauge-background,
+.dark-mode .gauge-cover {
+    background-color: var(--surface) !important;
+}
+
+.dark-mode .gauge-cover {
+    background-color: var(--surface) !important;
+}
+
+/* Portfolio statistics boxes */
+.dark-mode .stat-item {
+    background-color: var(--surface-elevated) !important;
+    border-color: var(--border-color) !important;
+    margin-bottom: 8px;
+    padding: 12px;
+    border-radius: 4px;
+}
+
+/* Market metrics and indicators */
+.dark-mode .market-metric-card,
+.dark-mode .indicator-card {
+    background-color: var(--surface-elevated) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Chart areas and containers */
+.dark-mode .chart-wrapper,
+.dark-mode .chart-container,
+.dark-mode #prediction-history-chart,
+.dark-mode #portfolio-weights-chart {
+    background-color: var(--surface) !important;
+}
+
+/* Fix any Bootstrap elements */
+.dark-mode .bg-white,
+.dark-mode .bg-light,
+.dark-mode .table,
+.dark-mode .modal-content {
+    background-color: var(--surface) !important;
+}
+
+/* Fix any elements with inline styles */
+.dark-mode [style*="background-color: rgb(255, 255, 255)"],
+.dark-mode [style*="background-color: #fff"],
+.dark-mode [style*="background-color: white"],
+.dark-mode [style*="background: rgb(255, 255, 255)"],
+.dark-mode [style*="background: #fff"],
+.dark-mode [style*="background: white"] {
+    background-color: var(--surface) !important;
+}
+
+/* Ensure all chart canvases have dark backgrounds */
+.dark-mode canvas {
+    background-color: var(--surface) !important;
+}
+
+/* Fix prediction history section */
+.dark-mode .prediction-history-container {
+    background-color: var(--surface) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Fix portfolio optimization section */
+.dark-mode .portfolio-optimization-container,
+.dark-mode .portfolio-stats {
+    background-color: var(--surface) !important;
+}
+
+/* Fix any remaining white boxes */
+.dark-mode div:not(.chart-container):not(.gauge-container)[style*="background"] {
+    background-color: var(--surface) !important;
+}
+
+/* Ensure text remains visible */
+.dark-mode .text-dark {
+    color: var(--text-primary) !important;
+}
+
+.dark-mode .text-muted {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix metric boxes */
+.dark-mode .metric-box {
+    background-color: var(--surface-elevated) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+/* Fix any Bootstrap rows and columns */
+.dark-mode .row > *,
+.dark-mode .col,
+.dark-mode [class*="col-"] {
+    background-color: transparent !important;
+}
+
+/* Fix gauge elements */
+.dark-mode .gauge-background {
+    background: linear-gradient(90deg, 
+        var(--error) 0%, 
+        var(--warning-color) 50%, 
+        var(--success-color) 100%) !important;
+}
+
+.dark-mode .gauge-cover {
+    background-color: var(--surface) !important;
+}
+
+.dark-mode .gauge-needle {
+    background-color: var(--text-primary) !important;
+}
+
+/* Fix chart tooltips */
+.dark-mode .chartjs-tooltip {
+    background-color: var(--surface-elevated) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Fix remaining white boxes in dark mode */
+.dark-mode {
+    --surface: #1e1e1e;
+    --surface-elevated: #2c2c2c;
+    --border-color: #333;
+}
+
+/* Fix market indices and prediction cards */
+.dark-mode .index-card,
+.dark-mode .prediction-card,
+.dark-mode .metric-box {
+    background-color: var(--surface-elevated) !important;
+    border-color: var(--border-color) !important;
+    color: #e0e0e0 !important;
+}
+
+/* Fix prediction history chart area */
+.dark-mode .prediction-history-container {
+    background-color: var(--surface) !important;
+    border-color: var(--border-color) !important;
+}
+
+.dark-mode .prediction-history-container canvas {
+    background-color: var(--surface) !important;
+}
+
+/* Fix portfolio statistics area */
+.dark-mode .portfolio-stats {
+    background-color: var(--surface) !important;
+}
+
+.dark-mode .stat-item {
+    background-color: var(--surface-elevated) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Fix bottom section boxes */
+.dark-mode .news-sources,
+.dark-mode .market-overview,
+.dark-mode .sentiment-panel {
+    background-color: var(--surface) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Fix any remaining white backgrounds */
+.dark-mode .card,
+.dark-mode .panel,
+.dark-mode .container,
+.dark-mode .content-box,
+.dark-mode [class*="bg-white"],
+.dark-mode [class*="bg-light"] {
+    background-color: var(--surface) !important;
+}
+
+/* Fix chart backgrounds */
+.dark-mode .chart-container {
+    background-color: var(--surface) !important;
+}
+
+.dark-mode .chart-container canvas {
+    background-color: var(--surface) !important;
+}
+
+/* Fix gauge elements */
+.dark-mode .gauge-container,
+.dark-mode .gauge-background,
+.dark-mode .gauge-cover {
+    background-color: var(--surface) !important;
+}
+
+/* Override any inline styles */
+.dark-mode [style*="background-color"],
+.dark-mode [style*="background:"] {
+    background-color: var(--surface) !important;
+}
+
+/* Fix nested elements */
+.dark-mode .card > *,
+.dark-mode .panel > *,
+.dark-mode .container > *,
+.dark-mode .content-box > * {
+    background-color: inherit !important;
+    color: inherit !important;
+}
+
+/* Fix News Sources background in dark mode */
+.dark-mode .source-list,
+.dark-mode .list-group,
+.dark-mode .list-group-item {
+    background-color: var(--surface-elevated) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Fix prediction chart readability in dark mode */
+.dark-mode .chart-container canvas {
+    background-color: var(--surface) !important;
+    filter: none !important; /* Remove the invert filter that was making it unreadable */
+}
+
+/* Ensure chart text is visible */
+.dark-mode .chart-container .chartjs-text {
+    fill: var(--text-primary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Fix alert system table in dark mode */
+.dark-mode table,
+.dark-mode .table,
+.dark-mode .table-hover tbody tr {
+    background-color: var(--surface) !important;
+    color: var(--text-primary) !important;
+}
+
+.dark-mode .table tbody tr:hover {
+    background-color: var(--surface-elevated) !important;
+}
+
+.dark-mode .table th,
+.dark-mode .table td {
+    background-color: var(--surface) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Additional fixes for any remaining white backgrounds */
+.dark-mode .list-group-item-action {
+    background-color: var(--surface-elevated) !important;
+    color: var(--text-primary) !important;
+}
+
+.dark-mode .list-group-item-action:hover {
+    background-color: var(--surface) !important;
+}
+
+/* Fix badge backgrounds in dark mode */
+.dark-mode .badge {
+    background-color: var(--surface-elevated) !important;
+    color: var(--text-primary) !important;
+}
+
+.dark-mode .badge.bg-success {
+    background-color: rgba(105, 240, 174, 0.2) !important;
+    color: #69f0ae !important;
+}
+
+.dark-mode .badge.bg-danger {
+    background-color: rgba(255, 138, 128, 0.2) !important;
+    color: #ff8a80 !important;
+}
+
+.dark-mode .badge.bg-warning {
+    background-color: rgba(255, 209, 128, 0.2) !important;
+    color: #ffd180 !important;
+}
+
+.dark-mode .badge.bg-secondary {
+    background-color: rgba(170, 170, 170, 0.2) !important;
+    color: #aaaaaa !important;
 } 
