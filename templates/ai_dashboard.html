@@ -74,12 +74,76 @@
                         <span class="badge rounded-pill me-3" id="debug-api-badge">API</span>
                         <small class="text-muted" id="debug-timestamp"></small>
                     </div>
-                    <button id="debug-reload-btn" class="btn btn-sm btn-outline-secondary py-0 px-2" 
-                            title="Reload dashboard data" aria-label="Reload dashboard data">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
+                    <div>
+                        <button id="debug-toggle-btn" class="btn btn-sm btn-outline-secondary py-0 px-2 me-1" 
+                                title="Toggle diagnostic panel" aria-label="Toggle diagnostic panel">
+                            <i class="fas fa-tools"></i>
+                        </button>
+                        <button id="debug-reload-btn" class="btn btn-sm btn-outline-secondary py-0 px-2" 
+                                title="Reload dashboard data" aria-label="Reload dashboard data">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
                 </div>
                 <div id="debug-error-message" class="small text-danger mt-1 d-none"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diagnostic Panel (hidden by default) -->
+    <div id="diagnostic-panel" class="row mb-3 d-none">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">AI Dashboard Diagnostics</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Troubleshooting Steps:</h6>
+                    <ol>
+                        <li>Check browser console for JavaScript errors (F12 or Right-click > Inspect > Console)</li>
+                        <li>Verify all scripts are loaded properly (check Network tab in browser dev tools)</li>
+                        <li>Clear browser cache and refresh the page</li>
+                        <li>Try accessing the dashboard from another browser</li>
+                    </ol>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Environment Information:</h6>
+                            <table class="table table-sm table-bordered">
+                                <tr>
+                                    <th>Browser:</th>
+                                    <td id="diag-browser">Detecting...</td>
+                                </tr>
+                                <tr>
+                                    <th>Scripts Loaded:</th>
+                                    <td id="diag-scripts">Checking...</td>
+                                </tr>
+                                <tr>
+                                    <th>API Connectivity:</th>
+                                    <td id="diag-api">Testing...</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>API Status:</h6>
+                            <div id="api-status-container">
+                                <div class="small mb-2">Testing API endpoints...</div>
+                                <div class="progress">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end mt-3">
+                        <button id="run-diagnostics-btn" class="btn btn-primary me-2">
+                            <i class="fas fa-stethoscope me-1"></i> Run Diagnostics
+                        </button>
+                        <button id="close-diagnostics-btn" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Close
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -672,5 +736,155 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(checkCssLoaded, 500);
     loadAiInsightsData();
 });
+</script>
+
+<script>
+    // Set CSS badge to loaded on script execution
+    document.addEventListener('DOMContentLoaded', function() {
+        const cssBadge = document.getElementById('debug-css-badge');
+        if (cssBadge) {
+            cssBadge.className = 'badge rounded-pill me-2 loaded';
+        }
+        
+        // Add event listener for debug toggle button
+        const debugToggleBtn = document.getElementById('debug-toggle-btn');
+        const diagnosticPanel = document.getElementById('diagnostic-panel');
+        
+        if (debugToggleBtn && diagnosticPanel) {
+            debugToggleBtn.addEventListener('click', function() {
+                diagnosticPanel.classList.toggle('d-none');
+            });
+        }
+        
+        // Add event listener for debug reload button
+        const debugReloadBtn = document.getElementById('debug-reload-btn');
+        if (debugReloadBtn) {
+            debugReloadBtn.addEventListener('click', function() {
+                // Reload dashboard data
+                if (typeof loadDashboardData === 'function') {
+                    loadDashboardData();
+                } else {
+                    console.error('loadDashboardData function not found');
+                    alert('Error: Dashboard reload function not available');
+                }
+            });
+        }
+        
+        // Add event listener for closing diagnostic panel
+        const closeDiagnosticsBtn = document.getElementById('close-diagnostics-btn');
+        if (closeDiagnosticsBtn && diagnosticPanel) {
+            closeDiagnosticsBtn.addEventListener('click', function() {
+                diagnosticPanel.classList.add('d-none');
+            });
+        }
+        
+        // Add event listener for running diagnostics
+        const runDiagnosticsBtn = document.getElementById('run-diagnostics-btn');
+        if (runDiagnosticsBtn) {
+            runDiagnosticsBtn.addEventListener('click', function() {
+                runDiagnostics();
+            });
+        }
+        
+        // Fill browser detection
+        const diagBrowser = document.getElementById('diag-browser');
+        if (diagBrowser) {
+            diagBrowser.textContent = navigator.userAgent;
+        }
+    });
+    
+    // Function to run diagnostics
+    function runDiagnostics() {
+        console.log('Running AI dashboard diagnostics');
+        
+        // Check if scripts are loaded
+        const diagScripts = document.getElementById('diag-scripts');
+        if (diagScripts) {
+            if (typeof dashboardState !== 'undefined' && typeof AIDashboardDebug !== 'undefined') {
+                diagScripts.textContent = 'All scripts loaded successfully';
+                diagScripts.className = 'text-success';
+            } else {
+                diagScripts.textContent = 'Some scripts failed to load';
+                diagScripts.className = 'text-danger';
+            }
+        }
+        
+        // Test API connectivity
+        const diagApi = document.getElementById('diag-api');
+        const apiStatusContainer = document.getElementById('api-status-container');
+        
+        if (diagApi && apiStatusContainer) {
+            diagApi.textContent = 'Testing...';
+            
+            // Test endpoints
+            const endpoints = [
+                '/api/ai-status',
+                '/api/ai-insights',
+                '/api/alternative-data/news-sentiment'
+            ];
+            
+            let html = '<h6 class="mt-2">Endpoint Status:</h6><ul class="list-group">';
+            
+            // Sequential testing of endpoints
+            let successCount = 0;
+            let totalTests = endpoints.length;
+            
+            function testNextEndpoint(index) {
+                if (index >= endpoints.length) {
+                    // All tests completed
+                    if (successCount === totalTests) {
+                        diagApi.textContent = 'All endpoints accessible';
+                        diagApi.className = 'text-success';
+                    } else {
+                        diagApi.textContent = `${successCount}/${totalTests} endpoints accessible`;
+                        diagApi.className = 'text-warning';
+                    }
+                    return;
+                }
+                
+                const endpoint = endpoints[index];
+                html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    ${endpoint}
+                    <span class="badge bg-secondary" id="endpoint-${index}">Testing...</span>
+                </li>`;
+                
+                apiStatusContainer.innerHTML = html + '</ul>';
+                
+                fetch(endpoint)
+                    .then(response => {
+                        const badge = document.getElementById(`endpoint-${index}`);
+                        if (response.ok) {
+                            if (badge) {
+                                badge.textContent = 'OK';
+                                badge.className = 'badge bg-success';
+                            }
+                            successCount++;
+                        } else {
+                            if (badge) {
+                                badge.textContent = `Error ${response.status}`;
+                                badge.className = 'badge bg-danger';
+                            }
+                        }
+                        
+                        // Test next endpoint
+                        testNextEndpoint(index + 1);
+                    })
+                    .catch(error => {
+                        const badge = document.getElementById(`endpoint-${index}`);
+                        if (badge) {
+                            badge.textContent = 'Failed';
+                            badge.className = 'badge bg-danger';
+                        }
+                        console.error(`Error testing ${endpoint}:`, error);
+                        
+                        // Test next endpoint
+                        testNextEndpoint(index + 1);
+                    });
+            }
+            
+            // Start testing endpoints
+            testNextEndpoint(0);
+        }
+    }
 </script>
 {% endblock %} 
