@@ -121,6 +121,13 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    env:
+      # Ensure we're not using any Docker Hub credentials during testing
+      DOCKER_CLI_EXPERIMENTAL: enabled
+      DOCKER_BUILDKIT: 1
+      COMPOSE_DOCKER_CLI_BUILD: 1
+      # Disable pushing to registries
+      DOCKER_PUSH: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -335,6 +342,31 @@ jobs:
           
           chmod +x app.py
           
+          # Build images locally for testing
+          echo "Building Docker images for testing..."
+          
+          echo "Building frontend image..."
+          if ! DOCKER_BUILDKIT=1 docker build --no-cache --pull=false --push=false -t frontend:test -f dockerfile \
+            --build-arg TARGETPLATFORM=linux/amd64 \
+            --build-arg BUILDPLATFORM=linux/amd64 .; then
+            echo "Failed to build frontend image"
+            exit 1
+          fi
+            
+          echo "Building AI server image..."
+          if ! DOCKER_BUILDKIT=1 docker build --no-cache --pull=false --push=false -t ai_server:test -f Dockerfile.ai \
+            --build-arg TARGETPLATFORM=linux/amd64 \
+            --build-arg BUILDPLATFORM=linux/amd64 \
+            --build-arg CI_BUILD=true \
+            --build-arg SKIP_ML_FRAMEWORKS=true .; then
+            echo "Failed to build AI server image"
+            exit 1
+          fi
+          
+          # Verify images were built locally
+          echo "Verifying local images..."
+          docker images --filter "reference=*:test"
+          
           # Test database schema initialization
           echo "Testing database schema initialization..."
           docker compose -f docker-compose.ci.yml up -d db
@@ -362,10 +394,26 @@ jobs:
           docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -c "\d+ api_usage"
           docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -c "\di+ idx_api_usage_request_params"
           
-          # Build and test frontend with dependencies
-          echo "Building and testing frontend..."
-          docker compose -f docker-compose.ci.yml up -d frontend
+          # Start services with better error handling
+          echo "Starting services..."
+          if ! docker compose -f docker-compose.ci.yml up -d; then
+            echo "Failed to start services"
+            docker compose -f docker-compose.ci.yml ps
+            docker compose -f docker-compose.ci.yml logs
+            exit 1
+          fi
+          
+          # Wait for services and check their status
+          echo "Waiting for services to be ready..."
           sleep 10
+          docker compose -f docker-compose.ci.yml ps
+          
+          # Show logs if any service is not running
+          if ! docker compose -f docker-compose.ci.yml ps | grep -q "running"; then
+            echo "Some services failed to start. Showing logs..."
+            docker compose -f docker-compose.ci.yml logs
+            exit 1
+          fi
           
           # Test library dependencies
           echo "Testing library dependencies..."
@@ -419,6 +467,12 @@ jobs:
     needs: python-tests
     # Add timeout to prevent CI from abandoning long-running builds
     timeout-minutes: 45
+    env:
+      # Enable pushing to Docker Hub for publish job only
+      DOCKER_CLI_EXPERIMENTAL: enabled
+      DOCKER_BUILDKIT: 1
+      COMPOSE_DOCKER_CLI_BUILD: 1
+      DOCKER_PUSH: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
