@@ -185,12 +185,15 @@ def init_db():
                     request_params JSONB,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 );
-                
-                -- Index for efficient querying of recent usage
+            """)
+            
+            # Create indexes in separate statements
+            cur.execute("""
                 CREATE INDEX IF NOT EXISTS idx_api_usage_timestamp 
                 ON api_usage (api_name, timestamp);
-                
-                -- Index for JSON querying if needed
+            """)
+            
+            cur.execute("""
                 CREATE INDEX IF NOT EXISTS idx_api_usage_request_params 
                 ON api_usage USING GIN (request_params);
             """)

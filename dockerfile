@@ -61,7 +61,8 @@ WORKDIR /app
 RUN apk add --no-cache \
     postgresql-client \
     curl \
-    libstdc++
+    libstdc++ \
+    libgomp
 
 # Copy from builder stage only what's needed
 COPY --from=builder /usr/local/lib/python3.10/site-packages/ /usr/local/lib/python3.10/site-packages/
