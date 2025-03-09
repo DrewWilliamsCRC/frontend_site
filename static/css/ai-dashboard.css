@@ -1272,4 +1272,156 @@ body {
 
 .dark-mode .confidence-value {
     color: var(--bs-gray-300);
+}
+
+/* Alternative Data Insights Styling */
+.sentiment-entity-item {
+    border-left: 4px solid transparent;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    background-color: rgba(0, 0, 0, 0.03);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.sentiment-entity-item:hover {
+    transform: translateX(2px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.sentiment-entity-item.positive {
+    border-left-color: #28a745;
+}
+
+.sentiment-entity-item.negative {
+    border-left-color: #dc3545;
+}
+
+.sentiment-entity-item.neutral {
+    border-left-color: #6c757d;
+}
+
+.sentiment-bar {
+    height: 6px;
+    background-color: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 5px;
+}
+
+.sentiment-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.sentiment-positive {
+    background-color: #28a745;
+}
+
+.sentiment-negative {
+    background-color: #dc3545;
+}
+
+.sentiment-neutral {
+    background-color: #6c757d;
+}
+
+/* News headline styling */
+.news-headline {
+    padding: 10px;
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.2s ease;
+}
+
+.news-headline:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.news-headline:last-child {
+    border-bottom: none;
+}
+
+.headline-source {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+/* Social media post styling */
+.reddit-post {
+    padding: 10px;
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.2s ease;
+}
+
+.reddit-post:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+.reddit-post:last-child {
+    border-bottom: none;
+}
+
+.post-stats {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+/* Satellite data styling */
+.traffic-location, .yield-change, .price-impact {
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    background-color: rgba(0, 0, 0, 0.03);
+    border-radius: 4px;
+    border-left: 4px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.traffic-location:hover, .yield-change:hover, .price-impact:hover {
+    transform: translateX(2px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.traffic-high {
+    border-left-color: #28a745;
+}
+
+.traffic-medium {
+    border-left-color: #ffc107;
+}
+
+.traffic-low {
+    border-left-color: #dc3545;
+}
+
+.yield-increase {
+    border-left-color: #28a745;
+}
+
+.yield-decrease {
+    border-left-color: #dc3545;
+}
+
+.price-increase {
+    border-left-color: #28a745;
+}
+
+.price-decrease {
+    border-left-color: #dc3545;
+}
+
+/* Chart container styling */
+[id$="-chart"] {
+    min-height: 200px;
+    width: 100%;
+}
+
+/* Fade in animation for alternative data content */
+.tab-content .tab-pane.active {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 } 

@@ -202,6 +202,278 @@
         </div>
     </div>
 
+    <!-- Add this new section after another major section like market indices or economic indicators -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">Alternative Data Insights</h3>
+            <button class="btn btn-sm btn-outline-primary refresh-btn" id="refresh-alt-data">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+        <div class="card-body">
+            <!-- Tabs for different alternative data sources -->
+            <ul class="nav nav-tabs mb-3" id="altDataTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="news-sentiment-tab" data-bs-toggle="tab" data-bs-target="#news-sentiment" type="button" role="tab" aria-controls="news-sentiment" aria-selected="true">News Sentiment</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="reddit-sentiment-tab" data-bs-toggle="tab" data-bs-target="#reddit-sentiment" type="button" role="tab" aria-controls="reddit-sentiment" aria-selected="false">Social Media</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="retail-satellite-tab" data-bs-toggle="tab" data-bs-target="#retail-satellite" type="button" role="tab" aria-controls="retail-satellite" aria-selected="false">Retail Traffic</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="agricultural-satellite-tab" data-bs-toggle="tab" data-bs-target="#agricultural-satellite" type="button" role="tab" aria-controls="agricultural-satellite" aria-selected="false">Agricultural</button>
+                </li>
+            </ul>
+            
+            <!-- Tab content -->
+            <div class="tab-content" id="altDataTabContent">
+                <!-- News Sentiment Tab -->
+                <div class="tab-pane fade show active" id="news-sentiment" role="tabpanel" aria-labelledby="news-sentiment-tab">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5>Financial News Sentiment</h5>
+                                <div class="text-muted small" id="news-sentiment-updated">Last updated: N/A</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Most Positive Sentiment</h6>
+                                    <div id="positive-sentiment-entities">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Most Negative Sentiment</h6>
+                                    <div id="negative-sentiment-entities">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Sentiment Distribution</h6>
+                                    <div id="sentiment-distribution-chart" style="height: 200px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Recent Headlines</h6>
+                                    <div id="recent-headlines">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Reddit Sentiment Tab -->
+                <div class="tab-pane fade" id="reddit-sentiment" role="tabpanel" aria-labelledby="reddit-sentiment-tab">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5>Social Media Sentiment</h5>
+                                <div class="text-muted small" id="reddit-sentiment-updated">Last updated: N/A</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Most Mentioned Entities</h6>
+                                    <div id="top-reddit-entities">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Subreddit Sentiment</h6>
+                                    <div id="subreddit-sentiment">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Sentiment Analysis</h6>
+                                    <div id="reddit-sentiment-chart" style="height: 200px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Top Posts</h6>
+                                    <div id="top-reddit-posts">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Retail Satellite Tab -->
+                <div class="tab-pane fade" id="retail-satellite" role="tabpanel" aria-labelledby="retail-satellite-tab">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5>Retail Traffic Analysis</h5>
+                                <div class="text-muted small" id="retail-satellite-updated">Last updated: N/A</div>
+                            </div>
+                            <div class="small text-muted mb-3">
+                                <i class="fas fa-info-circle"></i> Satellite imagery analysis of retail parking lots to estimate store traffic and predict sales.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">High Traffic Locations</h6>
+                                    <div id="high-traffic-locations">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Stock Price Impact</h6>
+                                    <div id="retail-stock-impact">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Traffic Trend</h6>
+                                    <div id="retail-traffic-chart" style="height: 250px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Agricultural Satellite Tab -->
+                <div class="tab-pane fade" id="agricultural-satellite" role="tabpanel" aria-labelledby="agricultural-satellite-tab">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5>Agricultural Analysis</h5>
+                                <div class="text-muted small" id="agricultural-satellite-updated">Last updated: N/A</div>
+                            </div>
+                            <div class="small text-muted mb-3">
+                                <i class="fas fa-info-circle"></i> Satellite imagery analysis of agricultural regions to predict crop yields and commodity price movements.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">Yield Changes</h6>
+                                <div id="agricultural-yield-changes">
+                                    <div class="placeholder-wave">
+                                        <div class="placeholder col-12 mb-2"></div>
+                                        <div class="placeholder col-12 mb-2"></div>
+                                        <div class="placeholder col-12 mb-2"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">Price Impact</h6>
+                                <div id="agricultural-price-impact">
+                                    <div class="placeholder-wave">
+                                        <div class="placeholder col-12 mb-2"></div>
+                                        <div class="placeholder col-12 mb-2"></div>
+                                        <div class="placeholder col-12 mb-2"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">Crop Yield Trend</h6>
+                                <div id="agricultural-yield-chart" style="height: 250px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Alerts System -->
     <div class="row mb-4">
         <div class="col-12">

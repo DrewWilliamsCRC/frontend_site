@@ -1630,4 +1630,734 @@ function getConfidenceClass(confidence) {
     if (confidence >= 0.6) return 'bg-info';
     if (confidence >= 0.4) return 'bg-warning';
     return 'bg-danger';
-} 
+}
+
+// Alternative Data Sources Functions
+function loadAlternativeData() {
+    loadNewsSentiment();
+    loadRedditSentiment();
+    loadRetailSatelliteData();
+    loadAgriculturalSatelliteData();
+}
+
+// News Sentiment Functions
+function loadNewsSentiment() {
+    fetch('/api/alternative-data/news-sentiment')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            updateNewsSentiment(data);
+        })
+        .catch(error => {
+            console.error('Error fetching news sentiment data:', error);
+            displayErrorInContainer('positive-sentiment-entities', 'Error loading sentiment data');
+            displayErrorInContainer('negative-sentiment-entities', 'Error loading sentiment data');
+            displayErrorInContainer('sentiment-distribution-chart', 'Error loading sentiment chart');
+            displayErrorInContainer('recent-headlines', 'Error loading recent headlines');
+        });
+}
+
+function updateNewsSentiment(data) {
+    // Update timestamp
+    document.getElementById('news-sentiment-updated').textContent = `Last updated: ${formatDate(new Date())}`;
+    
+    // Clear placeholders
+    document.getElementById('positive-sentiment-entities').innerHTML = '';
+    document.getElementById('negative-sentiment-entities').innerHTML = '';
+    document.getElementById('recent-headlines').innerHTML = '';
+    
+    // Display positive sentiment entities
+    const positiveContainer = document.getElementById('positive-sentiment-entities');
+    const positiveEntities = data.entities
+        .filter(entity => entity.sentiment_score > 0)
+        .sort((a, b) => b.sentiment_score - a.sentiment_score)
+        .slice(0, 5);
+    
+    if (positiveEntities.length === 0) {
+        positiveContainer.innerHTML = '<div class="text-muted">No positive sentiment entities found</div>';
+    } else {
+        positiveEntities.forEach(entity => {
+            const sentimentPercentage = Math.min(Math.abs(entity.sentiment_score) * 100, 100).toFixed(0);
+            const entityElement = document.createElement('div');
+            entityElement.className = 'sentiment-entity-item positive';
+            entityElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong>${entity.name}</strong>
+                    <span class="badge bg-success">${sentimentPercentage}%</span>
+                </div>
+                <div class="small text-muted">${entity.mentions} mentions</div>
+                <div class="sentiment-bar">
+                    <div class="sentiment-bar-fill sentiment-positive" style="width: ${sentimentPercentage}%"></div>
+                </div>
+            `;
+            positiveContainer.appendChild(entityElement);
+        });
+    }
+    
+    // Display negative sentiment entities
+    const negativeContainer = document.getElementById('negative-sentiment-entities');
+    const negativeEntities = data.entities
+        .filter(entity => entity.sentiment_score < 0)
+        .sort((a, b) => a.sentiment_score - b.sentiment_score)
+        .slice(0, 5);
+    
+    if (negativeEntities.length === 0) {
+        negativeContainer.innerHTML = '<div class="text-muted">No negative sentiment entities found</div>';
+    } else {
+        negativeEntities.forEach(entity => {
+            const sentimentPercentage = Math.min(Math.abs(entity.sentiment_score) * 100, 100).toFixed(0);
+            const entityElement = document.createElement('div');
+            entityElement.className = 'sentiment-entity-item negative';
+            entityElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong>${entity.name}</strong>
+                    <span class="badge bg-danger">${sentimentPercentage}%</span>
+                </div>
+                <div class="small text-muted">${entity.mentions} mentions</div>
+                <div class="sentiment-bar">
+                    <div class="sentiment-bar-fill sentiment-negative" style="width: ${sentimentPercentage}%"></div>
+                </div>
+            `;
+            negativeContainer.appendChild(entityElement);
+        });
+    }
+    
+    // Display recent headlines
+    const headlinesContainer = document.getElementById('recent-headlines');
+    if (!data.headlines || data.headlines.length === 0) {
+        headlinesContainer.innerHTML = '<div class="text-muted">No recent headlines found</div>';
+    } else {
+        data.headlines.slice(0, 5).forEach(headline => {
+            const headlineElement = document.createElement('div');
+            headlineElement.className = 'news-headline';
+            
+            // Determine sentiment class
+            let sentimentClass = 'neutral';
+            if (headline.sentiment > 0.05) sentimentClass = 'positive';
+            if (headline.sentiment < -0.05) sentimentClass = 'negative';
+            
+            headlineElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div>${headline.text}</div>
+                        <div class="headline-source">${headline.source} · ${formatRelativeTime(new Date(headline.date))}</div>
+                    </div>
+                    <span class="badge bg-${sentimentClass === 'positive' ? 'success' : sentimentClass === 'negative' ? 'danger' : 'secondary'} ms-2">
+                        ${sentimentClass}
+                    </span>
+                </div>
+            `;
+            headlinesContainer.appendChild(headlineElement);
+        });
+    }
+    
+    // Create sentiment distribution chart
+    createSentimentDistributionChart(data);
+}
+
+function createSentimentDistributionChart(data) {
+    const sentimentCounts = {
+        positive: data.entities.filter(e => e.sentiment_score > 0.05).length,
+        neutral: data.entities.filter(e => e.sentiment_score >= -0.05 && e.sentiment_score <= 0.05).length,
+        negative: data.entities.filter(e => e.sentiment_score < -0.05).length
+    };
+    
+    // Create chart using Chart.js
+    const ctx = document.getElementById('sentiment-distribution-chart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (window.sentimentDistributionChart) {
+        window.sentimentDistributionChart.destroy();
+    }
+    
+    window.sentimentDistributionChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Positive', 'Neutral', 'Negative'],
+            datasets: [{
+                data: [sentimentCounts.positive, sentimentCounts.neutral, sentimentCounts.negative],
+                backgroundColor: ['#28a745', '#6c757d', '#dc3545'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${context.label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Reddit Sentiment Functions
+function loadRedditSentiment() {
+    fetch('/api/alternative-data/reddit-sentiment')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            updateRedditSentiment(data);
+        })
+        .catch(error => {
+            console.error('Error fetching Reddit sentiment data:', error);
+            displayErrorInContainer('top-reddit-entities', 'Error loading Reddit data');
+            displayErrorInContainer('subreddit-sentiment', 'Error loading Reddit data');
+            displayErrorInContainer('reddit-sentiment-chart', 'Error loading sentiment chart');
+            displayErrorInContainer('top-reddit-posts', 'Error loading Reddit posts');
+        });
+}
+
+function updateRedditSentiment(data) {
+    // Update timestamp
+    document.getElementById('reddit-sentiment-updated').textContent = `Last updated: ${formatDate(new Date())}`;
+    
+    // Clear placeholders
+    document.getElementById('top-reddit-entities').innerHTML = '';
+    document.getElementById('subreddit-sentiment').innerHTML = '';
+    document.getElementById('top-reddit-posts').innerHTML = '';
+    
+    // Display most mentioned entities
+    const entitiesContainer = document.getElementById('top-reddit-entities');
+    if (!data.top_entities || data.top_entities.length === 0) {
+        entitiesContainer.innerHTML = '<div class="text-muted">No entities found</div>';
+    } else {
+        data.top_entities.slice(0, 5).forEach(entity => {
+            let sentimentClass = 'neutral';
+            if (entity.sentiment > 0.05) sentimentClass = 'positive';
+            if (entity.sentiment < -0.05) sentimentClass = 'negative';
+            
+            const sentimentPercentage = Math.min(Math.abs(entity.sentiment) * 100, 100).toFixed(0);
+            
+            const entityElement = document.createElement('div');
+            entityElement.className = `sentiment-entity-item ${sentimentClass}`;
+            entityElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong>${entity.name}</strong>
+                    <span class="badge bg-${sentimentClass === 'positive' ? 'success' : sentimentClass === 'negative' ? 'danger' : 'secondary'}">${sentimentPercentage}%</span>
+                </div>
+                <div class="small text-muted">${entity.mentions} mentions</div>
+                <div class="sentiment-bar">
+                    <div class="sentiment-bar-fill sentiment-${sentimentClass}" style="width: ${sentimentPercentage}%"></div>
+                </div>
+            `;
+            entitiesContainer.appendChild(entityElement);
+        });
+    }
+    
+    // Display subreddit sentiment
+    const subredditContainer = document.getElementById('subreddit-sentiment');
+    if (!data.subreddit_sentiment || Object.keys(data.subreddit_sentiment).length === 0) {
+        subredditContainer.innerHTML = '<div class="text-muted">No subreddit data found</div>';
+    } else {
+        Object.entries(data.subreddit_sentiment).slice(0, 5).forEach(([subreddit, sentiment]) => {
+            let sentimentClass = 'neutral';
+            if (sentiment > 0.05) sentimentClass = 'positive';
+            if (sentiment < -0.05) sentimentClass = 'negative';
+            
+            const sentimentPercentage = Math.min(Math.abs(sentiment) * 100, 100).toFixed(0);
+            
+            const subredditElement = document.createElement('div');
+            subredditElement.className = `sentiment-entity-item ${sentimentClass}`;
+            subredditElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong>r/${subreddit}</strong>
+                    <span class="badge bg-${sentimentClass === 'positive' ? 'success' : sentimentClass === 'negative' ? 'danger' : 'secondary'}">${sentimentPercentage}%</span>
+                </div>
+                <div class="sentiment-bar">
+                    <div class="sentiment-bar-fill sentiment-${sentimentClass}" style="width: ${sentimentPercentage}%"></div>
+                </div>
+            `;
+            subredditContainer.appendChild(subredditElement);
+        });
+    }
+    
+    // Display top posts
+    const postsContainer = document.getElementById('top-reddit-posts');
+    if (!data.top_posts || data.top_posts.length === 0) {
+        postsContainer.innerHTML = '<div class="text-muted">No posts found</div>';
+    } else {
+        data.top_posts.slice(0, 5).forEach(post => {
+            let sentimentClass = 'neutral';
+            if (post.sentiment > 0.05) sentimentClass = 'positive';
+            if (post.sentiment < -0.05) sentimentClass = 'negative';
+            
+            const postElement = document.createElement('div');
+            postElement.className = 'reddit-post';
+            postElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div>${post.title}</div>
+                        <div class="post-stats">r/${post.subreddit} · ${post.upvotes} upvotes · ${formatRelativeTime(new Date(post.date))}</div>
+                    </div>
+                    <span class="badge bg-${sentimentClass === 'positive' ? 'success' : sentimentClass === 'negative' ? 'danger' : 'secondary'} ms-2">
+                        ${sentimentClass}
+                    </span>
+                </div>
+            `;
+            postsContainer.appendChild(postElement);
+        });
+    }
+    
+    // Create Reddit sentiment chart
+    createRedditSentimentChart(data);
+}
+
+function createRedditSentimentChart(data) {
+    // Extract sentiment data
+    let positiveCount = 0;
+    let neutralCount = 0;
+    let negativeCount = 0;
+    
+    if (data.top_posts) {
+        data.top_posts.forEach(post => {
+            if (post.sentiment > 0.05) positiveCount++;
+            else if (post.sentiment < -0.05) negativeCount++;
+            else neutralCount++;
+        });
+    }
+    
+    // Create chart using Chart.js
+    const ctx = document.getElementById('reddit-sentiment-chart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (window.redditSentimentChart) {
+        window.redditSentimentChart.destroy();
+    }
+    
+    window.redditSentimentChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: ['Positive', 'Neutral', 'Negative'],
+            datasets: [{
+                data: [positiveCount, neutralCount, negativeCount],
+                backgroundColor: ['#28a745', '#6c757d', '#dc3545'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                            return `${context.label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Retail Satellite Data Functions
+function loadRetailSatelliteData() {
+    fetch('/api/alternative-data/retail-satellite')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            updateRetailSatelliteData(data);
+        })
+        .catch(error => {
+            console.error('Error fetching retail satellite data:', error);
+            displayErrorInContainer('high-traffic-locations', 'Error loading retail traffic data');
+            displayErrorInContainer('retail-stock-impact', 'Error loading stock impact data');
+            displayErrorInContainer('retail-traffic-chart', 'Error loading traffic chart');
+        });
+}
+
+function updateRetailSatelliteData(data) {
+    // Update timestamp
+    document.getElementById('retail-satellite-updated').textContent = `Last updated: ${formatDate(new Date())}`;
+    
+    // Clear placeholders
+    document.getElementById('high-traffic-locations').innerHTML = '';
+    document.getElementById('retail-stock-impact').innerHTML = '';
+    
+    // Display high traffic locations
+    const locationsContainer = document.getElementById('high-traffic-locations');
+    if (!data.locations || data.locations.length === 0) {
+        locationsContainer.innerHTML = '<div class="text-muted">No traffic data found</div>';
+    } else {
+        // Sort by traffic
+        const sortedLocations = [...data.locations].sort((a, b) => b.traffic_change - a.traffic_change);
+        
+        sortedLocations.slice(0, 5).forEach(location => {
+            let trafficClass = 'traffic-medium';
+            if (location.traffic_change > 15) trafficClass = 'traffic-high';
+            if (location.traffic_change < 0) trafficClass = 'traffic-low';
+            
+            const trafficPercentage = location.traffic_change.toFixed(1);
+            const sign = location.traffic_change > 0 ? '+' : '';
+            
+            const locationElement = document.createElement('div');
+            locationElement.className = `traffic-location ${trafficClass}`;
+            locationElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong>${location.retailer} - ${location.location}</strong>
+                    <span class="badge ${location.traffic_change > 0 ? 'bg-success' : location.traffic_change < 0 ? 'bg-danger' : 'bg-warning'}">
+                        ${sign}${trafficPercentage}%
+                    </span>
+                </div>
+                <div class="small text-muted">Traffic Level: ${location.cars_detected} vehicles</div>
+            `;
+            locationsContainer.appendChild(locationElement);
+        });
+    }
+    
+    // Display stock impact
+    const stockContainer = document.getElementById('retail-stock-impact');
+    if (!data.stock_impact || data.stock_impact.length === 0) {
+        stockContainer.innerHTML = '<div class="text-muted">No stock impact data found</div>';
+    } else {
+        // Sort by predicted impact
+        const sortedStocks = [...data.stock_impact].sort((a, b) => Math.abs(b.predicted_impact) - Math.abs(a.predicted_impact));
+        
+        sortedStocks.slice(0, 5).forEach(stock => {
+            const impactClass = stock.predicted_impact >= 0 ? 'price-increase' : 'price-decrease';
+            const impactPercentage = stock.predicted_impact.toFixed(2);
+            const sign = stock.predicted_impact > 0 ? '+' : '';
+            
+            const stockElement = document.createElement('div');
+            stockElement.className = `price-impact ${impactClass}`;
+            stockElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong>${stock.symbol} (${stock.company})</strong>
+                    <span class="badge ${stock.predicted_impact > 0 ? 'bg-success' : 'bg-danger'}">
+                        ${sign}${impactPercentage}%
+                    </span>
+                </div>
+                <div class="small text-muted">Based on ${stock.locations_analyzed} locations</div>
+            `;
+            stockContainer.appendChild(stockElement);
+        });
+    }
+    
+    // Create retail traffic chart
+    createRetailTrafficChart(data);
+}
+
+function createRetailTrafficChart(data) {
+    if (!data.historical_traffic || data.historical_traffic.length === 0) {
+        displayErrorInContainer('retail-traffic-chart', 'No historical traffic data available');
+        return;
+    }
+    
+    // Prepare data for the chart
+    const labels = data.historical_traffic.map(item => item.date);
+    const trafficData = data.historical_traffic.map(item => item.traffic_index);
+    
+    // Create chart using Chart.js
+    const ctx = document.getElementById('retail-traffic-chart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (window.retailTrafficChart) {
+        window.retailTrafficChart.destroy();
+    }
+    
+    window.retailTrafficChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Retail Traffic Index',
+                data: trafficData,
+                backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                borderColor: 'rgba(13, 110, 253, 1)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxTicksLimit: 8
+                    }
+                },
+                y: {
+                    beginAtZero: false,
+                    grid: {
+                        borderDash: [2]
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Traffic Index: ${context.raw}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Agricultural Satellite Data Functions
+function loadAgriculturalSatelliteData() {
+    fetch('/api/alternative-data/agricultural-satellite')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            updateAgriculturalSatelliteData(data);
+        })
+        .catch(error => {
+            console.error('Error fetching agricultural satellite data:', error);
+            displayErrorInContainer('agricultural-yield-changes', 'Error loading yield data');
+            displayErrorInContainer('agricultural-price-impact', 'Error loading price impact data');
+            displayErrorInContainer('agricultural-yield-chart', 'Error loading yield chart');
+        });
+}
+
+function updateAgriculturalSatelliteData(data) {
+    // Update timestamp
+    document.getElementById('agricultural-satellite-updated').textContent = `Last updated: ${formatDate(new Date())}`;
+    
+    // Clear placeholders
+    document.getElementById('agricultural-yield-changes').innerHTML = '';
+    document.getElementById('agricultural-price-impact').innerHTML = '';
+    
+    // Display yield changes
+    const yieldContainer = document.getElementById('agricultural-yield-changes');
+    if (!data.regions || data.regions.length === 0) {
+        yieldContainer.innerHTML = '<div class="text-muted">No yield data found</div>';
+    } else {
+        // Sort by yield change
+        const sortedRegions = [...data.regions].sort((a, b) => Math.abs(b.yield_change) - Math.abs(a.yield_change));
+        
+        sortedRegions.slice(0, 5).forEach(region => {
+            const yieldClass = region.yield_change >= 0 ? 'yield-increase' : 'yield-decrease';
+            const yieldPercentage = region.yield_change.toFixed(1);
+            const sign = region.yield_change > 0 ? '+' : '';
+            
+            const regionElement = document.createElement('div');
+            regionElement.className = `yield-change ${yieldClass}`;
+            regionElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong>${region.crop} - ${region.region}</strong>
+                    <span class="badge ${region.yield_change > 0 ? 'bg-success' : 'bg-danger'}">
+                        ${sign}${yieldPercentage}%
+                    </span>
+                </div>
+                <div class="small text-muted">NDVI: ${region.vegetation_index.toFixed(2)}</div>
+            `;
+            yieldContainer.appendChild(regionElement);
+        });
+    }
+    
+    // Display price impact
+    const priceContainer = document.getElementById('agricultural-price-impact');
+    if (!data.price_impact || data.price_impact.length === 0) {
+        priceContainer.innerHTML = '<div class="text-muted">No price impact data found</div>';
+    } else {
+        // Sort by price impact
+        const sortedPrices = [...data.price_impact].sort((a, b) => Math.abs(b.predicted_impact) - Math.abs(a.predicted_impact));
+        
+        sortedPrices.slice(0, 5).forEach(price => {
+            const priceClass = price.predicted_impact >= 0 ? 'price-increase' : 'price-decrease';
+            const pricePercentage = price.predicted_impact.toFixed(2);
+            const sign = price.predicted_impact > 0 ? '+' : '';
+            
+            const priceElement = document.createElement('div');
+            priceElement.className = `price-impact ${priceClass}`;
+            priceElement.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <strong>${price.commodity}</strong>
+                    <span class="badge ${price.predicted_impact > 0 ? 'bg-success' : 'bg-danger'}">
+                        ${sign}${pricePercentage}%
+                    </span>
+                </div>
+                <div class="small text-muted">Based on satellite data from ${price.regions_analyzed} regions</div>
+            `;
+            priceContainer.appendChild(priceElement);
+        });
+    }
+    
+    // Create agricultural yield chart
+    createAgriculturalYieldChart(data);
+}
+
+function createAgriculturalYieldChart(data) {
+    if (!data.historical_yields || data.historical_yields.length === 0) {
+        displayErrorInContainer('agricultural-yield-chart', 'No historical yield data available');
+        return;
+    }
+    
+    // Prepare data for the chart
+    const labels = data.historical_yields.map(item => item.date);
+    
+    // Unique crops
+    const crops = [...new Set(data.historical_yields.map(item => item.crop))];
+    
+    // Create datasets
+    const datasets = crops.map((crop, index) => {
+        // Select color based on index
+        const colors = [
+            { bg: 'rgba(40, 167, 69, 0.2)', border: 'rgb(40, 167, 69)' },
+            { bg: 'rgba(0, 123, 255, 0.2)', border: 'rgb(0, 123, 255)' },
+            { bg: 'rgba(255, 193, 7, 0.2)', border: 'rgb(255, 193, 7)' },
+            { bg: 'rgba(220, 53, 69, 0.2)', border: 'rgb(220, 53, 69)' },
+            { bg: 'rgba(111, 66, 193, 0.2)', border: 'rgb(111, 66, 193)' }
+        ];
+        const colorSet = colors[index % colors.length];
+        
+        // Get yield data for this crop
+        const cropData = labels.map(date => {
+            const entry = data.historical_yields.find(item => item.date === date && item.crop === crop);
+            return entry ? entry.yield_index : null;
+        });
+        
+        return {
+            label: crop,
+            data: cropData,
+            backgroundColor: colorSet.bg,
+            borderColor: colorSet.border,
+            borderWidth: 2,
+            tension: 0.3
+        };
+    });
+    
+    // Create chart using Chart.js
+    const ctx = document.getElementById('agricultural-yield-chart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (window.agriculturalYieldChart) {
+        window.agriculturalYieldChart.destroy();
+    }
+    
+    window.agriculturalYieldChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxTicksLimit: 8
+                    }
+                },
+                y: {
+                    beginAtZero: false,
+                    grid: {
+                        borderDash: [2]
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.raw}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Helper function to format date
+function formatDate(date) {
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(date);
+}
+
+// Helper function to format relative time
+function formatRelativeTime(date) {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) {
+        return `${diffInSeconds}s ago`;
+    } else if (diffInSeconds < 3600) {
+        return `${Math.floor(diffInSeconds / 60)}m ago`;
+    } else if (diffInSeconds < 86400) {
+        return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    } else {
+        return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    }
+}
+
+// Helper function to display error messages
+function displayErrorInContainer(containerId, message) {
+    const container = document.getElementById(containerId);
+    if (container) {
+        container.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+    }
+}
+
+// Attach event listener to refresh button
+document.addEventListener('DOMContentLoaded', function() {
+    // Existing code...
+    
+    // Add Alternative Data refresh handler
+    const refreshAltDataBtn = document.getElementById('refresh-alt-data');
+    if (refreshAltDataBtn) {
+        refreshAltDataBtn.addEventListener('click', function() {
+            loadAlternativeData();
+        });
+    }
+    
+    // Load alternative data on page load
+    loadAlternativeData();
+}); 
