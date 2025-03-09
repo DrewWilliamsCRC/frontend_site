@@ -343,7 +343,19 @@ jobs:
           # Copy schema file into container and apply it
           echo "Copying and applying schema..."
           docker compose -f docker-compose.ci.yml cp test_init_db.sql db:/test_init_db.sql
-          docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -f /test_init_db.sql
+          
+          # Verify file was copied successfully
+          echo "Verifying SQL file in container..."
+          docker compose -f docker-compose.ci.yml exec -T db ls -l /test_init_db.sql
+          
+          # Apply schema with error checking
+          echo "Applying schema..."
+          if ! docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -f /test_init_db.sql; then
+            echo "Failed to apply database schema"
+            docker compose -f docker-compose.ci.yml exec -T db cat /test_init_db.sql
+            docker compose -f docker-compose.ci.yml logs db
+            exit 1
+          fi
           
           # Verify schema
           echo "Verifying database schema..."
