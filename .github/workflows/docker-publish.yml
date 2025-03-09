@@ -230,6 +230,13 @@ jobs:
       - name: Run Docker tests
         run: |
           chmod +x test-docker-build.sh
+          # Verify docker-compose.ci.yml exists
+          if [ ! -f "docker-compose.ci.yml" ]; then
+            echo "Error: docker-compose.ci.yml is missing"
+            exit 1
+          fi
+          # Set environment variable to indicate CI environment
+          export GITHUB_ACTIONS=true
           ./test-docker-build.sh
 
   # Publish job only runs on push to main

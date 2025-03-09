@@ -12,18 +12,30 @@ import json
 import logging
 from datetime import datetime, timedelta
 import traceback
+import importlib.util
 
 from flask import Flask, request, jsonify
 from flask_restful import Api, Resource # type: ignore
 from dotenv import load_dotenv
-from flask_cors import CORS
+try:
+    from flask_cors import CORS
+except ImportError:
+    # If flask_cors is missing, create a dummy CORS function
+    def CORS(app): 
+        logging.warning("flask_cors not available, CORS support disabled")
+        return app
+
+# Check if TensorFlow is available
+TENSORFLOW_AVAILABLE = importlib.util.find_spec("tensorflow") is not None
+if not TENSORFLOW_AVAILABLE:
+    logging.warning("TensorFlow not available, AI functionality will be limited")
 
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("logs/ai_server.log"),
+        logging.FileHandler("logs/ai_server.log", mode='a+'),
         logging.StreamHandler()
     ]
 )
@@ -37,6 +49,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Create Flask app and API
 app = Flask(__name__)
+CORS(app)  # Enable CORS
 api = Api(app)
 
 # Shared database configuration
@@ -60,6 +73,36 @@ class HealthResource(Resource):
     def get(self):
         """Handle GET request for health check."""
         return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+
+# Register the health check endpoint at the root route for compatibility
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy", "timestamp": datetime.now().isoformat()})
+
+# Register the health check endpoint at the AI route for specific checks
+@app.route('/api/ai/health')
+def ai_health():
+    # Check if we can import key libraries
+    capabilities = {
+        "tensorflow": TENSORFLOW_AVAILABLE,
+        "flask": True,
+        "alpha_vantage_api": True
+    }
+    
+    try:
+        from ai_experiments.alpha_vantage_pipeline import AlphaVantageAPI
+        api = AlphaVantageAPI()
+    except Exception as e:
+        logger.error(f"Error importing AlphaVantageAPI: {str(e)}")
+        capabilities["alpha_vantage_api"] = False
+    
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "capabilities": capabilities,
+        "environment": os.getenv("FLASK_ENV", "production")
+    })
 
 
 class AIInsightsResource(Resource):

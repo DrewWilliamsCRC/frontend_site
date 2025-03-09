@@ -63,16 +63,38 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # Install mock packages for tensorflow and pytorch when in CI mode
 RUN if [ "$SKIP_ML_FRAMEWORKS" = "true" ]; then \
-        mkdir -p /build/tensorflow_mock && \
-        echo "class MockTensorFlow: pass" > /build/tensorflow_mock/__init__.py && \
-        echo "from setuptools import setup; setup(name='tensorflow-mock', version='0.1')" > /build/tensorflow_mock/setup.py && \
+        # Create a more comprehensive mock for TensorFlow
+        mkdir -p /build/tensorflow_mock/tensorflow && \
+        echo "class MockTensorFlow: pass" > /build/tensorflow_mock/tensorflow/__init__.py && \
+        # Create keras submodule
+        mkdir -p /build/tensorflow_mock/tensorflow/keras && \
+        echo "class Sequential: pass\ndef Model(*args, **kwargs): pass" > /build/tensorflow_mock/tensorflow/keras/__init__.py && \
+        echo "def Dense(*args, **kwargs): pass\ndef LSTM(*args, **kwargs): pass" > /build/tensorflow_mock/tensorflow/keras/layers.py && \
+        # Create core submodule
+        mkdir -p /build/tensorflow_mock/tensorflow/core && \
+        echo "# Mock implementation" > /build/tensorflow_mock/tensorflow/core/__init__.py && \
+        # Create setup.py
+        echo "from setuptools import setup, find_packages; setup(name='tensorflow', version='2.15.0', packages=find_packages())" > /build/tensorflow_mock/setup.py && \
         pip install -e /build/tensorflow_mock && \
-        mkdir -p /build/torch_mock && \
-        echo "class MockTorch: pass" > /build/torch_mock/__init__.py && \
-        echo "from setuptools import setup; setup(name='torch-mock', version='0.1')" > /build/torch_mock/setup.py && \
+        # Create a more comprehensive mock for PyTorch
+        mkdir -p /build/torch_mock/torch && \
+        echo "def cuda(*args, **kwargs): return False\ndef tensor(*args, **kwargs): return []" > /build/torch_mock/torch/__init__.py && \
+        mkdir -p /build/torch_mock/torch/nn && \
+        echo "class Module: pass\nclass Linear: pass" > /build/torch_mock/torch/nn/__init__.py && \
+        echo "from setuptools import setup, find_packages; setup(name='torch', version='2.1.0', packages=find_packages())" > /build/torch_mock/setup.py && \
         pip install -e /build/torch_mock && \
-        echo "Installed mock packages for CI build"; \
+        echo "Installed enhanced mock packages for CI build"; \
     fi
+
+# Add a health check script for CI builds
+RUN echo '#!/bin/bash\n\
+# Simple health check script for AI server\n\
+if curl -s http://localhost:5002/health > /dev/null; then\n\
+    exit 0\n\
+else\n\
+    exit 1\n\
+fi' > /usr/local/bin/healthcheck.sh && \
+    chmod +x /usr/local/bin/healthcheck.sh
 
 # Final stage
 FROM python:3.11-slim

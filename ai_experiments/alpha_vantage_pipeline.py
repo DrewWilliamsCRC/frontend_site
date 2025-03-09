@@ -33,6 +33,18 @@ except ImportError:
 
 if not TENSORFLOW_AVAILABLE:
     logger.warning("TensorFlow not available, some functionality will be limited")
+    # Import mock model for CI environment
+    from ai_experiments.ci_mock_model import MockTensorFlowModel, create_mock_model
+    
+    # Create mock TensorFlow module for compatibility
+    class MockModule:
+        pass
+    
+    # Create a simple mock for tensorflow if not available
+    sys.modules['tensorflow'] = MockModule()
+    sys.modules['tensorflow.keras'] = MockModule()
+    sys.modules['tensorflow.keras.models'] = MockModule()
+    sys.modules['tensorflow.keras.layers'] = MockModule()
 
 # Load environment variables
 load_dotenv()

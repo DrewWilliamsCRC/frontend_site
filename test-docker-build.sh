@@ -26,6 +26,7 @@ cd "$(dirname "$0")"
 
 # Create data directory if it doesn't exist
 mkdir -p data
+mkdir -p logs
 
 # Check if .env file exists
 if [ ! -f .env ]; then
@@ -102,7 +103,14 @@ EOF
 fi
 
 echo "Docker build completed, now starting services..."
-docker compose up -d
+if [ "$IS_CI" = "true" ]; then
+    # Use the CI-specific compose file for GitHub Actions
+    echo "Using CI-specific Docker Compose configuration..."
+    docker compose -f docker-compose.ci.yml up -d
+else
+    # Use the standard compose file for local testing
+    docker compose up -d
+fi
 
 # Function to check container status
 check_container_status() {
