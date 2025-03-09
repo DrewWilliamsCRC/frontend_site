@@ -18,7 +18,7 @@ from flask import Flask, request, jsonify
 from flask_restful import Api, Resource # type: ignore
 from dotenv import load_dotenv
 try:
-    from flask_cors import CORS
+    from flask_cors import CORS # type: ignore
 except ImportError:
     # If flask_cors is missing, create a dummy CORS function
     def CORS(app): 

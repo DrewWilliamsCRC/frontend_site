@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Check if TensorFlow and PyTorch are available
 TENSORFLOW_AVAILABLE = importlib.util.find_spec("tensorflow") is not None
 try:
-    import torch
+    import torch # type: ignore
     torch_available = True
 except ImportError:
     torch_available = False

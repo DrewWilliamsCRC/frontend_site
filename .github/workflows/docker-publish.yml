@@ -121,6 +121,13 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    env:
+      # Ensure we're not using any Docker Hub credentials during testing
+      DOCKER_CLI_EXPERIMENTAL: enabled
+      DOCKER_BUILDKIT: 1
+      COMPOSE_DOCKER_CLI_BUILD: 1
+      # Disable pushing to registries
+      DOCKER_PUSH: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -240,82 +247,271 @@ jobs:
           echo "Alpine container shell information:"
           docker run --rm alpine sh -c "which sh && ls -la /bin/sh"
           
-          # Create simplified app.py for CI - avoiding heredoc YAML issues
-          echo "Creating simplified app.py for CI..."
-          echo '#!/usr/bin/env python3' > app.py
-          echo '"""Minimal Flask app for CI testing"""' >> app.py
-          echo 'from flask import Flask, jsonify' >> app.py
-          echo '' >> app.py
-          echo 'app = Flask(__name__)' >> app.py
-          echo '' >> app.py
-          echo '@app.route("/health")' >> app.py
-          echo 'def health():' >> app.py
-          echo '    """Health check endpoint."""' >> app.py
-          echo '    return jsonify({"status": "ok", "environment": "CI"})' >> app.py
-          echo '' >> app.py
-          echo '@app.route("/")' >> app.py
-          echo 'def index():' >> app.py
-          echo '    """Root endpoint."""' >> app.py
-          echo '    return jsonify({"message": "CI Test Flask App"})' >> app.py
-          echo '' >> app.py
-          echo '@app.route("/api/guardian/news")' >> app.py
-          echo 'def guardian_news():' >> app.py
-          echo '    """Mock news endpoint."""' >> app.py
-          echo '    return jsonify({"articles": []})' >> app.py
-          echo '' >> app.py
-          echo 'if __name__ == "__main__":' >> app.py
-          echo '    app.run(host="0.0.0.0", port=5001)' >> app.py
+          # Create test files
+          echo "Creating test files..."
           
-          # Create simplified AI server for CI
-          echo "Creating simplified AI server..."
-          echo '#!/usr/bin/env python3' > ci_ai_server.py
-          echo '"""Simplified AI Server for CI Testing"""' >> ci_ai_server.py
-          echo 'import os' >> ci_ai_server.py
-          echo 'import logging' >> ci_ai_server.py
-          echo 'from flask import Flask, jsonify' >> ci_ai_server.py
-          echo '' >> ci_ai_server.py
-          echo '# Configure logging' >> ci_ai_server.py
-          echo 'logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[logging.StreamHandler()])' >> ci_ai_server.py
-          echo 'logger = logging.getLogger("ci_ai_server")' >> ci_ai_server.py
-          echo 'logger.info("Starting CI AI Server")' >> ci_ai_server.py
-          echo '' >> ci_ai_server.py
-          echo 'app = Flask(__name__)' >> ci_ai_server.py
-          echo '' >> ci_ai_server.py
-          echo '@app.route("/health")' >> ci_ai_server.py
-          echo 'def health():' >> ci_ai_server.py
-          echo '    logger.info("Health check called")' >> ci_ai_server.py
-          echo '    return jsonify({"status": "healthy", "environment": "CI"})' >> ci_ai_server.py
-          echo '' >> ci_ai_server.py
-          echo '@app.route("/api/ai-insights")' >> ci_ai_server.py
-          echo 'def insights():' >> ci_ai_server.py
-          echo '    logger.info("AI insights endpoint called")' >> ci_ai_server.py
-          echo '    return jsonify({"message": "CI test server", "insights": {"metrics": [], "recommendations": []}, "indices": []})' >> ci_ai_server.py
-          echo '' >> ci_ai_server.py
-          echo 'if __name__ == "__main__":' >> ci_ai_server.py
-          echo '    port = int(os.getenv("PORT", 5002))' >> ci_ai_server.py
-          echo '    logger.info(f"Starting server on port {port}")' >> ci_ai_server.py
-          echo '    app.run(host="0.0.0.0", port=port)' >> ci_ai_server.py
+          # Create app.py with dependency checks
+          cat > app.py << 'EOL'
+          #!/usr/bin/env python3
+          import os
+          import logging
+          from flask import Flask, jsonify
+          import pandas as pd
+          import numpy as np
+          from sklearn.preprocessing import StandardScaler
+          import tensorflow as tf
           
-          chmod +x ci_ai_server.py
+          logging.basicConfig(level=logging.INFO, format='%(message)s')
+          logger = logging.getLogger('ci_test')
           
-          # Verify files created
-          echo "Verifying app.py and ci_ai_server.py files:"
-          ls -la app.py ci_ai_server.py
+          app = Flask(__name__)
           
-          # Check docker-compose file syntax
-          echo "Verifying docker-compose.ci.yml syntax:"
-          cat docker-compose.ci.yml | grep command
+          @app.route("/health")
+          def health():
+              status = {
+                  "status": "ok",
+                  "environment": "CI",
+                  "dependencies": {}
+              }
+              
+              try:
+                  pd.DataFrame({'test': [1, 2, 3]})
+                  status["dependencies"]["pandas"] = "ok"
+              except Exception as e:
+                  status["dependencies"]["pandas"] = str(e)
+                  status["status"] = "error"
+              
+              try:
+                  np.array([1, 2, 3])
+                  status["dependencies"]["numpy"] = "ok"
+              except Exception as e:
+                  status["dependencies"]["numpy"] = str(e)
+                  status["status"] = "error"
+              
+              try:
+                  StandardScaler()
+                  status["dependencies"]["scikit-learn"] = "ok"
+              except Exception as e:
+                  status["dependencies"]["scikit-learn"] = str(e)
+                  status["status"] = "error"
+              
+              try:
+                  tf.constant([1.0, 2.0])
+                  status["dependencies"]["tensorflow"] = "ok"
+              except Exception as e:
+                  status["dependencies"]["tensorflow"] = str(e)
+                  status["status"] = "error"
+              
+              return jsonify(status)
           
-          # Verify docker-compose.ci.yml exists
-          if [ ! -f "docker-compose.ci.yml" ]; then
-            echo "Error: docker-compose.ci.yml is missing"
+          @app.route("/")
+          def index():
+              return jsonify({"message": "CI Test Flask App"})
+          
+          if __name__ == "__main__":
+              app.run(host="0.0.0.0", port=5001)
+          EOL
+          
+          # Create test database initialization script
+          cat > test_init_db.sql << 'EOL'
+          -- Test database schema
+          CREATE TABLE IF NOT EXISTS test_table (
+              id SERIAL PRIMARY KEY,
+              name TEXT,
+              data JSONB
+          );
+          
+          -- Test index creation
+          CREATE INDEX IF NOT EXISTS idx_test_table_name ON test_table(name);
+          CREATE INDEX IF NOT EXISTS idx_test_table_data ON test_table USING GIN(data);
+          
+          -- Test api_usage table
+          CREATE TABLE IF NOT EXISTS api_usage (
+              id SERIAL PRIMARY KEY,
+              api_name TEXT NOT NULL,
+              endpoint TEXT NOT NULL,
+              timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+              request_params JSONB,
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+          
+          -- Test indexes separately
+          CREATE INDEX IF NOT EXISTS idx_api_usage_timestamp ON api_usage(api_name, timestamp);
+          CREATE INDEX IF NOT EXISTS idx_api_usage_request_params ON api_usage USING GIN(request_params);
+          EOL
+          
+          chmod +x app.py
+          
+          # Build images locally for testing
+          echo "Building Docker images for testing..."
+          
+          echo "Building frontend image..."
+          if ! DOCKER_BUILDKIT=1 docker build --no-cache --pull=false --push=false -t frontend:test -f dockerfile \
+            --build-arg TARGETPLATFORM=linux/amd64 \
+            --build-arg BUILDPLATFORM=linux/amd64 .; then
+            echo "Failed to build frontend image"
+            exit 1
+          fi
+            
+          echo "Building AI server image..."
+          if ! DOCKER_BUILDKIT=1 docker build --no-cache --pull=false --push=false -t ai_server:test -f Dockerfile.ai \
+            --build-arg TARGETPLATFORM=linux/amd64 \
+            --build-arg BUILDPLATFORM=linux/amd64 \
+            --build-arg CI_BUILD=true \
+            --build-arg SKIP_ML_FRAMEWORKS=true .; then
+            echo "Failed to build AI server image"
             exit 1
           fi
           
-          # Set environment variable to indicate CI environment
-          export GITHUB_ACTIONS=true
-          chmod +x test-docker-build.sh
-          ./test-docker-build.sh
+          # Verify images were built locally
+          echo "Verifying local images..."
+          docker images --filter "reference=*:test"
+          
+          # Test database schema initialization
+          echo "Testing database schema initialization..."
+          docker compose -f docker-compose.ci.yml up -d db
+          sleep 10
+          
+          # Copy schema file into container and apply it
+          echo "Copying and applying schema..."
+          docker compose -f docker-compose.ci.yml cp test_init_db.sql db:/test_init_db.sql
+          
+          # Verify file was copied successfully
+          echo "Verifying SQL file in container..."
+          docker compose -f docker-compose.ci.yml exec -T db ls -l /test_init_db.sql
+          
+          # Apply schema with error checking
+          echo "Applying schema..."
+          if ! docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -f /test_init_db.sql; then
+            echo "Failed to apply database schema"
+            docker compose -f docker-compose.ci.yml exec -T db cat /test_init_db.sql
+            docker compose -f docker-compose.ci.yml logs db
+            exit 1
+          fi
+          
+          # Verify schema
+          echo "Verifying database schema..."
+          docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -c "\d+ api_usage"
+          docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -c "\di+ idx_api_usage_request_params"
+          
+          # Start services with better error handling
+          echo "Starting services..."
+          if ! docker compose -f docker-compose.ci.yml up -d; then
+            echo "Failed to start services"
+            docker compose -f docker-compose.ci.yml ps
+            docker compose -f docker-compose.ci.yml logs
+            exit 1
+          fi
+          
+          # Wait for services and check their status with improved error handling
+          echo "Waiting for services to be ready..."
+          max_attempts=30
+          attempt=0
+          
+          while [ $attempt -lt $max_attempts ]; do
+            echo "Checking service status (attempt $((attempt + 1))/$max_attempts)..."
+            
+            # Check database first
+            if ! docker compose -f docker-compose.ci.yml ps db | grep -q "healthy"; then
+              echo "Database not yet healthy..."
+              attempt=$((attempt + 1))
+              sleep 5
+              continue
+            fi
+            
+            # Check AI server
+            ai_status=$(docker compose -f docker-compose.ci.yml ps ai_server | grep ai_server || true)
+            if ! echo "$ai_status" | grep -q "Up"; then
+              echo "AI server not yet ready..."
+              docker compose -f docker-compose.ci.yml logs ai_server
+              attempt=$((attempt + 1))
+              sleep 5
+              continue
+            fi
+            
+            # Check frontend
+            frontend_status=$(docker compose -f docker-compose.ci.yml ps frontend | grep frontend || true)
+            if ! echo "$frontend_status" | grep -q "Up"; then
+              echo "Frontend not yet ready..."
+              docker compose -f docker-compose.ci.yml logs frontend
+              attempt=$((attempt + 1))
+              sleep 5
+              continue
+            fi
+            
+            # All services are up
+            echo "All services are running!"
+            docker compose -f docker-compose.ci.yml ps
+            break
+          done
+          
+          # If we've exhausted our attempts, show logs and exit
+          if [ $attempt -ge $max_attempts ]; then
+            echo "Services failed to start within timeout. Showing logs..."
+            echo "Database logs:"
+            docker compose -f docker-compose.ci.yml logs db
+            echo "AI server logs:"
+            docker compose -f docker-compose.ci.yml logs ai_server
+            echo "Frontend logs:"
+            docker compose -f docker-compose.ci.yml logs frontend
+            exit 1
+          fi
+          
+          # Test basic connectivity
+          echo "Testing basic service connectivity..."
+          
+          # Test database
+          if ! docker compose -f docker-compose.ci.yml exec -T db pg_isready -U db -d frontend_db; then
+            echo "Database connectivity test failed"
+            docker compose -f docker-compose.ci.yml logs db
+            exit 1
+          fi
+          
+          # Test AI server health endpoint
+          echo "Testing AI server health endpoint..."
+          if ! docker compose -f docker-compose.ci.yml exec -T ai_server curl -f http://localhost:5002/health; then
+            echo "AI server health check failed"
+            docker compose -f docker-compose.ci.yml logs ai_server
+            exit 1
+          fi
+          
+          # Test frontend basic functionality (without requiring all dependencies)
+          echo "Testing frontend basic functionality..."
+          if ! docker compose -f docker-compose.ci.yml exec -T frontend python3 - << 'EOL'
+          import sys
+          import os
+          print('Python version:', sys.version)
+          print('Testing basic imports...')
+          
+          def test_import(module_name):
+              try:
+                  __import__(module_name)
+                  print(f'{module_name}: OK')
+                  return True
+              except Exception as e:
+                  print(f'{module_name}: FAILED - {str(e)}')
+                  return False
+          
+          # Test only critical dependencies first
+          critical_deps = ['flask', 'psycopg2']
+          all_passed = all(test_import(dep) for dep in critical_deps)
+          
+          if not all_passed:
+              print('CRITICAL: Basic dependencies failed to import')
+              sys.exit(1)
+              
+          # Test optional ML dependencies but don't fail if they're missing
+          ml_deps = ['numpy', 'pandas', 'sklearn', 'tensorflow']
+          for dep in ml_deps:
+              test_import(dep)
+          
+          print('Basic functionality test completed')
+          EOL
+          then
+            echo "Frontend basic functionality test failed"
+            docker compose -f docker-compose.ci.yml logs frontend
+            exit 1
+          fi
 
   # Publish job only runs on push to main
   publish:
@@ -324,6 +520,12 @@ jobs:
     needs: python-tests
     # Add timeout to prevent CI from abandoning long-running builds
     timeout-minutes: 45
+    env:
+      # Enable pushing to Docker Hub for publish job only
+      DOCKER_CLI_EXPERIMENTAL: enabled
+      DOCKER_BUILDKIT: 1
+      COMPOSE_DOCKER_CLI_BUILD: 1
+      DOCKER_PUSH: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
