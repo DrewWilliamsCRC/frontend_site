@@ -224,9 +224,10 @@ def api_call(category, function_name):
         return jsonify(data), response.status_code
         
     except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Request failed: {e}")
         return jsonify({
             'error': 'Request failed',
-            'message': str(e),
+            'message': 'An internal error has occurred. Please try again later.',
             'status': 500
         }), 500
 
