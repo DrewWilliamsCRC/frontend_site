@@ -89,8 +89,10 @@ services:
       - /tmp:exec,mode=1777,size=512M
       - /run:mode=1777,size=64M
       - /var/run:mode=1777,size=64M
-      - /app/logs:mode=1777,size=64M
-      - /app/ai_experiments/data:mode=1777,size=64M
+      - /app/logs:mode=1777,size=128M
+      - /app/ai_experiments/data:mode=1777,size=128M
+      - /app/ai_experiments/models:mode=1777,size=128M
+      - /tmp/ai_cache:mode=1777,size=256M
     logging:
       driver: "json-file"
       options:
@@ -149,7 +151,8 @@ services:
       - /tmp:exec,mode=1777,size=512M
       - /run:mode=1777,size=64M
       - /var/run:mode=1777,size=64M
-      - /app/logs:mode=1777,size=64M
+      - /app/logs:mode=1777,size=128M
+      - /app/static/uploads:mode=1777,size=64M
     logging:
       driver: "json-file"
       options:
