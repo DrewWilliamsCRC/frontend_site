@@ -106,4 +106,117 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 10000);
             });
     }, 1000);
+});
+
+// AI Dashboard Debug Script
+
+// Function to check dashboard data loading
+function debugDashboardData() {
+    console.log('DEBUG: Starting dashboard data debugging');
+    
+    // Check if we can access the AI API
+    return fetch('/api/ai-insights')
+        .then(response => {
+            console.log('DEBUG: API Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('DEBUG: Full API data received:', data);
+            
+            // Check for specific data elements
+            checkDataElement(data, 'indices', 'Market indices');
+            checkDataElement(data, 'economicIndicators', 'Economic indicators');
+            checkDataElement(data, 'newsSentiment', 'News sentiment');
+            checkDataElement(data, 'featureImportance', 'Feature importance');
+            checkDataElement(data, 'portfolioOptimization', 'Portfolio optimization');
+            checkDataElement(data, 'predictionConfidence', 'Prediction confidence');
+            
+            return data;
+        })
+        .catch(error => {
+            console.error('DEBUG ERROR: Failed to fetch data:', error);
+            document.getElementById('debug-output').innerHTML = 
+                `<div class="alert alert-danger">Error fetching data: ${error.message}</div>`;
+        });
+}
+
+// Function to check individual data elements
+function checkDataElement(data, key, description) {
+    if (!data[key]) {
+        console.error(`DEBUG: Missing data - ${description} (${key})`);
+    } else {
+        console.log(`DEBUG: Found data - ${description}:`, data[key]);
+    }
+}
+
+// Function to check dashboard containers
+function debugDashboardContainers() {
+    console.log('DEBUG: Checking dashboard containers');
+    
+    const containers = [
+        'market-indices-container',
+        'market-prediction-container',
+        'news-sentiment-container',
+        'feature-importance-container',
+        'portfolio-optimization-container',
+        'economic-indicators-container',
+        'alerts-container'
+    ];
+    
+    containers.forEach(id => {
+        const container = document.getElementById(id);
+        if (!container) {
+            console.error(`DEBUG: Container not found - ${id}`);
+        } else {
+            console.log(`DEBUG: Container found - ${id}`);
+            if (container.querySelector('.loader')) {
+                console.log(`DEBUG: Container has loader - ${id}`);
+            }
+        }
+    });
+}
+
+// Add a button to run debugging
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DEBUG: DOM loaded for debugging');
+    
+    // Create debug container if it doesn't exist
+    let debugContainer = document.getElementById('debug-container');
+    if (!debugContainer) {
+        debugContainer = document.createElement('div');
+        debugContainer.id = 'debug-container';
+        debugContainer.className = 'container mt-4';
+        document.body.appendChild(debugContainer);
+        
+        // Add debug header
+        debugContainer.innerHTML = `
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4>Dashboard Debugging</h4>
+                </div>
+                <div class="card-body">
+                    <button id="run-debug" class="btn btn-primary mb-3">Run Debug</button>
+                    <div id="debug-output" class="border p-3 bg-light"></div>
+                </div>
+            </div>
+        `;
+        
+        // Add event listener
+        document.getElementById('run-debug').addEventListener('click', function() {
+            const output = document.getElementById('debug-output');
+            output.innerHTML = '<div class="spinner-border text-primary" role="status"></div> Running debug...';
+            
+            debugDashboardContainers();
+            debugDashboardData()
+                .then(data => {
+                    output.innerHTML = '<div class="alert alert-success">Debug completed. Check console for details.</div>';
+                })
+                .catch(error => {
+                    output.innerHTML = `<div class="alert alert-danger">Debug error: ${error.message}</div>`;
+                });
+        });
+    }
 }); 

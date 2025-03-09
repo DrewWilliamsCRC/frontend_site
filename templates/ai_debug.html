@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Dashboard Debug</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h2>AI Dashboard Debugging</h2>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h4>API Response Checker</h4>
+                    <p>Click the button below to check the AI insights API response:</p>
+                    <button id="check-api" class="btn btn-primary">Check API Response</button>
+                    <div id="api-result" class="mt-3 p-3 bg-light border rounded d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <h4>Data Structure Validator</h4>
+                    <p>Validate that the API response has all required data fields:</p>
+                    <button id="validate-data" class="btn btn-primary">Validate Data Structure</button>
+                    <div id="validation-result" class="mt-3"></div>
+                </div>
+                
+                <div class="mb-4">
+                    <h4>Container Status</h4>
+                    <p>Check the status of all dashboard containers:</p>
+                    <button id="check-containers" class="btn btn-primary">Check Containers</button>
+                    <div id="container-result" class="mt-3"></div>
+                </div>
+                
+                <div class="mb-4">
+                    <h4>Data Transformation</h4>
+                    <p>Test the data transformation from AI server format to frontend format:</p>
+                    <button id="test-transform" class="btn btn-primary">Test Data Transformation</button>
+                    <div id="transform-result" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/jquery-3.5.1.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ai-dashboard-debug.js') }}"></script>
+    
+    <script>
+        // Helper function to display JSON in pretty format
+        function displayJson(element, data) {
+            element.innerHTML = `<pre class="bg-dark text-light p-3 rounded overflow-auto" style="max-height: 400px">${JSON.stringify(data, null, 2)}</pre>`;
+        }
+        
+        // Check API response
+        document.getElementById('check-api').addEventListener('click', function() {
+            const resultElement = document.getElementById('api-result');
+            resultElement.classList.remove('d-none');
+            resultElement.innerHTML = `<div class="spinner-border text-primary" role="status"></div> <span>Fetching API data...</span>`;
+            
+            fetch('/api/ai-insights')
+                .then(response => {
+                    const statusInfo = `<div class="alert ${response.ok ? 'alert-success' : 'alert-danger'}">
+                        Status: ${response.status} ${response.statusText}
+                    </div>`;
+                    resultElement.innerHTML = statusInfo;
+                    
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displayJson(resultElement, data);
+                })
+                .catch(error => {
+                    resultElement.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+                });
+        });
+        
+        // Validate data structure
+        document.getElementById('validate-data').addEventListener('click', function() {
+            const resultElement = document.getElementById('validation-result');
+            resultElement.innerHTML = `<div class="spinner-border text-primary" role="status"></div> Validating data...`;
+            
+            fetch('/api/ai-insights')
+                .then(response => response.json())
+                .then(data => {
+                    // Check required data fields
+                    const requiredFields = ['indices', 'lastUpdated'];
+                    const results = [];
+                    
+                    requiredFields.forEach(field => {
+                        const hasField = data && data[field] !== undefined;
+                        results.push({
+                            field,
+                            exists: hasField,
+                            type: hasField ? typeof data[field] : 'undefined'
+                        });
+                    });
+                    
+                    // Display results
+                    let html = '<div class="list-group">';
+                    results.forEach(result => {
+                        const status = result.exists ? 'success' : 'danger';
+                        html += `<div class="list-group-item list-group-item-${status} d-flex justify-content-between align-items-center">
+                            ${result.field}
+                            <span class="badge bg-${status}">${result.exists ? result.type : 'Missing'}</span>
+                        </div>`;
+                    });
+                    html += '</div>';
+                    
+                    resultElement.innerHTML = html;
+                })
+                .catch(error => {
+                    resultElement.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+                });
+        });
+        
+        // Check dashboard containers
+        document.getElementById('check-containers').addEventListener('click', function() {
+            const resultElement = document.getElementById('container-result');
+            resultElement.innerHTML = `<div class="spinner-border text-primary" role="status"></div> Checking containers...`;
+            
+            // List of container IDs that should be present in the dashboard
+            const containerIds = [
+                'market-indices-container',
+                'market-prediction-container',
+                'news-sentiment-container',
+                'feature-importance-container',
+                'portfolio-optimization-container',
+                'economic-indicators-container',
+                'alerts-container'
+            ];
+            
+            // Create info card for each container
+            let html = '<div class="alert alert-info">This test checks if containers exist in the actual dashboard page, not this debug page.</div>';
+            html += '<div class="list-group">';
+            containerIds.forEach(id => {
+                html += `<div class="list-group-item">
+                    <h6>${id}</h6>
+                    <p class="mb-0">To check this container, visit the actual <a href="/ai-insights" target="_blank">AI Dashboard</a> and open the browser console.</p>
+                </div>`;
+            });
+            html += '</div>';
+            
+            resultElement.innerHTML = html;
+        });
+        
+        // Test data transformation
+        document.getElementById('test-transform').addEventListener('click', function() {
+            const resultElement = document.getElementById('transform-result');
+            resultElement.innerHTML = `<div class="spinner-border text-primary" role="status"></div> Testing transformation...`;
+            
+            // Sample AI server response
+            const aiServerData = {
+                "insights": {
+                    "timestamp": "2025-03-09T04:27:13.956295",
+                    "period": "1d",
+                    "metrics": {
+                        "momentum": {
+                            "value": "Bullish",
+                            "score": 75.0,
+                            "status": "positive",
+                            "description": "Strong upward movement in major indices"
+                        }
+                    },
+                    "recommendations": []
+                }
+            };
+            
+            // Expected frontend format
+            const frontendFormatData = {
+                "insights": aiServerData.insights,
+                "indices": {
+                    "SPX": { 
+                        "price": "4800.23", 
+                        "change": "28.32", 
+                        "changePercent": "0.59", 
+                        "high": "4812.56", 
+                        "low": "4768.51", 
+                        "volume": "3840500000" 
+                    },
+                    "DJI": { 
+                        "price": "38563.80", 
+                        "change": "125.69", 
+                        "changePercent": "0.33", 
+                        "high": "38620.74", 
+                        "low": "38345.11", 
+                        "volume": "385230000" 
+                    }
+                },
+                "lastUpdated": "2025-03-09 04:27:23",
+                "status": "Live Data"
+            };
+            
+            // Display example transformation
+            resultElement.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>AI Server Format:</h5>
+                        <pre class="bg-dark text-light p-3 rounded overflow-auto" style="max-height: 300px">${JSON.stringify(aiServerData, null, 2)}</pre>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Frontend Expected Format:</h5>
+                        <pre class="bg-dark text-light p-3 rounded overflow-auto" style="max-height: 300px">${JSON.stringify(frontendFormatData, null, 2)}</pre>
+                    </div>
+                </div>
+                <div class="alert alert-info mt-3">
+                    <h5>Solution:</h5>
+                    <p>The AI server needs to transform its response to match the frontend expected format by:</p>
+                    <ol>
+                        <li>Adding an <code>indices</code> object with market data</li>
+                        <li>Adding a <code>lastUpdated</code> timestamp</li>
+                        <li>Adding other required fields like <code>status</code></li>
+                    </ol>
+                </div>
+            `;
+        });
+    </script>
+</body>
+</html> 

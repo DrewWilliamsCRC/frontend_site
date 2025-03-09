@@ -869,7 +869,7 @@ if __name__ == "__main__":
     # Example usage
     import pandas as pd # type: ignore
     import numpy as np # type: ignore
-    from alpha_vantage_pipeline import AlphaVantageAPI
+    from ai_experiments.alpha_vantage_pipeline import AlphaVantageAPI
     
     # Fetch data
     api = AlphaVantageAPI()

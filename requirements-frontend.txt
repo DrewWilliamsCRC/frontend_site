@@ -16,7 +16,6 @@ idna>=2.5 # requests dependency
 dnspython==2.6.1
 feedparser>=6.0.10  # Explicitly set to avoid use_2to3 error
 
-# Frontend Dependencies - only include what's needed for the main app
-pandas>=2.0.0
-numpy>=1.24.0
-matplotlib>=3.7.0 
+# Frontend Dependencies - minimal data processing libraries
+pandas>=2.0.0  # Used for data processing in app.py
+numpy>=1.24.0  # Used for data processing in app.py 

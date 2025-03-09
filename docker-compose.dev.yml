@@ -91,7 +91,7 @@ services:
         condition: service_started
     # Install minimal critical packages and run Flask
     command: >
-      sh -c "pip install pandas numpy flask python-dotenv requests &&
+      sh -c "pip install flask python-dotenv requests pandas numpy &&
              cd /build && python -m flask run --host=0.0.0.0 --port=${PORT} --debug"
     networks:
       - app_network

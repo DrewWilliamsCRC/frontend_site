@@ -2735,6 +2735,41 @@ def ai_insights():
     
     return render_template('ai_insights_dashboard.html')
 
+@app.route('/ai-debug')
+def ai_debug():
+    """Render AI debug page."""
+    # Don't require login for debug page during development
+    return render_template('ai_debug.html')
+
+@app.route('/ai-test')
+def ai_test():
+    """Render AI test page for direct testing."""
+    # Direct test page that doesn't require login
+    return render_template('ai_test.html')
+
+@app.route('/ai-dashboard-debug')
+def ai_dashboard_debug():
+    """Render AI dashboard with diagnostic tools."""
+    # Debug dashboard doesn't require login
+    return render_template('ai_dashboard_debug.html')
+
+@app.route('/proxy-ai-server')
+def proxy_ai_server():
+    """Proxy endpoint to access the AI server directly without CORS issues."""
+    try:
+        # Call the AI server API
+        ai_response = call_ai_api('/api/ai-insights')
+        
+        if ai_response:
+            return jsonify(ai_response)
+        else:
+            app.logger.error("Failed to get response from AI server")
+            return jsonify({"error": "Failed to connect to AI server"}), 500
+    
+    except Exception as e:
+        app.logger.error(f"Error in proxy to AI server: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/ai-insights')
 def get_ai_insights():
     """API endpoint for AI market insights data."""
@@ -2809,235 +2844,348 @@ def generate_demo_ai_insights():
         }
     }
     
-    # Demo AI prediction data
-    prediction_confidence = 72  # 0-100 scale, above 50 is bullish
-    model_metrics = {
-        'ensemble': {'accuracy': 0.68, 'precision': 0.71, 'recall': 0.65, 'f1': 0.68},
-        'random_forest': {'accuracy': 0.66, 'precision': 0.69, 'recall': 0.63, 'f1': 0.66},
-        'gradient_boosting': {'accuracy': 0.67, 'precision': 0.72, 'recall': 0.61, 'f1': 0.67},
-        'neural_network': {'accuracy': 0.64, 'precision': 0.67, 'recall': 0.60, 'f1': 0.63}
-    }
-    
-    # Demo prediction history (1: up, 0: down)
-    prediction_history = {
-        'dates': [(datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(10, 0, -1)],
-        'actual': [1, 1, 0, 0, 1, 1, 0, 0, 1, 1],
-        'predicted': [1, 1, 1, 0, 1, 0, 0, 0, 1, 1]
-    }
-    
-    # Demo feature importance
-    feature_importance = [
-        {'name': 'RSI (14)', 'value': 0.18},
-        {'name': 'Price vs 200-day MA', 'value': 0.15},
-        {'name': 'MACD Histogram', 'value': 0.12},
-        {'name': 'Volatility (21-day)', 'value': 0.10},
-        {'name': 'Price vs 50-day MA', 'value': 0.08},
-        {'name': 'Bollinger Width', 'value': 0.07},
-        {'name': 'Monthly Return', 'value': 0.06},
-        {'name': 'Weekly Return', 'value': 0.05}
-    ]
-    
-    # Demo return predictions
-    return_prediction = {
-        'SPX': {'predicted': 1.85, 'confidence': 0.73, 'rmse': 2.3, 'r2': 0.58},
-        'DJI': {'predicted': 1.72, 'confidence': 0.68, 'rmse': 2.5, 'r2': 0.55},
-        'IXIC': {'predicted': 2.18, 'confidence': 0.64, 'rmse': 2.8, 'r2': 0.51}
-    }
-    
-    # Demo news sentiment
-    news_sentiment = {
-        'overall': 0.35,  # -1 to 1 scale
-        'topSources': [
-            {'name': 'Bloomberg', 'sentiment': 0.42},
-            {'name': 'CNBC', 'sentiment': 0.38},
-            {'name': 'Reuters', 'sentiment': 0.25},
-            {'name': 'Wall Street Journal', 'sentiment': 0.15},
-            {'name': 'Financial Times', 'sentiment': -0.12}
-        ],
-        'recentArticles': [
+    # Include original insights structure for backward compatibility
+    insights = {
+        "timestamp": datetime.now().isoformat(),
+        "period": "1d",
+        "metrics": {
+            "momentum": {
+                "value": "Bullish",
+                "score": 75.0,
+                "status": "positive",
+                "description": "Strong upward movement in major indices"
+            },
+            "volatility": {
+                "value": "Low",
+                "score": 25.0,
+                "status": "positive",
+                "description": "Stable price action with minimal swings"
+            },
+            "breadth": {
+                "value": "Broad",
+                "score": 70,
+                "status": "positive",
+                "description": "Majority of stocks participating in market movement"
+            },
+            "sentiment": {
+                "value": "Bullish",
+                "score": 65.0,
+                "status": "positive",
+                "description": "Positive sentiment indicators with improving outlook"
+            },
+            "technical": {
+                "value": "Bullish",
+                "score": 65.0,
+                "status": "positive",
+                "description": "Majority of technical indicators are positive"
+            },
+            "aiConfidence": {
+                "value": "High",
+                "score": 80.0,
+                "status": "positive",
+                "description": "AI models show strong conviction in current assessment"
+            }
+        },
+        "recommendations": [
             {
-                'title': 'Fed signals potential rate cuts later this year',
-                'source': 'Bloomberg',
-                'date': '2023-06-15',
-                'sentiment': 0.58,
-                'url': '#'
+                "type": "sector",
+                "name": "Technology",
+                "action": "overweight",
+                "confidence": 75,
+                "reasoning": "Strong momentum in tech stocks with positive earnings outlook"
             },
             {
-                'title': 'Tech stocks rally as inflation concerns ease',
-                'source': 'CNBC',
-                'date': '2023-06-14',
-                'sentiment': 0.65,
-                'url': '#'
+                "type": "sector",
+                "name": "Utilities",
+                "action": "underweight",
+                "confidence": 68,
+                "reasoning": "Rising interest rates may pressure utility valuations"
             },
             {
-                'title': 'Market volatility increases amid geopolitical tensions',
-                'source': 'Financial Times',
-                'date': '2023-06-13',
-                'sentiment': -0.32,
-                'url': '#'
-            },
-            {
-                'title': 'Treasury yields climb after latest economic data',
-                'source': 'Wall Street Journal',
-                'date': '2023-06-12',
-                'sentiment': -0.18,
-                'url': '#'
+                "type": "strategy",
+                "name": "Market Timing",
+                "action": "remain invested",
+                "confidence": 82,
+                "reasoning": "Positive market breadth and momentum suggest continued upside potential"
             }
         ]
     }
     
-    # Demo portfolio optimization
+    # Model metrics
+    model_metrics = {
+        "ensemble": {
+            "accuracy": 0.68,
+            "precision": 0.71,
+            "recall": 0.65,
+            "f1": 0.68
+        },
+        "random_forest": {
+            "accuracy": 0.66,
+            "precision": 0.69,
+            "recall": 0.63,
+            "f1": 0.66
+        },
+        "gradient_boosting": {
+            "accuracy": 0.67,
+            "precision": 0.72,
+            "recall": 0.61,
+            "f1": 0.67
+        },
+        "neural_network": {
+            "accuracy": 0.64,
+            "precision": 0.67,
+            "recall": 0.60,
+            "f1": 0.63
+        }
+    }
+    
+    # News sentiment
+    news_sentiment = {
+        "overall": 0.35,
+        "topSources": [
+            {"name": "Bloomberg", "sentiment": 0.42},
+            {"name": "CNBC", "sentiment": 0.38},
+            {"name": "Reuters", "sentiment": 0.25},
+            {"name": "Wall Street Journal", "sentiment": 0.15},
+            {"name": "Financial Times", "sentiment": -0.12}
+        ],
+        "recentArticles": [
+            {
+                "title": "Fed signals potential rate cuts later this year",
+                "source": "Bloomberg",
+                "date": "2023-06-15",
+                "sentiment": 0.58,
+                "url": "#"
+            },
+            {
+                "title": "Tech stocks rally as inflation concerns ease",
+                "source": "CNBC",
+                "date": "2023-06-14",
+                "sentiment": 0.65,
+                "url": "#"
+            },
+            {
+                "title": "Market volatility increases amid geopolitical tensions",
+                "source": "Financial Times",
+                "date": "2023-06-13",
+                "sentiment": -0.32,
+                "url": "#"
+            },
+            {
+                "title": "Treasury yields climb after latest economic data",
+                "source": "Wall Street Journal",
+                "date": "2023-06-12",
+                "sentiment": -0.18,
+                "url": "#"
+            }
+        ]
+    }
+    
+    # Feature importance
+    feature_importance = [
+        {"name": "RSI (14)", "value": 0.18},
+        {"name": "Price vs 200-day MA", "value": 0.15},
+        {"name": "MACD Histogram", "value": 0.12},
+        {"name": "Volatility (21-day)", "value": 0.10},
+        {"name": "Price vs 50-day MA", "value": 0.08},
+        {"name": "Bollinger Width", "value": 0.07},
+        {"name": "Monthly Return", "value": 0.06},
+        {"name": "Weekly Return", "value": 0.05}
+    ]
+    
+    # Portfolio optimization
     portfolio_optimization = {
-        'max_sharpe': {
-            'weights': {'AAPL': 0.25, 'MSFT': 0.20, 'AMZN': 0.15, 'GOOGL': 0.10, 'NVDA': 0.15, 'BRK.B': 0.10, 'JNJ': 0.05},
-            'stats': {
-                'expectedReturn': 0.152,
-                'volatility': 0.185,
-                'sharpeRatio': 0.821,
-                'maxDrawdown': 0.255
+        "max_sharpe": {
+            "weights": {
+                "AAPL": 0.25,
+                "MSFT": 0.20,
+                "AMZN": 0.15,
+                "NVDA": 0.15,
+                "GOOGL": 0.10,
+                "BRK.B": 0.10,
+                "JNJ": 0.05
+            },
+            "stats": {
+                "expectedReturn": 0.152,
+                "volatility": 0.185,
+                "sharpeRatio": 0.821,
+                "maxDrawdown": 0.255
             }
         },
-        'min_vol': {
-            'weights': {'AAPL': 0.15, 'MSFT': 0.10, 'AMZN': 0.05, 'GOOGL': 0.05, 'NVDA': 0.05, 'BRK.B': 0.25, 'JNJ': 0.35},
-            'stats': {
-                'expectedReturn': 0.089,
-                'volatility': 0.112,
-                'sharpeRatio': 0.794,
-                'maxDrawdown': 0.147
+        "min_vol": {
+            "weights": {
+                "JNJ": 0.35,
+                "BRK.B": 0.25,
+                "AAPL": 0.15,
+                "MSFT": 0.10,
+                "GOOGL": 0.05,
+                "AMZN": 0.05,
+                "NVDA": 0.05
+            },
+            "stats": {
+                "expectedReturn": 0.089,
+                "volatility": 0.112,
+                "sharpeRatio": 0.794,
+                "maxDrawdown": 0.147
             }
         },
-        'risk_parity': {
-            'weights': {'AAPL': 0.18, 'MSFT': 0.17, 'AMZN': 0.12, 'GOOGL': 0.13, 'NVDA': 0.10, 'BRK.B': 0.15, 'JNJ': 0.15},
-            'stats': {
-                'expectedReturn': 0.113,
-                'volatility': 0.145,
-                'sharpeRatio': 0.779,
-                'maxDrawdown': 0.198
+        "risk_parity": {
+            "weights": {
+                "AAPL": 0.18,
+                "MSFT": 0.17,
+                "BRK.B": 0.15,
+                "JNJ": 0.15,
+                "GOOGL": 0.13,
+                "AMZN": 0.12,
+                "NVDA": 0.10
+            },
+            "stats": {
+                "expectedReturn": 0.113,
+                "volatility": 0.145,
+                "sharpeRatio": 0.779,
+                "maxDrawdown": 0.198
             }
         }
     }
     
-    # Demo economic indicators
+    # Economic indicators
     economic_indicators = [
         {
-            'name': 'Inflation Rate (CPI)',
-            'value': '2.9%',
-            'change': '-0.2%',
-            'status': 'positive',
-            'trend': 'down',
-            'category': 'Inflation',
-            'description': 'Consumer Price Index, year-over-year change'
+            "name": "Inflation Rate (CPI)",
+            "value": "2.9%",
+            "change": "-0.2%",
+            "trend": "down",
+            "status": "positive",
+            "category": "Inflation",
+            "description": "Consumer Price Index, year-over-year change"
         },
         {
-            'name': 'Core Inflation',
-            'value': '3.2%',
-            'change': '-0.1%',
-            'status': 'warning',
-            'trend': 'down',
-            'category': 'Inflation',
-            'description': 'CPI excluding food and energy'
+            "name": "Core Inflation",
+            "value": "3.2%",
+            "change": "-0.1%",
+            "trend": "down",
+            "status": "warning",
+            "category": "Inflation",
+            "description": "CPI excluding food and energy"
         },
         {
-            'name': 'Unemployment Rate',
-            'value': '3.8%',
-            'change': '+0.1%',
-            'status': 'positive',
-            'trend': 'up',
-            'category': 'Employment',
-            'description': 'Percentage of labor force that is jobless'
+            "name": "Unemployment Rate",
+            "value": "3.8%",
+            "change": "+0.1%",
+            "trend": "up",
+            "status": "positive",
+            "category": "Employment",
+            "description": "Percentage of labor force that is jobless"
         },
         {
-            'name': 'Non-Farm Payrolls',
-            'value': '+236K',
-            'change': '-30K',
-            'status': 'positive',
-            'trend': 'down',
-            'category': 'Employment',
-            'description': 'Jobs added excluding farm workers and some other categories'
+            "name": "Non-Farm Payrolls",
+            "value": "+236K",
+            "change": "-30K",
+            "trend": "down",
+            "status": "positive",
+            "category": "Employment",
+            "description": "Jobs added excluding farm workers and some other categories"
         },
         {
-            'name': 'GDP Growth Rate',
-            'value': '2.4%',
-            'change': '+0.3%',
-            'status': 'positive',
-            'trend': 'up',
-            'category': 'GDP',
-            'description': 'Annualized quarterly growth rate of Gross Domestic Product'
+            "name": "GDP Growth Rate",
+            "value": "2.4%",
+            "change": "+0.3%",
+            "trend": "up",
+            "status": "positive",
+            "category": "GDP",
+            "description": "Annualized quarterly growth rate of Gross Domestic Product"
         },
         {
-            'name': 'Fed Funds Rate',
-            'value': '5.25-5.50%',
-            'change': '0.00%',
-            'status': 'neutral',
-            'trend': 'unchanged',
-            'category': 'Interest Rates',
-            'description': 'Target interest rate range set by the Federal Reserve'
+            "name": "Fed Funds Rate",
+            "value": "5.25-5.50%",
+            "change": "0.00%",
+            "trend": "unchanged",
+            "status": "neutral",
+            "category": "Interest Rates",
+            "description": "Target interest rate range set by the Federal Reserve"
         },
         {
-            'name': 'Retail Sales MoM',
-            'value': '0.7%',
-            'change': '+0.5%',
-            'status': 'positive',
-            'trend': 'up',
-            'category': 'Consumer',
-            'description': 'Month-over-month change in retail and food service sales'
+            "name": "Retail Sales MoM",
+            "value": "0.7%",
+            "change": "+0.5%",
+            "trend": "up",
+            "status": "positive",
+            "category": "Consumer",
+            "description": "Month-over-month change in retail and food service sales"
         },
         {
-            'name': 'Consumer Sentiment',
-            'value': '67.5',
-            'change': '+3.3',
-            'status': 'positive',
-            'trend': 'up',
-            'category': 'Consumer',
-            'description': 'University of Michigan Consumer Sentiment Index'
+            "name": "Consumer Sentiment",
+            "value": "67.5",
+            "change": "+3.3",
+            "trend": "up",
+            "status": "positive",
+            "category": "Consumer",
+            "description": "University of Michigan Consumer Sentiment Index"
         }
     ]
     
-    # Demo alerts
+    # Alerts
     alerts = [
         {
-            'id': '1001',
-            'name': 'S&P 500 Below 200-day MA',
-            'condition': 'SPX price falls below 200-day moving average',
-            'status': 'active',
-            'lastTriggered': None,
-            'icon': 'chart-line'
+            "id": "1001",
+            "name": "S&P 500 Below 200-day MA",
+            "condition": "SPX price falls below 200-day moving average",
+            "status": "active",
+            "icon": "chart-line",
+            "lastTriggered": None
         },
         {
-            'id': '1002',
-            'name': 'VIX Spike Alert',
-            'condition': 'VIX rises above 25',
-            'status': 'triggered',
-            'lastTriggered': '2023-05-18',
-            'icon': 'bolt'
+            "id": "1002",
+            "name": "VIX Spike Alert",
+            "condition": "VIX rises above 25",
+            "status": "triggered",
+            "icon": "bolt",
+            "lastTriggered": "2023-05-18"
         },
         {
-            'id': '1003',
-            'name': 'AAPL RSI Oversold',
-            'condition': 'AAPL RSI(14) falls below 30',
-            'status': 'active',
-            'lastTriggered': '2023-03-12',
-            'icon': 'apple'
+            "id": "1003",
+            "name": "AAPL RSI Oversold",
+            "condition": "AAPL RSI(14) falls below 30",
+            "status": "active",
+            "icon": "apple",
+            "lastTriggered": "2023-03-12"
         }
     ]
     
-    # Combine all data
-    response_data = {
-        'indices': indices,
-        'predictionConfidence': prediction_confidence,
-        'modelMetrics': model_metrics,
-        'predictionHistory': prediction_history,
-        'featureImportance': feature_importance,
-        'returnPrediction': return_prediction,
-        'newsSentiment': news_sentiment,
-        'portfolioOptimization': portfolio_optimization,
-        'economicIndicators': economic_indicators,
-        'alerts': alerts,
-        'lastUpdated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'status': 'Demo data'
+    # Prediction history
+    prediction_history = {
+        "dates": [
+            "2025-02-27", "2025-02-28", "2025-03-01", "2025-03-02", 
+            "2025-03-03", "2025-03-04", "2025-03-05", "2025-03-06", 
+            "2025-03-07", "2025-03-08"
+        ],
+        "predicted": [1, 1, 1, 0, 1, 0, 0, 0, 1, 1],
+        "actual": [1, 1, 0, 0, 1, 1, 0, 0, 1, 1]
     }
     
-    return jsonify(response_data)
+    # Return prediction
+    return_prediction = {
+        "SPX": {"predicted": 1.85, "confidence": 0.73, "rmse": 2.3, "r2": 0.58},
+        "DJI": {"predicted": 1.72, "confidence": 0.68, "rmse": 2.5, "r2": 0.55},
+        "IXIC": {"predicted": 2.18, "confidence": 0.64, "rmse": 2.8, "r2": 0.51}
+    }
+    
+    # Return the complete demo data structure
+    return {
+        "insights": insights,
+        "indices": indices,
+        "lastUpdated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "modelMetrics": model_metrics,
+        "newsSentiment": news_sentiment,
+        "featureImportance": feature_importance,
+        "portfolioOptimization": portfolio_optimization,
+        "economicIndicators": economic_indicators,
+        "alerts": alerts,
+        "predictionConfidence": 72,
+        "predictionHistory": prediction_history,
+        "returnPrediction": return_prediction,
+        "status": "Demo data"
+    }
 
 def calculate_market_metrics(processed_data, period='1d'):
     """Calculate market metrics based on processed data."""
@@ -3646,7 +3794,7 @@ def call_ai_api(endpoint, params=None, method='get', data=None):
         response.raise_for_status()
         return response.json()
     
-    except RequestException as e:
+    except requests.exceptions.RequestException as e:
         app.logger.error(f"Error calling AI API: {e}")
         return None
 

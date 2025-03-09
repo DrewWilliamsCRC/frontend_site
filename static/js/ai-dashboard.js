@@ -98,8 +98,32 @@ async function loadDashboardData() {
         const data = await response.json();
         console.log('AI insights data received:', data);
         
-        // Store data in the dashboard state
-        dashboardState.data = data;
+        // Check if we received valid data
+        if (!data || (data.insights === undefined && data.indices === undefined)) {
+            console.error('Invalid data structure received from API');
+            throw new Error('Invalid data structure received from API');
+        }
+        
+        // Handle data structure that might come from AI server directly
+        if (data.insights && !data.indices) {
+            // Transform the insights structure to match what the frontend expects
+            dashboardState.data = {
+                indices: {
+                    // Default indices if missing
+                    SPX: { price: '0', change: '0', changePercent: '0', high: '0', low: '0', volume: '0' },
+                    DJI: { price: '0', change: '0', changePercent: '0', high: '0', low: '0', volume: '0' },
+                    IXIC: { price: '0', change: '0', changePercent: '0', high: '0', low: '0', volume: '0' },
+                    // Add more defaults as needed
+                },
+                lastUpdated: new Date().toLocaleString(),
+                status: 'Generated from insights'
+            };
+            console.log('Transformed insights data to frontend format');
+        } else {
+            // Store data in the dashboard state
+            dashboardState.data = data;
+        }
+        
         dashboardState.lastUpdated = new Date();
         
         // Update all dashboard components with the new data
@@ -211,7 +235,7 @@ async function loadMarketIndices() {
         // Check if we have indices data
         if (!dashboardState.data || !dashboardState.data.indices) {
             console.error('No indices data found in API response');
-            container.innerHTML = '<div class="alert alert-warning">No market data available</div>';
+            container.innerHTML = '<div class="alert alert-warning">No market data available - Please check API response format</div>';
             return;
         }
         
@@ -221,6 +245,12 @@ async function loadMarketIndices() {
         // Create and display index cards
         const indices = dashboardState.data.indices;
         console.log('Displaying indices:', Object.keys(indices));
+        
+        // Check if indices object is empty
+        if (Object.keys(indices).length === 0) {
+            container.innerHTML = '<div class="alert alert-warning">No market indices data available</div>';
+            return;
+        }
         
         // Create row container with proper spacing for the cards
         const grid = document.createElement('div');

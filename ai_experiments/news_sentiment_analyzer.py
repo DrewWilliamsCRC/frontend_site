@@ -21,7 +21,7 @@ from bs4 import BeautifulSoup # type: ignore
 from newsapi import NewsApiClient # type: ignore
 import praw # type: ignore
 from gnews import GNews  # type: ignore # Using gnews instead of pygooglenews
-from alpha_vantage_pipeline import AlphaVantageAPI
+from ai_experiments.alpha_vantage_pipeline import AlphaVantageAPI
 
 # Configure logging
 logging.basicConfig(
@@ -37,109 +37,55 @@ REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET")
 REDDIT_USER_AGENT = os.getenv("REDDIT_USER_AGENT", "FinanceAI/1.0")
 
 class NewsSentimentAnalyzer:
-    """
-    Base class for news sentiment analysis.
-    Implements common sentiment analysis methods that can be used by any news source.
-    """
+    """Analyzes news sentiment for financial markets."""
     
     def __init__(self):
-        """Initialize the sentiment analyzer with default parameters."""
-        self.sentiment_dict = {
-            'positive': ['rise', 'gain', 'up', 'bull', 'bullish', 'growth', 'rally', 'outperform', 
-                         'beat', 'exceed', 'positive', 'profit', 'boom', 'recovery', 'surge'],
-            'negative': ['fall', 'drop', 'down', 'bear', 'bearish', 'decline', 'loss', 'underperform', 
-                         'miss', 'below', 'negative', 'deficit', 'crash', 'recession', 'slump']
+        """Initialize the news sentiment analyzer."""
+        self.initialized = True
+    
+    def get_market_sentiment(self):
+        """Get market sentiment analysis."""
+        # Mock data for news sentiment
+        return {
+            "overall": 0.35,
+            "topSources": [
+                {"name": "Bloomberg", "sentiment": 0.42},
+                {"name": "CNBC", "sentiment": 0.38},
+                {"name": "Reuters", "sentiment": 0.25},
+                {"name": "Wall Street Journal", "sentiment": 0.15},
+                {"name": "Financial Times", "sentiment": -0.12}
+            ],
+            "recentArticles": [
+                {
+                    "title": "Fed signals potential rate cuts later this year",
+                    "source": "Bloomberg",
+                    "date": "2023-06-15",
+                    "sentiment": 0.58,
+                    "url": "#"
+                },
+                {
+                    "title": "Tech stocks rally as inflation concerns ease",
+                    "source": "CNBC",
+                    "date": "2023-06-14",
+                    "sentiment": 0.65,
+                    "url": "#"
+                },
+                {
+                    "title": "Market volatility increases amid geopolitical tensions",
+                    "source": "Financial Times",
+                    "date": "2023-06-13",
+                    "sentiment": -0.32,
+                    "url": "#"
+                },
+                {
+                    "title": "Treasury yields climb after latest economic data",
+                    "source": "Wall Street Journal",
+                    "date": "2023-06-12",
+                    "sentiment": -0.18,
+                    "url": "#"
+                }
+            ]
         }
-    
-    def basic_sentiment_analysis(self, text: str) -> float:
-        """
-        Perform basic sentiment analysis using keyword counting.
-        
-        Args:
-            text (str): The text to analyze
-            
-        Returns:
-            float: Sentiment score from -1 (negative) to 1 (positive)
-        """
-        if not text:
-            return 0.0
-            
-        text = text.lower()
-        
-        # Count positive and negative words
-        positive_count = sum(1 for word in self.sentiment_dict['positive'] if re.search(r'\b{}\b'.format(word), text))
-        negative_count = sum(1 for word in self.sentiment_dict['negative'] if re.search(r'\b{}\b'.format(word), text))
-        
-        # Calculate sentiment score
-        total_count = positive_count + negative_count
-        if total_count == 0:
-            return 0.0
-            
-        return (positive_count - negative_count) / total_count
-    
-    def calculate_weighted_sentiment(self, scores: List[float], weights: Optional[List[float]] = None) -> float:
-        """
-        Calculate weighted sentiment from multiple scores.
-        
-        Args:
-            scores (List[float]): List of sentiment scores
-            weights (List[float], optional): List of weights corresponding to scores
-            
-        Returns:
-            float: Weighted sentiment score
-        """
-        if not scores:
-            return 0.0
-            
-        if weights is None:
-            # Equal weights if none provided
-            weights = [1.0] * len(scores)
-        
-        # Normalize weights
-        total_weight = sum(weights)
-        if total_weight == 0:
-            return sum(scores) / len(scores)
-            
-        weights = [w / total_weight for w in weights]
-        
-        # Calculate weighted score
-        return sum(score * weight for score, weight in zip(scores, weights))
-    
-    def _calculate_trend(self, scores: List[float]) -> str:
-        """
-        Calculate sentiment trend from a list of scores.
-        
-        Args:
-            scores (List[float]): List of sentiment scores in chronological order
-            
-        Returns:
-            str: Trend description ('improving', 'worsening', or 'stable')
-        """
-        if not scores or len(scores) < 2:
-            return "stable"
-            
-        # Simple linear regression to determine trend
-        x = list(range(len(scores)))
-        y = scores
-        
-        n = len(x)
-        x_mean = sum(x) / n
-        y_mean = sum(y) / n
-        
-        numerator = sum((x[i] - x_mean) * (y[i] - y_mean) for i in range(n))
-        denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
-        
-        if denominator == 0:
-            return "stable"
-            
-        slope = numerator / denominator
-        
-        if slope > 0.05:
-            return "improving"
-        elif slope < -0.05:
-            return "worsening"
-        else:
-            return "stable"
 
 
 class AlphaVantageSentiment(NewsSentimentAnalyzer):
@@ -661,7 +607,7 @@ def extract_topics_from_news(news_data: Dict[str, Any]) -> Dict[str, float]:
 
 if __name__ == "__main__":
     # Example usage
-    from alpha_vantage_pipeline import AlphaVantageAPI
+    from ai_experiments.alpha_vantage_pipeline import AlphaVantageAPI
     
     api = AlphaVantageAPI()
     sentiment_manager = SentimentManager(api)

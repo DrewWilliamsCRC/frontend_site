@@ -33,7 +33,7 @@ from sklearn.model_selection import GridSearchCV, TimeSeriesSplit # type: ignore
 
 # Add parent directory to path so we can import from alpha_vantage_pipeline
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from alpha_vantage_pipeline import DataProcessor, DataManager
+from ai_experiments.alpha_vantage_pipeline import DataProcessor, DataManager
 
 # Set up logging
 logging.basicConfig(
