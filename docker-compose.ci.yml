@@ -61,9 +61,12 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - SECRET_KEY=${SECRET_KEY}
       - FLASK_ENV=testing
+      - FLASK_APP=app.py
       - PORT=${PORT}
       - ALPHA_VANTAGE_API_KEY=test-key
       - AI_SERVER_URL=http://ai_server:5002
+    volumes:
+      - ./app.py:/app/app.py:ro
     ports:
       - "${PORT}:${PORT}"
     depends_on:
@@ -71,6 +74,10 @@ services:
         condition: service_healthy
       ai_server:
         condition: service_started
+    # Skip the default entrypoint to avoid permission issues
+    entrypoint: []
+    # Install curl and then start the server
+    command: ["bash", "-c", "apk add --no-cache curl && python -m flask run --host=0.0.0.0 --port=${PORT}"]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:${PORT}/health || exit 1"]
       interval: 5s
