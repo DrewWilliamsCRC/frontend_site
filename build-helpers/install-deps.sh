@@ -5,6 +5,10 @@ set -e  # Exit on error
 echo "Python version: $(python --version)"
 echo "Pip version: $(pip --version)"
 
+# Explicitly install BeautifulSoup regardless of environment
+echo "Explicitly installing BeautifulSoup packages..."
+pip install --no-cache-dir beautifulsoup4==4.12.3 bs4==0.0.2 lxml==5.1.0 nltk==3.8.1
+
 # Detect Alpine Linux
 if [ -f /etc/alpine-release ]; then
     echo "Alpine Linux detected, using Alpine-specific requirements"
@@ -59,10 +63,28 @@ fi
 
 # Verify critical packages are installed
 echo "Verifying critical packages..."
-for pkg in Flask gunicorn psycopg2 pandas numpy matplotlib seaborn scikit-learn; do
+for pkg in Flask gunicorn psycopg2 pandas numpy matplotlib seaborn scikit-learn bs4; do
     if pip show $pkg > /dev/null 2>&1; then
         echo "✓ $pkg is installed"
     else
         echo "✗ $pkg is NOT installed"
     fi
-done 
+done
+
+# Run verification script for BeautifulSoup if it exists
+if [ -f ./verify-bs4.py ]; then
+    echo "Running BeautifulSoup verification script..."
+    python ./verify-bs4.py
+fi
+
+# Download NLTK data
+if [ -f ./download-nltk-data.py ]; then
+    echo "Downloading NLTK data packages..."
+    python ./download-nltk-data.py
+fi
+
+# Verify all dependencies
+if [ -f ./verify-dependencies.py ]; then
+    echo "Verifying all required dependencies..."
+    python ./verify-dependencies.py
+fi 

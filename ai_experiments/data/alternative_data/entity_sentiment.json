@@ -1,0 +1,125 @@
+{
+  "generated_at": "2025-03-09T02:32:53.337390",
+  "entities": {
+    "AAPL": {
+      "article_count": 0,
+      "avg_sentiment": 0,
+      "sentiment_sum": 0,
+      "sentiment_count": 0,
+      "very_positive": 0,
+      "positive": 0,
+      "neutral": 0,
+      "negative": 0,
+      "very_negative": 0,
+      "recent_headlines": []
+    },
+    "MSFT": {
+      "article_count": 0,
+      "avg_sentiment": 0,
+      "sentiment_sum": 0,
+      "sentiment_count": 0,
+      "very_positive": 0,
+      "positive": 0,
+      "neutral": 0,
+      "negative": 0,
+      "very_negative": 0,
+      "recent_headlines": []
+    },
+    "GOOGL": {
+      "article_count": 0,
+      "avg_sentiment": 0,
+      "sentiment_sum": 0,
+      "sentiment_count": 0,
+      "very_positive": 0,
+      "positive": 0,
+      "neutral": 0,
+      "negative": 0,
+      "very_negative": 0,
+      "recent_headlines": []
+    },
+    "AMZN": {
+      "article_count": 0,
+      "avg_sentiment": 0,
+      "sentiment_sum": 0,
+      "sentiment_count": 0,
+      "very_positive": 0,
+      "positive": 0,
+      "neutral": 0,
+      "negative": 0,
+      "very_negative": 0,
+      "recent_headlines": []
+    },
+    "META": {
+      "article_count": 0,
+      "avg_sentiment": 0,
+      "sentiment_sum": 0,
+      "sentiment_count": 0,
+      "very_positive": 0,
+      "positive": 0,
+      "neutral": 0,
+      "negative": 0,
+      "very_negative": 0,
+      "recent_headlines": []
+    },
+    "TSLA": {
+      "article_count": 0,
+      "avg_sentiment": 0,
+      "sentiment_sum": 0,
+      "sentiment_count": 0,
+      "very_positive": 0,
+      "positive": 0,
+      "neutral": 0,
+      "negative": 0,
+      "very_negative": 0,
+      "recent_headlines": []
+    },
+    "SPY": {
+      "article_count": 0,
+      "avg_sentiment": 0,
+      "sentiment_sum": 0,
+      "sentiment_count": 0,
+      "very_positive": 0,
+      "positive": 0,
+      "neutral": 0,
+      "negative": 0,
+      "very_negative": 0,
+      "recent_headlines": []
+    },
+    "QQQ": {
+      "article_count": 0,
+      "avg_sentiment": 0,
+      "sentiment_sum": 0,
+      "sentiment_count": 0,
+      "very_positive": 0,
+      "positive": 0,
+      "neutral": 0,
+      "negative": 0,
+      "very_negative": 0,
+      "recent_headlines": []
+    },
+    "BTC": {
+      "article_count": 0,
+      "avg_sentiment": 0,
+      "sentiment_sum": 0,
+      "sentiment_count": 0,
+      "very_positive": 0,
+      "positive": 0,
+      "neutral": 0,
+      "negative": 0,
+      "very_negative": 0,
+      "recent_headlines": []
+    },
+    "ETH": {
+      "article_count": 0,
+      "avg_sentiment": 0,
+      "sentiment_sum": 0,
+      "sentiment_count": 0,
+      "very_positive": 0,
+      "positive": 0,
+      "neutral": 0,
+      "negative": 0,
+      "very_negative": 0,
+      "recent_headlines": []
+    }
+  }
+}

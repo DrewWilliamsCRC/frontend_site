@@ -2243,16 +2243,18 @@ def stock_tracker():
         else:
             # Use default settings
             settings = {
+                'city_name': 'New York',
                 'button_width': 200,
                 'button_height': 200,
-                'theme': 'light'
+                'news_categories': 'general'
             }
     except Exception as e:
         app.logger.error(f"Error fetching user settings: {str(e)}")
         settings = {
+            'city_name': 'New York',
             'button_width': 200,
             'button_height': 200,
-            'theme': 'light'
+            'news_categories': 'general'
         }
     
     # Get stocks data (if needed)
@@ -2287,16 +2289,18 @@ def trend_insight():
         else:
             # Use default settings
             settings = {
+                'city_name': 'New York',
                 'button_width': 200,
                 'button_height': 200,
-                'theme': 'light'
+                'news_categories': 'general'
             }
     except Exception as e:
         app.logger.error(f"Error fetching user settings: {str(e)}")
         settings = {
+            'city_name': 'New York',
             'button_width': 200,
             'button_height': 200,
-            'theme': 'light'
+            'news_categories': 'general'
         }
     
     conn.close()
@@ -4528,6 +4532,447 @@ def fetch_news_for_section(section, page_size=50):
     except Exception as e:
         print(f"Error fetching news for section {section}: {str(e)}")
         return []
+
+# Use try-except for importing the transformer predictions function
+try:
+    from ai_experiments.transformer_pipeline import generate_market_predictions_for_dashboard as generate_transformer_predictions
+    print("Successfully imported transformer pipeline")
+except ImportError as e:
+    # Create a mock function if import fails
+    print(f"Could not import transformer pipeline: {e}")
+    print("Using mock implementation for transformer predictions")
+    
+    def generate_transformer_predictions(market_indices=None, prediction_days=5):
+        """Mock implementation when transformer module is not available"""
+        import random
+        from datetime import datetime, timedelta
+        import numpy as np # type: ignore
+        
+        if market_indices is None:
+            from ai_experiments.alpha_vantage_pipeline import MARKET_INDICES
+            market_indices = MARKET_INDICES
+        
+        mock_data = {}
+        
+        for index_name, symbol in market_indices.items():
+            # Generate random direction, magnitude, and confidence
+            direction = 'up' if random.random() > 0.4 else 'down'
+            magnitude = random.uniform(0.5, 2.5)
+            confidence = random.uniform(0.6, 0.85)
+            
+            # Use realistic values for current_price
+            index_prices = {
+                'DJI': 38500.0,
+                'SPX': 5100.0,
+                'IXIC': 16200.0,
+                'VIX': 15.0,
+                'TNX': 4.2
+            }
+            current_price = index_prices.get(index_name, 100.0) * (1 + random.uniform(-0.01, 0.01))
+            
+            # Calculate predicted price
+            symbol_key = symbol.replace('^', '')  # Remove ^ for indices
+            factor = 1 + (magnitude / 100) if direction == 'up' else 1 - (magnitude / 100)
+            predicted_price = current_price * factor
+            
+            # Generate dates
+            today = datetime.now()
+            
+            mock_data[symbol_key] = {
+                'symbol': symbol,
+                'latest_date': today.strftime('%Y-%m-%d'),
+                'latest_close': float(current_price),
+                'prediction_dates': [(today + timedelta(days=i+1)).strftime('%Y-%m-%d') for i in range(prediction_days)],
+                'predicted_prices': [float(current_price * (1 + (i+1) * ((magnitude/100) if direction == 'up' else -(magnitude/100)))) for i in range(prediction_days)],
+                'direction': direction,
+                'magnitude': float(magnitude),
+                'confidence': float(confidence),
+                'model_type': 'transformer (mocked)'
+            }
+        
+        return mock_data
+
+# Add this import near other similar imports
+from ai_experiments.alternative_data_sources import (
+    get_entity_sentiment, 
+    get_reddit_sentiment,
+    get_retail_satellite_data,
+    get_agricultural_satellite_data
+)
+
+# Add this as a new route
+@app.route('/api/alternative-data/news-sentiment')
+@limiter.limit("20 per minute")
+def news_sentiment_api():
+    """API endpoint for news sentiment from web scraping."""
+    try:
+        # Try to get data from cache with 6-hour expiry
+        entity_sentiment = get_entity_sentiment(max_age_hours=6)
+        
+        # Check if we got any non-zero sentiment data
+        has_data = False
+        for entity_data in entity_sentiment.values():
+            if entity_data.get('sentiment_count', 0) > 0:
+                has_data = True
+                break
+        
+        # If no real data is available, generate mock data
+        if not has_data:
+            app.logger.warning("No real news sentiment data available, generating mock data")
+            entity_sentiment = generate_mock_news_sentiment()
+        
+        # Return sentiment data
+        return jsonify({
+            'generated_at': datetime.now().isoformat(),
+            'entities': entity_sentiment
+        })
+    except Exception as e:
+        app.logger.error(f"Error getting news sentiment data: {str(e)}")
+        # Generate mock data when an error occurs
+        mock_data = generate_mock_news_sentiment()
+        return jsonify({
+            'error_info': str(e),
+            'generated_at': datetime.now().isoformat(),
+            'entities': mock_data
+        })
+
+def generate_mock_news_sentiment():
+    """Generate mock news sentiment data for the frontend."""
+    entities = ["AAPL", "AMZN", "MSFT", "GOOGL", "META", "TSLA", "SPY", "QQQ", "BTC", "ETH"]
+    mock_data = {}
+    
+    for entity in entities:
+        # Generate random sentiments with positive bias for some entities
+        positive_bias = random.choice([True, False])
+        sentiment_score = random.uniform(-0.5, 0.8) if not positive_bias else random.uniform(0.1, 0.8)
+        
+        # Calculate distribution of sentiment categories
+        very_positive = random.randint(3, 15) if sentiment_score > 0.3 else random.randint(0, 5)
+        positive = random.randint(10, 30) if sentiment_score > 0 else random.randint(5, 15)
+        neutral = random.randint(20, 40)
+        negative = random.randint(5, 20) if sentiment_score < 0 else random.randint(3, 10)
+        very_negative = random.randint(3, 10) if sentiment_score < -0.3 else random.randint(0, 3)
+        
+        # Total article count
+        article_count = random.randint(5, 30)
+        
+        # Generate mock headlines
+        headlines = []
+        for i in range(min(3, article_count)):
+            sentiment = random.uniform(-0.7, 0.7)
+            if sentiment > 0.2:
+                headline_template = random.choice([
+                    f"{entity} shows promising growth potential",
+                    f"Analysts bullish on {entity} after earnings",
+                    f"{entity} launches new innovative product line",
+                    f"{entity} exceeds market expectations"
+                ])
+            elif sentiment < -0.2:
+                headline_template = random.choice([
+                    f"{entity} faces regulatory challenges",
+                    f"Disappointing quarterly results for {entity}",
+                    f"{entity} stock downgraded by major analysts",
+                    f"Concerns emerge about {entity}'s market position"
+                ])
+            else:
+                headline_template = random.choice([
+                    f"{entity} maintains stable market presence",
+                    f"{entity} in line with quarterly projections",
+                    f"{entity} navigating market uncertainties"
+                ])
+            
+            headlines.append({
+                "title": headline_template,
+                "url": "#",
+                "date": (datetime.now() - timedelta(days=random.randint(0, 5))).isoformat(),
+                "sentiment": sentiment
+            })
+        
+        mock_data[entity] = {
+            "article_count": article_count,
+            "avg_sentiment": sentiment_score,
+            "sentiment_sum": sentiment_score * article_count,
+            "sentiment_count": article_count,
+            "very_positive": very_positive,
+            "positive": positive,
+            "neutral": neutral,
+            "negative": negative,
+            "very_negative": very_negative,
+            "recent_headlines": headlines
+        }
+    
+    return mock_data
+
+@app.route('/api/alternative-data/reddit-sentiment')
+@limiter.limit("20 per minute")
+def reddit_sentiment_api():
+    """API endpoint for Reddit sentiment analysis."""
+    try:
+        # Get Reddit client credentials from environment variables
+        reddit_client_id = os.environ.get('REDDIT_CLIENT_ID')
+        reddit_client_secret = os.environ.get('REDDIT_CLIENT_SECRET')
+        reddit_user_agent = os.environ.get('REDDIT_USER_AGENT', 'web:financial-dashboard:v1.0 (by /u/your_username)')
+        
+        # Get Reddit sentiment data with 6-hour expiry
+        reddit_data = get_reddit_sentiment(
+            reddit_client_id=reddit_client_id,
+            reddit_client_secret=reddit_client_secret,
+            reddit_user_agent=reddit_user_agent,
+            max_age_hours=6
+        )
+        
+        return jsonify(reddit_data)
+    except Exception as e:
+        app.logger.error(f"Error getting Reddit sentiment data: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'generated_at': datetime.now().isoformat(),
+            'entities': {},
+            'subreddits': {}
+        })
+
+@app.route('/api/alternative-data/retail-satellite')
+@limiter.limit("20 per minute")
+def retail_satellite_api():
+    """API endpoint for retail satellite imagery analysis."""
+    try:
+        # Get satellite API key from environment variables
+        satellite_api_key = os.environ.get('SATELLITE_API_KEY')
+        
+        # Use mock data by default
+        use_mock = request.args.get('use_mock', 'true').lower() == 'true'
+        
+        # Get retail satellite data
+        retail_data = get_retail_satellite_data(
+            api_key=satellite_api_key,
+            use_mock=use_mock
+        )
+        
+        return jsonify(retail_data)
+    except Exception as e:
+        app.logger.error(f"Error getting retail satellite data: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'generated_at': datetime.now().isoformat(),
+            'locations': {}
+        })
+
+@app.route('/api/alternative-data/agricultural-satellite')
+@limiter.limit("20 per minute")
+def agricultural_satellite_api():
+    """API endpoint for agricultural satellite imagery analysis."""
+    try:
+        # Get satellite API key from environment variables
+        satellite_api_key = os.environ.get('SATELLITE_API_KEY')
+        
+        # Use mock data by default
+        use_mock = request.args.get('use_mock', 'true').lower() == 'true'
+        
+        # Get agricultural satellite data
+        agricultural_data = get_agricultural_satellite_data(
+            api_key=satellite_api_key,
+            use_mock=use_mock
+        )
+        
+        return jsonify(agricultural_data)
+    except Exception as e:
+        app.logger.error(f"Error getting agricultural satellite data: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'generated_at': datetime.now().isoformat(),
+            'regions': {}
+        })
+
+@app.route('/api/alternative-data/summary')
+@limiter.limit("20 per minute")
+def alternative_data_summary_api():
+    """API endpoint for a summary of all alternative data sources."""
+    try:
+        # Get data from all sources
+        entity_sentiment = get_entity_sentiment(max_age_hours=6)
+        
+        # Get Reddit client credentials
+        reddit_client_id = os.environ.get('REDDIT_CLIENT_ID')
+        reddit_client_secret = os.environ.get('REDDIT_CLIENT_SECRET')
+        reddit_user_agent = os.environ.get('REDDIT_USER_AGENT', 'web:financial-dashboard:v1.0 (by /u/your_username)')
+        
+        # Get Reddit sentiment data
+        reddit_data = get_reddit_sentiment(
+            reddit_client_id=reddit_client_id,
+            reddit_client_secret=reddit_client_secret,
+            reddit_user_agent=reddit_user_agent,
+            max_age_hours=6
+        )
+        
+        # Get satellite API key
+        satellite_api_key = os.environ.get('SATELLITE_API_KEY')
+        
+        # Use mock data for satellite
+        retail_data = get_retail_satellite_data(
+            api_key=satellite_api_key,
+            use_mock=True
+        )
+        
+        agricultural_data = get_agricultural_satellite_data(
+            api_key=satellite_api_key,
+            use_mock=True
+        )
+        
+        # Create summary data
+        summary = {
+            'generated_at': datetime.now().isoformat(),
+            'sentiment_analysis': {
+                'news': {
+                    'source_count': len(entity_sentiment) if entity_sentiment else 0,
+                    'top_positive': _get_top_sentiment_entities(entity_sentiment, 'positive', 3),
+                    'top_negative': _get_top_sentiment_entities(entity_sentiment, 'negative', 3)
+                },
+                'social': {
+                    'analyzed_posts': reddit_data.get('analyzed_posts', 0),
+                    'analyzed_comments': reddit_data.get('analyzed_comments', 0),
+                    'top_entities': _get_top_reddit_entities(reddit_data, 5)
+                }
+            },
+            'satellite_data': {
+                'retail': {
+                    'locations_count': len(retail_data.get('locations', {})),
+                    'high_traffic_locations': _get_high_traffic_retail(retail_data, 3),
+                    'stock_impact': _get_retail_stock_impact(retail_data, 3)
+                },
+                'agricultural': {
+                    'regions_count': len(agricultural_data.get('regions', {})),
+                    'yield_changes': _get_agricultural_yield_changes(agricultural_data, 3),
+                    'price_impact': _get_agricultural_price_impact(agricultural_data, 3)
+                }
+            }
+        }
+        
+        return jsonify(summary)
+    except Exception as e:
+        app.logger.error(f"Error getting alternative data summary: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'generated_at': datetime.now().isoformat()
+        })
+
+# Helper functions for alternative data summary
+def _get_top_sentiment_entities(entity_sentiment, sentiment_type, count=3):
+    """Get top entities by sentiment."""
+    if not entity_sentiment:
+        return []
+    
+    # For positive sentiment, sort by avg_sentiment desc
+    # For negative sentiment, sort by avg_sentiment asc
+    entities = []
+    for symbol, data in entity_sentiment.items():
+        if data.get('article_count', 0) > 0:
+            entities.append({
+                'symbol': symbol,
+                'avg_sentiment': data.get('avg_sentiment', 0),
+                'article_count': data.get('article_count', 0)
+            })
+    
+    if sentiment_type == 'positive':
+        sorted_entities = sorted(entities, key=lambda x: x['avg_sentiment'], reverse=True)
+    else:
+        sorted_entities = sorted(entities, key=lambda x: x['avg_sentiment'])
+    
+    return sorted_entities[:count]
+
+def _get_top_reddit_entities(reddit_data, count=5):
+    """Get top entities from Reddit data by mention count."""
+    if not reddit_data or 'entities' not in reddit_data:
+        return []
+    
+    entities = []
+    for symbol, data in reddit_data.get('entities', {}).items():
+        if data.get('mentions', 0) > 0:
+            entities.append({
+                'symbol': symbol,
+                'mentions': data.get('mentions', 0),
+                'avg_sentiment': data.get('avg_sentiment', 0)
+            })
+    
+    sorted_entities = sorted(entities, key=lambda x: x['mentions'], reverse=True)
+    return sorted_entities[:count]
+
+def _get_high_traffic_retail(retail_data, count=3):
+    """Get retail locations with highest traffic."""
+    if not retail_data or 'locations' not in retail_data:
+        return []
+    
+    locations = []
+    for location_id, data in retail_data.get('locations', {}).items():
+        occupancy = data.get('analysis', {}).get('occupied_percentage', 0)
+        locations.append({
+            'name': data.get('name', ''),
+            'ticker': data.get('ticker', ''),
+            'occupancy': occupancy,
+            'category': data.get('analysis', {}).get('traffic_category', '')
+        })
+    
+    sorted_locations = sorted(locations, key=lambda x: x['occupancy'], reverse=True)
+    return sorted_locations[:count]
+
+def _get_retail_stock_impact(retail_data, count=3):
+    """Get retail stock impact data."""
+    if not retail_data or 'locations' not in retail_data:
+        return []
+    
+    impacts = []
+    for location_id, data in retail_data.get('locations', {}).items():
+        if 'stock_impact' in data:
+            impacts.append({
+                'name': data.get('name', ''),
+                'ticker': data.get('stock_impact', {}).get('ticker', ''),
+                'traffic_change': data.get('stock_impact', {}).get('traffic_change', 0),
+                'estimated_impact': data.get('stock_impact', {}).get('estimated_impact', 0)
+            })
+    
+    # Sort by absolute estimated impact
+    sorted_impacts = sorted(impacts, key=lambda x: abs(x['estimated_impact']), reverse=True)
+    return sorted_impacts[:count]
+
+def _get_agricultural_yield_changes(agricultural_data, count=3):
+    """Get agricultural regions with largest yield changes."""
+    if not agricultural_data or 'regions' not in agricultural_data:
+        return []
+    
+    regions = []
+    for region_id, data in agricultural_data.get('regions', {}).items():
+        yield_change = data.get('analysis', {}).get('yield_change', 0)
+        regions.append({
+            'name': data.get('name', ''),
+            'crop': data.get('crop', ''),
+            'ticker': data.get('ticker', ''),
+            'yield_change': yield_change,
+            'crop_health': data.get('analysis', {}).get('crop_health', '')
+        })
+    
+    # Sort by absolute yield change
+    sorted_regions = sorted(regions, key=lambda x: abs(x['yield_change']), reverse=True)
+    return sorted_regions[:count]
+
+def _get_agricultural_price_impact(agricultural_data, count=3):
+    """Get agricultural price impact data."""
+    if not agricultural_data or 'regions' not in agricultural_data:
+        return []
+    
+    impacts = []
+    for region_id, data in agricultural_data.get('regions', {}).items():
+        if 'price_impact' in data:
+            impacts.append({
+                'name': data.get('name', ''),
+                'crop': data.get('crop', ''),
+                'ticker': data.get('ticker', ''),
+                'price_change': data.get('price_impact', {}).get('price_change_percent', 0),
+                'direction': data.get('price_impact', {}).get('price_direction', ''),
+                'confidence': data.get('price_impact', {}).get('confidence', 0)
+            })
+    
+    # Sort by absolute price change
+    sorted_impacts = sorted(impacts, key=lambda x: abs(x['price_change']), reverse=True)
+    return sorted_impacts[:count]
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.

@@ -62,7 +62,12 @@ WORKDIR /app
 RUN apk add --no-cache \
     postgresql-client \
     curl \
-    libstdc++
+    libstdc++ \
+    git \
+    jpeg-dev \
+    zlib-dev \
+    libjpeg \
+    libgomp
 
 # Copy from builder stage only what's needed
 COPY --from=builder /usr/local/lib/python3.10/site-packages/ /usr/local/lib/python3.10/site-packages/
@@ -71,6 +76,21 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 # Install critical Python packages directly in the final stage too
 # This ensures they're available even with mounted code
 RUN pip install python-dotenv flask flask-caching flask-wtf flask-limiter requests psycopg2-binary click urllib3
+
+# Install all necessary dependencies for alternative data sources
+RUN pip install --no-cache-dir \
+    pandas \
+    numpy \
+    beautifulsoup4==4.12.3 \
+    bs4==0.0.2 \
+    lxml==5.1.0 \
+    git+https://github.com/nltk/nltk.git \
+    praw==7.7.1 \
+    scikit-learn \
+    pillow \
+    requests \
+    && python -c "import nltk; nltk.download('vader_lexicon'); nltk.download('punkt'); nltk.download('stopwords'); nltk.download('wordnet')" \
+    && python -c "from bs4 import BeautifulSoup; import praw; import nltk; import PIL; print('All required packages installed successfully')"
 
 # Create log directory
 RUN mkdir -p /app/logs && chmod 777 /app/logs

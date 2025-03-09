@@ -74,12 +74,76 @@
                         <span class="badge rounded-pill me-3" id="debug-api-badge">API</span>
                         <small class="text-muted" id="debug-timestamp"></small>
                     </div>
-                    <button id="debug-reload-btn" class="btn btn-sm btn-outline-secondary py-0 px-2" 
-                            title="Reload dashboard data" aria-label="Reload dashboard data">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
+                    <div>
+                        <button id="debug-toggle-btn" class="btn btn-sm btn-outline-secondary py-0 px-2 me-1" 
+                                title="Toggle diagnostic panel" aria-label="Toggle diagnostic panel">
+                            <i class="fas fa-tools"></i>
+                        </button>
+                        <button id="debug-reload-btn" class="btn btn-sm btn-outline-secondary py-0 px-2" 
+                                title="Reload dashboard data" aria-label="Reload dashboard data">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
                 </div>
                 <div id="debug-error-message" class="small text-danger mt-1 d-none"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diagnostic Panel (hidden by default) -->
+    <div id="diagnostic-panel" class="row mb-3 d-none">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">AI Dashboard Diagnostics</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Troubleshooting Steps:</h6>
+                    <ol>
+                        <li>Check browser console for JavaScript errors (F12 or Right-click > Inspect > Console)</li>
+                        <li>Verify all scripts are loaded properly (check Network tab in browser dev tools)</li>
+                        <li>Clear browser cache and refresh the page</li>
+                        <li>Try accessing the dashboard from another browser</li>
+                    </ol>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Environment Information:</h6>
+                            <table class="table table-sm table-bordered">
+                                <tr>
+                                    <th>Browser:</th>
+                                    <td id="diag-browser">Detecting...</td>
+                                </tr>
+                                <tr>
+                                    <th>Scripts Loaded:</th>
+                                    <td id="diag-scripts">Checking...</td>
+                                </tr>
+                                <tr>
+                                    <th>API Connectivity:</th>
+                                    <td id="diag-api">Testing...</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>API Status:</h6>
+                            <div id="api-status-container">
+                                <div class="small mb-2">Testing API endpoints...</div>
+                                <div class="progress">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end mt-3">
+                        <button id="run-diagnostics-btn" class="btn btn-primary me-2">
+                            <i class="fas fa-stethoscope me-1"></i> Run Diagnostics
+                        </button>
+                        <button id="close-diagnostics-btn" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> Close
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -196,6 +260,278 @@
                 <div class="card-body">
                     <div id="economic-indicators-container">
                         <div class="loader"></div> Loading economic indicators...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add this new section after another major section like market indices or economic indicators -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">Alternative Data Insights</h3>
+            <button class="btn btn-sm btn-outline-primary refresh-btn" id="refresh-alt-data">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+        <div class="card-body">
+            <!-- Tabs for different alternative data sources -->
+            <ul class="nav nav-tabs mb-3" id="altDataTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="news-sentiment-tab" data-bs-toggle="tab" data-bs-target="#news-sentiment" type="button" role="tab" aria-controls="news-sentiment" aria-selected="true">News Sentiment</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="reddit-sentiment-tab" data-bs-toggle="tab" data-bs-target="#reddit-sentiment" type="button" role="tab" aria-controls="reddit-sentiment" aria-selected="false">Social Media</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="retail-satellite-tab" data-bs-toggle="tab" data-bs-target="#retail-satellite" type="button" role="tab" aria-controls="retail-satellite" aria-selected="false">Retail Traffic</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="agricultural-satellite-tab" data-bs-toggle="tab" data-bs-target="#agricultural-satellite" type="button" role="tab" aria-controls="agricultural-satellite" aria-selected="false">Agricultural</button>
+                </li>
+            </ul>
+            
+            <!-- Tab content -->
+            <div class="tab-content" id="altDataTabContent">
+                <!-- News Sentiment Tab -->
+                <div class="tab-pane fade show active" id="news-sentiment" role="tabpanel" aria-labelledby="news-sentiment-tab">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5>Financial News Sentiment</h5>
+                                <div class="text-muted small" id="news-sentiment-updated">Last updated: N/A</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Most Positive Sentiment</h6>
+                                    <div id="positive-sentiment-entities">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Most Negative Sentiment</h6>
+                                    <div id="negative-sentiment-entities">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Sentiment Distribution</h6>
+                                    <div id="sentiment-distribution-chart" style="height: 200px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Recent Headlines</h6>
+                                    <div id="recent-headlines">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Reddit Sentiment Tab -->
+                <div class="tab-pane fade" id="reddit-sentiment" role="tabpanel" aria-labelledby="reddit-sentiment-tab">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5>Social Media Sentiment</h5>
+                                <div class="text-muted small" id="reddit-sentiment-updated">Last updated: N/A</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Most Mentioned Entities</h6>
+                                    <div id="top-reddit-entities">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Subreddit Sentiment</h6>
+                                    <div id="subreddit-sentiment">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Sentiment Analysis</h6>
+                                    <div id="reddit-sentiment-chart" style="height: 200px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Top Posts</h6>
+                                    <div id="top-reddit-posts">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Retail Satellite Tab -->
+                <div class="tab-pane fade" id="retail-satellite" role="tabpanel" aria-labelledby="retail-satellite-tab">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5>Retail Traffic Analysis</h5>
+                                <div class="text-muted small" id="retail-satellite-updated">Last updated: N/A</div>
+                            </div>
+                            <div class="small text-muted mb-3">
+                                <i class="fas fa-info-circle"></i> Satellite imagery analysis of retail parking lots to estimate store traffic and predict sales.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">High Traffic Locations</h6>
+                                    <div id="high-traffic-locations">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">Stock Price Impact</h6>
+                                    <div id="retail-stock-impact">
+                                        <div class="placeholder-wave">
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                            <div class="placeholder col-12 mb-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Traffic Trend</h6>
+                                    <div id="retail-traffic-chart" style="height: 250px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Agricultural Satellite Tab -->
+                <div class="tab-pane fade" id="agricultural-satellite" role="tabpanel" aria-labelledby="agricultural-satellite-tab">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5>Agricultural Analysis</h5>
+                                <div class="text-muted small" id="agricultural-satellite-updated">Last updated: N/A</div>
+                            </div>
+                            <div class="small text-muted mb-3">
+                                <i class="fas fa-info-circle"></i> Satellite imagery analysis of agricultural regions to predict crop yields and commodity price movements.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-lg-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">Yield Changes</h6>
+                                <div id="agricultural-yield-changes">
+                                    <div class="placeholder-wave">
+                                        <div class="placeholder col-12 mb-2"></div>
+                                        <div class="placeholder col-12 mb-2"></div>
+                                        <div class="placeholder col-12 mb-2"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">Price Impact</h6>
+                                <div id="agricultural-price-impact">
+                                    <div class="placeholder-wave">
+                                        <div class="placeholder col-12 mb-2"></div>
+                                        <div class="placeholder col-12 mb-2"></div>
+                                        <div class="placeholder col-12 mb-2"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">Crop Yield Trend</h6>
+                                <div id="agricultural-yield-chart" style="height: 250px;"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -400,5 +736,155 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(checkCssLoaded, 500);
     loadAiInsightsData();
 });
+</script>
+
+<script>
+    // Set CSS badge to loaded on script execution
+    document.addEventListener('DOMContentLoaded', function() {
+        const cssBadge = document.getElementById('debug-css-badge');
+        if (cssBadge) {
+            cssBadge.className = 'badge rounded-pill me-2 loaded';
+        }
+        
+        // Add event listener for debug toggle button
+        const debugToggleBtn = document.getElementById('debug-toggle-btn');
+        const diagnosticPanel = document.getElementById('diagnostic-panel');
+        
+        if (debugToggleBtn && diagnosticPanel) {
+            debugToggleBtn.addEventListener('click', function() {
+                diagnosticPanel.classList.toggle('d-none');
+            });
+        }
+        
+        // Add event listener for debug reload button
+        const debugReloadBtn = document.getElementById('debug-reload-btn');
+        if (debugReloadBtn) {
+            debugReloadBtn.addEventListener('click', function() {
+                // Reload dashboard data
+                if (typeof loadDashboardData === 'function') {
+                    loadDashboardData();
+                } else {
+                    console.error('loadDashboardData function not found');
+                    alert('Error: Dashboard reload function not available');
+                }
+            });
+        }
+        
+        // Add event listener for closing diagnostic panel
+        const closeDiagnosticsBtn = document.getElementById('close-diagnostics-btn');
+        if (closeDiagnosticsBtn && diagnosticPanel) {
+            closeDiagnosticsBtn.addEventListener('click', function() {
+                diagnosticPanel.classList.add('d-none');
+            });
+        }
+        
+        // Add event listener for running diagnostics
+        const runDiagnosticsBtn = document.getElementById('run-diagnostics-btn');
+        if (runDiagnosticsBtn) {
+            runDiagnosticsBtn.addEventListener('click', function() {
+                runDiagnostics();
+            });
+        }
+        
+        // Fill browser detection
+        const diagBrowser = document.getElementById('diag-browser');
+        if (diagBrowser) {
+            diagBrowser.textContent = navigator.userAgent;
+        }
+    });
+    
+    // Function to run diagnostics
+    function runDiagnostics() {
+        console.log('Running AI dashboard diagnostics');
+        
+        // Check if scripts are loaded
+        const diagScripts = document.getElementById('diag-scripts');
+        if (diagScripts) {
+            if (typeof dashboardState !== 'undefined' && typeof AIDashboardDebug !== 'undefined') {
+                diagScripts.textContent = 'All scripts loaded successfully';
+                diagScripts.className = 'text-success';
+            } else {
+                diagScripts.textContent = 'Some scripts failed to load';
+                diagScripts.className = 'text-danger';
+            }
+        }
+        
+        // Test API connectivity
+        const diagApi = document.getElementById('diag-api');
+        const apiStatusContainer = document.getElementById('api-status-container');
+        
+        if (diagApi && apiStatusContainer) {
+            diagApi.textContent = 'Testing...';
+            
+            // Test endpoints
+            const endpoints = [
+                '/api/ai-status',
+                '/api/ai-insights',
+                '/api/alternative-data/news-sentiment'
+            ];
+            
+            let html = '<h6 class="mt-2">Endpoint Status:</h6><ul class="list-group">';
+            
+            // Sequential testing of endpoints
+            let successCount = 0;
+            let totalTests = endpoints.length;
+            
+            function testNextEndpoint(index) {
+                if (index >= endpoints.length) {
+                    // All tests completed
+                    if (successCount === totalTests) {
+                        diagApi.textContent = 'All endpoints accessible';
+                        diagApi.className = 'text-success';
+                    } else {
+                        diagApi.textContent = `${successCount}/${totalTests} endpoints accessible`;
+                        diagApi.className = 'text-warning';
+                    }
+                    return;
+                }
+                
+                const endpoint = endpoints[index];
+                html += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    ${endpoint}
+                    <span class="badge bg-secondary" id="endpoint-${index}">Testing...</span>
+                </li>`;
+                
+                apiStatusContainer.innerHTML = html + '</ul>';
+                
+                fetch(endpoint)
+                    .then(response => {
+                        const badge = document.getElementById(`endpoint-${index}`);
+                        if (response.ok) {
+                            if (badge) {
+                                badge.textContent = 'OK';
+                                badge.className = 'badge bg-success';
+                            }
+                            successCount++;
+                        } else {
+                            if (badge) {
+                                badge.textContent = `Error ${response.status}`;
+                                badge.className = 'badge bg-danger';
+                            }
+                        }
+                        
+                        // Test next endpoint
+                        testNextEndpoint(index + 1);
+                    })
+                    .catch(error => {
+                        const badge = document.getElementById(`endpoint-${index}`);
+                        if (badge) {
+                            badge.textContent = 'Failed';
+                            badge.className = 'badge bg-danger';
+                        }
+                        console.error(`Error testing ${endpoint}:`, error);
+                        
+                        // Test next endpoint
+                        testNextEndpoint(index + 1);
+                    });
+            }
+            
+            // Start testing endpoints
+            testNextEndpoint(0);
+        }
+    }
 </script>
 {% endblock %} 
