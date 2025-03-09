@@ -85,9 +85,11 @@ RUN chmod +x /usr/local/bin/ai_entrypoint.sh
 COPY ai_experiments/ /app/ai_experiments/
 COPY ai_server.py /app/
 
-# Create data and logs directories
-RUN mkdir -p /app/data /app/logs \
-    && chown -R aiuser:aiuser /app
+# Create data and logs directories in the same layer as the application code
+# to reduce the number of layers and make the export more efficient
+RUN mkdir -p /app/data /app/logs /app/ai_experiments/data /app/ai_experiments/models \
+    && chown -R aiuser:aiuser /app \
+    && chmod -R 755 /app/logs /app/data /app/ai_experiments/data /app/ai_experiments/models
 
 # Switch to non-root user
 USER aiuser
