@@ -41,7 +41,8 @@ COPY requirements.txt ./
 COPY build-helpers/ ./build-helpers/
 
 # Install critical packages first - these rarely change
-RUN pip install Flask flask-caching Flask-WTF gunicorn python-dotenv Flask-Limiter requests psycopg2-binary click urllib3 zipp
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install Flask flask-caching Flask-WTF gunicorn python-dotenv Flask-Limiter requests psycopg2-binary click urllib3 zipp torch torchvision torchaudio
 
 # Install remaining dependencies
 RUN chmod +x ./build-helpers/install-deps.sh && \
