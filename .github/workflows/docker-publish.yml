@@ -226,6 +226,13 @@ jobs:
           
           echo "--- Disk space after cleanup ---"
           df -h
+      
+      # Prepare directories for testing
+      - name: Prepare directories for CI testing
+        run: |
+          mkdir -p logs data
+          chmod -R 777 logs data
+          ls -la
           
       - name: Run Docker tests
         run: |
@@ -235,20 +242,35 @@ jobs:
           echo 'Simplified AI Server for CI Testing' >> ci_ai_server.py
           echo '"""' >> ci_ai_server.py
           echo 'import os' >> ci_ai_server.py
+          echo 'import sys' >> ci_ai_server.py
+          echo 'import logging' >> ci_ai_server.py
           echo 'from flask import Flask, jsonify' >> ci_ai_server.py
+          echo '' >> ci_ai_server.py
+          echo '# Set up logging for CI - only to stdout' >> ci_ai_server.py
+          echo 'logging.basicConfig(' >> ci_ai_server.py
+          echo '    level=logging.INFO,' >> ci_ai_server.py
+          echo '    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",' >> ci_ai_server.py
+          echo '    handlers=[logging.StreamHandler()]' >> ci_ai_server.py
+          echo ')' >> ci_ai_server.py
+          echo 'logger = logging.getLogger("ci_ai_server")' >> ci_ai_server.py
+          echo 'logger.info("Starting CI AI Server")' >> ci_ai_server.py
           echo '' >> ci_ai_server.py
           echo 'app = Flask(__name__)' >> ci_ai_server.py
           echo '' >> ci_ai_server.py
           echo '@app.route("/health")' >> ci_ai_server.py
           echo 'def health():' >> ci_ai_server.py
+          echo '    logger.info("Health check called")' >> ci_ai_server.py
           echo '    return jsonify({"status": "healthy", "environment": "CI"})' >> ci_ai_server.py
           echo '' >> ci_ai_server.py
           echo '@app.route("/api/ai-insights")' >> ci_ai_server.py
           echo 'def insights():' >> ci_ai_server.py
+          echo '    logger.info("AI insights endpoint called")' >> ci_ai_server.py
           echo '    return jsonify({"message": "CI test server", "insights": {"metrics": [], "recommendations": []}, "indices": []})' >> ci_ai_server.py
           echo '' >> ci_ai_server.py
           echo 'if __name__ == "__main__":' >> ci_ai_server.py
-          echo '    app.run(host="0.0.0.0", port=5002)' >> ci_ai_server.py
+          echo '    port = int(os.getenv("PORT", 5002))' >> ci_ai_server.py
+          echo '    logger.info(f"Starting server on port {port}")' >> ci_ai_server.py
+          echo '    app.run(host="0.0.0.0", port=port)' >> ci_ai_server.py
           chmod +x ci_ai_server.py
           cat ci_ai_server.py
           

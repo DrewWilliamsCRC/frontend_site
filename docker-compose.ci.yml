@@ -37,7 +37,7 @@ services:
       - ALPHA_VANTAGE_API_KEY=test-key
       - CI_BUILD=true
       - PYTHONUNBUFFERED=1  # Make sure Python output is unbuffered for logs
-    # Simplified volume setup for CI
+    # Mount only the CI server file, avoid mounting directories with permission issues
     volumes:
       - ./ci_ai_server.py:/app/ci_ai_server.py:ro
     ports:
@@ -45,8 +45,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Use our simplified CI server for testing
-    command: ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=5002"]
+    # Skip the default entrypoint to avoid permission issues
+    entrypoint: []
+    # Use our simplified CI server for testing with directory prep
+    command: ["bash", "-c", "mkdir -p /app/logs && chmod 777 /app/logs && python -m flask run --host=0.0.0.0 --port=5002"]
     networks:
       - app_network
 

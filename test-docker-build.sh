@@ -114,8 +114,17 @@ echo "Docker build completed, now starting services..."
 if [ "$IS_CI" = "true" ]; then
     # Test AI server in isolation first
     echo "Testing AI server in isolation for debugging..."
-    # Create minimal test container with debug command
-    docker run --name ai_debug -e CI_BUILD=true -e PYTHONUNBUFFERED=1 -v $(pwd)/logs:/app/logs -v $(pwd)/data:/app/data ai_server:test python -c "
+    
+    # Create and set permissions on log and data directories
+    mkdir -p logs data
+    chmod -R 777 logs data
+    
+    # Create minimal test container with debug command - skip entrypoint
+    docker run --name ai_debug -e CI_BUILD=true -e PYTHONUNBUFFERED=1 --entrypoint="" ai_server:test bash -c "
+mkdir -p /app/logs
+chmod 777 /app/logs
+echo 'Running debug tests...'
+python3 -c \"
 import os
 import sys
 print('Python version:', sys.version)
@@ -150,6 +159,7 @@ print('Environment variables:')
 for k, v in os.environ.items():
     if 'SECRET' not in k and 'PASSWORD' not in k and 'KEY' not in k:
         print(f'{k}={v}')
+\"
 "
     
     # Show output from debug container
@@ -167,7 +177,14 @@ fi
 # Function to check container status
 check_container_status() {
     local service=$1
-    local status=$(docker compose ps --format json $service | grep -o '"State":"[^"]*"' | cut -d'"' -f4)
+    local compose_file=$2
+    
+    if [ "$compose_file" != "" ]; then
+        local status=$(docker compose -f "$compose_file" ps --format json $service | grep -o '"State":"[^"]*"' | cut -d'"' -f4)
+    else
+        local status=$(docker compose ps --format json $service | grep -o '"State":"[^"]*"' | cut -d'"' -f4)
+    fi
+    
     echo $status
 }
 
@@ -175,21 +192,36 @@ check_container_status() {
 echo "Waiting for containers to be running..."
 timeout=60
 elapsed=0
+
+# Determine which compose file we're using
+COMPOSE_FILE=""
+if [ "$IS_CI" = "true" ]; then
+    COMPOSE_FILE="docker-compose.ci.yml"
+fi
+
 while [ $elapsed -lt $timeout ]; do
-    frontend_status=$(check_container_status frontend)
-    db_status=$(check_container_status db)
+    frontend_status=$(check_container_status frontend "$COMPOSE_FILE")
+    db_status=$(check_container_status db "$COMPOSE_FILE")
+    ai_status=$(check_container_status ai_server "$COMPOSE_FILE")
     
     echo "Frontend status: $frontend_status"
     echo "Database status: $db_status"
+    echo "AI Server status: $ai_status"
     
     if [ "$frontend_status" = "running" ] && [ "$db_status" = "running" ]; then
-        echo "All containers are running!"
+        echo "Critical containers are running!"
         break
     fi
     
+    # Check for error conditions
     if [ "$frontend_status" = "restarting" ]; then
         echo "Frontend container is restarting. Checking logs..."
         docker compose logs frontend
+    fi
+    
+    if [ "$ai_status" = "exited" ] || [ "$ai_status" = "dead" ]; then
+        echo "AI Server container has stopped. Checking logs..."
+        docker compose logs ai_server
     fi
     
     sleep 5

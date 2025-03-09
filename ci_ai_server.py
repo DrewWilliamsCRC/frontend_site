@@ -11,7 +11,7 @@ import sys
 import logging
 from flask import Flask, jsonify
 
-# Set up logging
+# Set up logging for CI - only to stdout
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,6 +20,7 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger('ci_ai_server')
+logger.info('Starting CI AI Server')
 
 # Create Flask app
 app = Flask(__name__)
@@ -27,6 +28,7 @@ app = Flask(__name__)
 @app.route('/health')
 def health():
     """Health check endpoint."""
+    logger.info('Health check called')
     return jsonify({
         "status": "healthy",
         "environment": "CI",
@@ -36,6 +38,7 @@ def health():
 @app.route('/api/ai-insights')
 def insights():
     """Dummy insights endpoint for CI testing."""
+    logger.info('AI insights endpoint called')
     return jsonify({
         "message": "This is a CI test server",
         "insights": {
@@ -52,10 +55,12 @@ def insights():
 @app.route('/api/market-indices')
 def indices():
     """Dummy market indices endpoint for CI testing."""
+    logger.info('Market indices endpoint called')
     return jsonify({
         "indices": []
     })
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5002))
+    logger.info(f'Starting server on port {port}')
     app.run(host='0.0.0.0', port=port, debug=True) 
