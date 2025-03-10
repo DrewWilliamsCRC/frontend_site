@@ -127,4 +127,4 @@ ALTER TABLE audit_log SET (
 -- Grant execute permission on functions
 GRANT EXECUTE ON FUNCTION cleanup_old_records() TO app_role;
 GRANT EXECUTE ON FUNCTION update_updated_at_column() TO app_role;
-GRANT EXECUTE ON FUNCTION audit_trigger_func() TO app_role;
+GRANT EXECUTE ON FUNCTION audit_trigger_func() TO app_role; 

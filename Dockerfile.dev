@@ -35,7 +35,7 @@ RUN pip install --upgrade pip setuptools wheel && \
     pip install Flask flask-caching Flask-WTF gunicorn python-dotenv Flask-Limiter requests psycopg2-binary click urllib3 zipp
 
 # Copy requirements and installation scripts
-COPY requirements.txt requirements-dev.txt ./
+COPY requirements-frontend.txt requirements-frontend.txt
 COPY build-helpers/ ./build-helpers/
 
 # Install dependencies
