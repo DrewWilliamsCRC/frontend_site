@@ -16,12 +16,16 @@ WORKDIR /build
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
     gcc \
+    g++ \
+    make \
+    libpq-dev \
     python3-dev \
-    wget \
+    postgresql-client \
     curl \
+    procps \
+    vim \
+    wget \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -49,7 +53,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Copy AI requirements but filter ML frameworks if in CI
 COPY ai_experiments/requirements.txt ./ai_requirements.txt
 RUN if [ "$SKIP_ML_FRAMEWORKS" = "true" ]; then \
-        # If in CI build, filter out tensorflow and torch to save space
         grep -v "tensorflow\|torch\|prophet\|gymnasium" ./ai_requirements.txt > ./ai_requirements_filtered.txt && \
         mv ./ai_requirements_filtered.txt ./ai_requirements.txt && \
         echo "CI Build: Skipping large ML frameworks to save disk space"; \
@@ -63,20 +66,15 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # Install mock packages for tensorflow and pytorch when in CI mode
 RUN if [ "$SKIP_ML_FRAMEWORKS" = "true" ]; then \
-        # Create a more comprehensive mock for TensorFlow
         mkdir -p /build/tensorflow_mock/tensorflow && \
         echo "class MockTensorFlow: pass" > /build/tensorflow_mock/tensorflow/__init__.py && \
-        # Create keras submodule
         mkdir -p /build/tensorflow_mock/tensorflow/keras && \
         echo "class Sequential: pass\ndef Model(*args, **kwargs): pass" > /build/tensorflow_mock/tensorflow/keras/__init__.py && \
         echo "def Dense(*args, **kwargs): pass\ndef LSTM(*args, **kwargs): pass" > /build/tensorflow_mock/tensorflow/keras/layers.py && \
-        # Create core submodule
         mkdir -p /build/tensorflow_mock/tensorflow/core && \
         echo "# Mock implementation" > /build/tensorflow_mock/tensorflow/core/__init__.py && \
-        # Create setup.py
         echo "from setuptools import setup, find_packages; setup(name='tensorflow', version='2.15.0', packages=find_packages())" > /build/tensorflow_mock/setup.py && \
         pip install -e /build/tensorflow_mock && \
-        # Create a more comprehensive mock for PyTorch
         mkdir -p /build/torch_mock/torch && \
         echo "def cuda(*args, **kwargs): return False\ndef tensor(*args, **kwargs): return []" > /build/torch_mock/torch/__init__.py && \
         mkdir -p /build/torch_mock/torch/nn && \
@@ -86,62 +84,55 @@ RUN if [ "$SKIP_ML_FRAMEWORKS" = "true" ]; then \
         echo "Installed enhanced mock packages for CI build"; \
     fi
 
-# Add a health check script for CI builds
-RUN echo '#!/bin/bash\n\
-# Simple health check script for AI server\n\
-if curl -s http://localhost:5002/health > /dev/null; then\n\
-    exit 0\n\
-else\n\
-    exit 1\n\
-fi' > /usr/local/bin/healthcheck.sh && \
+# Create health check script
+RUN echo '#!/bin/sh\n\
+echo "Checking AI server health..."\n\
+curl -fs http://localhost:5002/health >/dev/null || {\n\
+  echo "Health check failed"\n\
+  exit 1\n\
+}\n\
+echo "Health check passed"\n\
+' > /usr/local/bin/healthcheck.sh && \
     chmod +x /usr/local/bin/healthcheck.sh
 
-# Final stage
+# Final stage - runtime
 FROM python:3.11-slim
 
-# Set runtime environment variables
+# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    FLASK_ENV=production \
     PATH="/usr/local/bin:$PATH"
 
-# Create and set working directory
-WORKDIR /app
+# Create non-root user
+RUN useradd -m -u 1000 aiuser && \
+    mkdir -p /app && \
+    chown -R aiuser:aiuser /app
 
-# Install only runtime dependencies
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y \
-    libpq-dev \
+    libpq5 \
+    postgresql-client \
+    netcat-traditional \
     curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy from builder stage only what's needed
-COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
-COPY --from=builder /usr/local/bin/ /usr/local/bin/
+# Copy application code and dependencies
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --chown=aiuser:aiuser . /app
 
-# Create non-root user
-RUN useradd -m aiuser
-
-# Copy entrypoint script
-COPY ai_entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/ai_entrypoint.sh
-
-# Copy AI application code
-COPY ai_experiments/ /app/ai_experiments/
-COPY ai_server.py /app/
-
-# Create data and logs directories in the same layer as the application code
-# to reduce the number of layers and make the export more efficient
-RUN mkdir -p /app/data /app/logs /app/ai_experiments/data /app/ai_experiments/models \
-    && chown -R aiuser:aiuser /app \
-    && chmod -R 755 /app/logs /app/data /app/ai_experiments/data /app/ai_experiments/models
+# Set working directory
+WORKDIR /app
 
 # Switch to non-root user
 USER aiuser
 
-# Expose port for the AI API
-EXPOSE 5002
+# Copy entrypoint script and health check
+COPY --chown=aiuser:aiuser ai_entrypoint.sh /usr/local/bin/
+COPY --from=builder --chown=aiuser:aiuser /usr/local/bin/healthcheck.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/ai_entrypoint.sh /usr/local/bin/healthcheck.sh
 
-# Set entrypoint and default command
-ENTRYPOINT ["ai_entrypoint.sh"]
-CMD ["gunicorn", "--bind", "0.0.0.0:5002", "--workers", "2", "ai_server:app"] 
+# Set entrypoint
+ENTRYPOINT ["/usr/local/bin/ai_entrypoint.sh"]
+CMD ["python3", "-m", "flask", "run", "--host=0.0.0.0", "--port=5002"] 
