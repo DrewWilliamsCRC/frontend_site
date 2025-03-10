@@ -49,8 +49,11 @@ if not TENSORFLOW_AVAILABLE:
 # Load environment variables
 load_dotenv()
 ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
-os.makedirs(DATA_DIR, exist_ok=True)
+
+# Use pre-existing data directory
+DATA_DIR = "/app/ai_experiments/data"
+if not os.path.exists(DATA_DIR):
+    logger.warning(f"Data directory {DATA_DIR} does not exist, data storage will be disabled")
 
 # Check if we're in CI mode
 CI_MODE = os.getenv("CI_BUILD", "false").lower() == "true"
@@ -572,10 +575,22 @@ class DataManager:
     """Class to manage data fetching, processing, and storage."""
     
     def __init__(self):
-        """Initialize data manager."""
+        """Initialize the data manager."""
         self.api = AlphaVantageAPI()
         self.processor = DataProcessor()
-    
+        
+        # Check if data directories exist
+        self.data_dir = DATA_DIR
+        self.sector_dir = os.path.join(self.data_dir, "sectors")
+        self.ml_dir = os.path.join(self.data_dir, "ml_ready")
+        
+        if not os.path.exists(self.data_dir):
+            logger.warning(f"Data directory {self.data_dir} does not exist, data storage will be disabled")
+        if not os.path.exists(self.sector_dir):
+            logger.warning(f"Sector directory {self.sector_dir} does not exist, sector data storage will be disabled")
+        if not os.path.exists(self.ml_dir):
+            logger.warning(f"ML directory {self.ml_dir} does not exist, ML data storage will be disabled")
+
     def fetch_and_store_index_data(self, refresh=False):
         """Fetch and store market index data.
         
@@ -588,7 +603,7 @@ class DataManager:
         result = {}
         
         for name, symbol in MARKET_INDICES.items():
-            output_path = os.path.join(DATA_DIR, f"{name}_daily.csv")
+            output_path = os.path.join(self.data_dir, f"{name}_daily.csv")
             
             # Check if we already have recent data
             if not refresh and os.path.exists(output_path):
@@ -623,8 +638,10 @@ class DataManager:
         result = {}
         
         for sector, symbols in SAMPLE_STOCKS.items():
-            sector_dir = os.path.join(DATA_DIR, sector)
-            os.makedirs(sector_dir, exist_ok=True)
+            sector_dir = os.path.join(self.data_dir, sector)
+            if not os.path.exists(sector_dir):
+                logger.warning(f"Sector directory {sector_dir} does not exist, skipping data storage")
+                continue
             
             sector_data = {}
             for symbol in symbols:
@@ -635,8 +652,11 @@ class DataManager:
                     file_age = time.time() - os.path.getmtime(output_path)
                     if file_age < 86400:  # Less than 1 day old
                         logger.info(f"Loading existing data for {symbol} from {output_path}")
-                        df = pd.read_csv(output_path, index_col=0, parse_dates=True)
-                        sector_data[symbol] = df
+                        try:
+                            df = pd.read_csv(output_path, index_col=0, parse_dates=True)
+                            sector_data[symbol] = df
+                        except Exception as e:
+                            logger.warning(f"Error loading data for {symbol}: {e}")
                         continue
                 
                 # Fetch new data
@@ -644,10 +664,14 @@ class DataManager:
                 df = self.api.get_daily_time_series(symbol)
                 
                 if df is not None:
-                    # Save to CSV
-                    df.to_csv(output_path)
-                    logger.info(f"Saved {symbol} data to {output_path}")
-                    sector_data[symbol] = df
+                    try:
+                        # Save to CSV
+                        df.to_csv(output_path)
+                        logger.info(f"Saved {symbol} data to {output_path}")
+                        sector_data[symbol] = df
+                    except Exception as e:
+                        logger.warning(f"Could not save data for {symbol}: {e}")
+                        sector_data[symbol] = df  # Still return the data even if we couldn't save it
             
             result[sector] = sector_data
         
@@ -657,47 +681,49 @@ class DataManager:
         """Process data for machine learning and optionally save to files.
         
         Args:
-            data_dict (dict): Dictionary of dataframes
+            data_dict (dict): Dictionary of DataFrames to process
             output_dir (str, optional): Directory to save processed data
             
         Returns:
-            dict: Dictionary of processed data
+            dict: Dictionary of processed data for each index
         """
         result = {}
         
         for name, df in data_dict.items():
-            logger.info(f"Processing {name} data for ML...")
+            logger.info(f"Processing {name} for ML")
             
-            # Add technical indicators
-            enhanced_df = self.processor.add_technical_indicators(df)
-            
-            # Prepare for ML
-            ml_data = self.processor.prepare_for_ml(enhanced_df)
+            # Process data
+            ml_data = self.processor.prepare_for_ml(df)
             result[name] = ml_data
             
-            # Save to files if output_dir is provided
-            if output_dir:
+            # Save data if output directory is specified and exists
+            if output_dir and os.path.exists(output_dir):
                 name_dir = os.path.join(output_dir, name)
-                os.makedirs(name_dir, exist_ok=True)
+                if not os.path.exists(name_dir):
+                    logger.warning(f"Directory {name_dir} does not exist, skipping data save")
+                    continue
                 
-                # Save X and y data
-                ml_data['X_train'].to_csv(os.path.join(name_dir, 'X_train.csv'))
-                ml_data['X_test'].to_csv(os.path.join(name_dir, 'X_test.csv'))
-                ml_data['y_reg_train'].to_csv(os.path.join(name_dir, 'y_reg_train.csv'))
-                ml_data['y_reg_test'].to_csv(os.path.join(name_dir, 'y_reg_test.csv'))
-                ml_data['y_clf_train'].to_csv(os.path.join(name_dir, 'y_clf_train.csv'))
-                ml_data['y_clf_test'].to_csv(os.path.join(name_dir, 'y_clf_test.csv'))
-                
-                # Save metadata
-                with open(os.path.join(name_dir, 'metadata.json'), 'w') as f:
-                    metadata = {
-                        'feature_columns': ml_data['feature_columns'],
-                        'train_dates': [str(d) for d in ml_data['train_dates']],
-                        'test_dates': [str(d) for d in ml_data['test_dates']]
-                    }
-                    json.dump(metadata, f, indent=4)
-                
-                logger.info(f"Saved ML data for {name} to {name_dir}")
+                try:
+                    # Save X and y data
+                    ml_data['X_train'].to_csv(os.path.join(name_dir, 'X_train.csv'))
+                    ml_data['X_test'].to_csv(os.path.join(name_dir, 'X_test.csv'))
+                    ml_data['y_reg_train'].to_csv(os.path.join(name_dir, 'y_reg_train.csv'))
+                    ml_data['y_reg_test'].to_csv(os.path.join(name_dir, 'y_reg_test.csv'))
+                    ml_data['y_clf_train'].to_csv(os.path.join(name_dir, 'y_clf_train.csv'))
+                    ml_data['y_clf_test'].to_csv(os.path.join(name_dir, 'y_clf_test.csv'))
+                    
+                    # Save metadata
+                    with open(os.path.join(name_dir, 'metadata.json'), 'w') as f:
+                        metadata = {
+                            'feature_columns': ml_data['feature_columns'],
+                            'train_dates': [str(d) for d in ml_data['train_dates']],
+                            'test_dates': [str(d) for d in ml_data['test_dates']]
+                        }
+                        json.dump(metadata, f, indent=4)
+                    
+                    logger.info(f"Saved ML data for {name} to {name_dir}")
+                except Exception as e:
+                    logger.error(f"Error saving ML data for {name}: {e}")
         
         return result
 
@@ -708,17 +734,13 @@ def main():
     
     manager = DataManager()
     
-    # Create directories
-    ml_dir = os.path.join(DATA_DIR, 'ml_ready')
-    os.makedirs(ml_dir, exist_ok=True)
-    
     # Fetch and process index data
     logger.info("Fetching market indices data...")
     indices_data = manager.fetch_and_store_index_data()
     
     if indices_data:
         logger.info("Processing market indices data for ML...")
-        indices_ml_data = manager.process_data_for_ml(indices_data, os.path.join(ml_dir, 'indices'))
+        indices_ml_data = manager.process_data_for_ml(indices_data, os.path.join(manager.ml_dir, 'indices'))
     
     # Fetch and process stock data (sampling for demonstration)
     logger.info("Fetching sample stocks data...")
@@ -727,7 +749,7 @@ def main():
     for sector, sector_data in stock_data.items():
         if sector_data:
             logger.info(f"Processing {sector} stocks data for ML...")
-            sector_ml_data = manager.process_data_for_ml(sector_data, os.path.join(ml_dir, 'stocks', sector))
+            sector_ml_data = manager.process_data_for_ml(sector_data, os.path.join(manager.ml_dir, 'stocks', sector))
     
     logger.info("Alpha Vantage data pipeline completed")
 
