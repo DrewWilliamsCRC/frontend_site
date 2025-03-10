@@ -29,6 +29,6 @@ done
 
 # Start the Flask application
 echo "Starting Flask application..."
-cd /build
-export PYTHONPATH=/build:$PYTHONPATH
+cd /app
+export PYTHONPATH=/app:$PYTHONPATH
 exec "$@" 

@@ -85,10 +85,7 @@ services:
       - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
       - AI_SERVER_URL=http://ai_server:5002
     volumes:
-      - .:/build
-      - /build/.venv
-      - /build/__pycache__
-      - ./logs:/build/logs
+      - ./logs:/app/logs
     ports:
       - "${PORT}:${PORT}"
     depends_on:
