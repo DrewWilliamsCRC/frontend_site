@@ -82,9 +82,21 @@ if __name__ == "__main__":\n\
 # Copy application code
 COPY --chown=appuser:appuser . /app
 
+# Ensure app.py exists and has correct permissions
+RUN if [ ! -f /app/app.py ]; then \
+        cp /app/app.py.ci /app/app.py && \
+        chown appuser:appuser /app/app.py && \
+        chmod 644 /app/app.py; \
+    fi
+
 # Create health check script
 RUN echo '#!/bin/sh\n\
-curl -fs http://localhost:5001/health >/dev/null || exit 1\n\
+echo "Checking frontend health..."\n\
+curl -fs http://localhost:5001/health >/dev/null || {\n\
+  echo "Health check failed"\n\
+  exit 1\n\
+}\n\
+echo "Health check passed"\n\
 ' > /usr/local/bin/healthcheck.sh && \
     chmod +x /usr/local/bin/healthcheck.sh
 

@@ -102,13 +102,15 @@ services:
     # In CI mode, use a simplified command to avoid issues with complex app.py
     command: >
       bash -c '
-        if [ "$CI_MODE" = "true" ] && [ -f /app/app.py.ci ]; then
+        if [ "${CI_MODE}" = "true" ] && [ -f /app/app.py.ci ]; then
           cp -f /app/app.py.ci /app/app.py;
           echo "Using simplified app.py for CI testing";
         fi &&
-        exec gunicorn --bind 0.0.0.0:5001 --workers 1 --log-level debug
-          --error-logfile /app/logs/gunicorn-error.log
-          --access-logfile /app/logs/gunicorn-access.log
+        exec gunicorn --bind 0.0.0.0:5001 \
+          --workers 1 \
+          --log-level debug \
+          --error-logfile /app/logs/gunicorn-error.log \
+          --access-logfile /app/logs/gunicorn-access.log \
           app:app
       '
     healthcheck:
@@ -116,7 +118,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 30s
     networks:
       - app_network
 
