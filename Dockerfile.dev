@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.10-alpine
+ARG PYTHON_VERSION=3.10-slim
 
 # Build stage
 FROM python:${PYTHON_VERSION} as builder
@@ -12,23 +12,23 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /build
 
 # Install build dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     make \
-    postgresql-dev \
-    musl-dev \
-    linux-headers \
-    build-base \
+    libpq-dev \
     python3-dev \
-    openblas-dev \
-    lapack-dev \
-    freetype-dev \
+    build-essential \
+    libopenblas-dev \
+    liblapack-dev \
+    libfreetype6-dev \
     libpng-dev \
-    libjpeg-turbo-dev \
-    pkgconfig \
+    libjpeg-dev \
+    pkg-config \
     gfortran \
-    cmake
+    cmake \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install critical packages first
 RUN pip install --upgrade pip setuptools wheel && \
@@ -59,10 +59,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Install only runtime dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     postgresql-client \
     curl \
-    libstdc++
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy from builder stage only what's needed
 COPY --from=builder /usr/local/lib/python3.10/site-packages/ /usr/local/lib/python3.10/site-packages/

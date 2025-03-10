@@ -1,6 +1,7 @@
 services:
   db:
-    image: postgres:16-alpine
+    # Using Debian-based image for better compatibility with PostgreSQL client tools
+    image: postgres:16
     platform: linux/amd64
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
