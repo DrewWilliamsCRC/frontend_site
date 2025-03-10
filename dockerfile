@@ -17,6 +17,8 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     postgresql-client \
     curl \
+    procps \
+    vim \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -48,19 +50,41 @@ numpy>=1.24.0" > /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Create non-root user
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+RUN useradd -m -u 1000 appuser
+
+# Create necessary directories and fix permissions
+RUN mkdir -p /app/logs /app/static /app/templates && \
+    chown -R appuser:appuser /app && \
+    chmod -R 755 /app
+
+# Copy frontend_entrypoint.sh first and make it executable
+COPY frontend_entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/frontend_entrypoint.sh
+
+# Create a simplified app.py for CI testing if needed
+RUN echo 'from flask import Flask, jsonify\n\
+app = Flask(__name__)\n\
+\n\
+@app.route("/health")\n\
+def health():\n\
+    return jsonify({"status": "ok"})\n\
+\n\
+if __name__ == "__main__":\n\
+    app.run(host="0.0.0.0", port=5001)\n\
+' > /app/app.py.ci
 
 # Copy application code
 COPY --chown=appuser:appuser . /app
 
-# Make entrypoint script executable first
-COPY frontend_entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/frontend_entrypoint.sh
+# Create health check script
+RUN echo '#!/bin/sh\n\
+curl -fs http://localhost:5001/health >/dev/null || exit 1\n\
+' > /usr/local/bin/healthcheck.sh && \
+    chmod +x /usr/local/bin/healthcheck.sh
 
 # Switch to non-root user
 USER appuser
 
 # Set entrypoint
 ENTRYPOINT ["/usr/local/bin/frontend_entrypoint.sh"]
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "4", "app:app"] 
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--log-level", "debug", "--error-logfile", "/app/logs/gunicorn-error.log", "--access-logfile", "/app/logs/gunicorn-access.log", "app:app"] 

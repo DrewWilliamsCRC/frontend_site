@@ -27,8 +27,36 @@ for i in $(seq 1 15); do
     sleep 2
 done
 
-# Start the Flask application
+# Debug info about the environment
 echo "Starting Flask application..."
+echo "Current directory: $(pwd)"
+echo "Directory contents: $(ls -la)"
+echo "Python path: $PYTHONPATH"
+echo "Python version: $(python --version)"
+
+# Verify app.py exists
+if [ ! -f "app.py" ]; then
+    echo "ERROR: app.py not found in $(pwd)"
+    echo "Contents of directory:"
+    ls -la
+    exit 1
+fi
+
+# Check for required Python modules
+echo "Checking for Flask..."
+python -c "import flask; print(f'Flask version: {flask.__version__}')" || echo "WARNING: Flask import failed"
+
+# Change to app directory
 cd /app
 export PYTHONPATH=/app:$PYTHONPATH
-exec "$@" 
+
+# Run the command with error handling
+echo "Executing: $@"
+exec "$@" || {
+    echo "ERROR: Command failed with status $?"
+    echo "Last 20 lines of log (if available):"
+    if [ -f "/app/logs/gunicorn.log" ]; then
+        tail -20 /app/logs/gunicorn.log
+    fi
+    exit 1
+} 
