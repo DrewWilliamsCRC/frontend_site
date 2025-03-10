@@ -75,7 +75,9 @@ def index():\n\
 \n\
 if __name__ == "__main__":\n\
     app.run(host="0.0.0.0", port=5001)\n\
-' > /app/app.py.ci
+' > /app/app.py.ci && \
+    chown appuser:appuser /app/app.py.ci && \
+    chmod 644 /app/app.py.ci
 
 # Copy application code
 COPY --chown=appuser:appuser . /app
