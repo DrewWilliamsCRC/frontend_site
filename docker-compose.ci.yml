@@ -29,6 +29,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.ai
+      args:
+        - TARGETPLATFORM=linux/amd64
+        - BUILDPLATFORM=linux/amd64
+        - CI_BUILD=true
+    platform: linux/amd64
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -53,7 +58,7 @@ services:
       db:
         condition: service_healthy
     # Use the entrypoint script for consistent startup behavior
-    entrypoint: ["/app/ai_entrypoint.sh"]
+    entrypoint: ["/usr/local/bin/ai_entrypoint.sh"]
     networks:
       - app_network
 
@@ -61,6 +66,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        - TARGETPLATFORM=linux/amd64
+        - BUILDPLATFORM=linux/amd64
+        - PYTHON_VERSION=3.10-slim
+    platform: linux/amd64
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -87,7 +97,7 @@ services:
       ai_server:
         condition: service_started
     # Use the entrypoint script for consistent startup behavior
-    entrypoint: ["/build/frontend_entrypoint.sh"]
+    entrypoint: ["/usr/local/bin/frontend_entrypoint.sh"]
     networks:
       - app_network
 

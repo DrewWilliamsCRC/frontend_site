@@ -90,7 +90,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: dockerfile
+      dockerfile: Dockerfile.frontend
       args:
         - TARGETPLATFORM=linux/amd64
         - BUILDPLATFORM=linux/amd64
