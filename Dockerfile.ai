@@ -86,7 +86,12 @@ RUN if [ "$SKIP_ML_FRAMEWORKS" = "true" ]; then \
 
 # Create health check script
 RUN echo '#!/bin/sh\n\
-curl -fs http://localhost:5002/health >/dev/null || exit 1\n\
+echo "Checking AI server health..."\n\
+curl -fs http://localhost:5002/health >/dev/null || {\n\
+  echo "Health check failed"\n\
+  exit 1\n\
+}\n\
+echo "Health check passed"\n\
 ' > /usr/local/bin/healthcheck.sh && \
     chmod +x /usr/local/bin/healthcheck.sh
 
