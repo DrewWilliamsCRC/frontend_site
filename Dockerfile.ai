@@ -108,6 +108,7 @@ RUN apt-get update && apt-get install -y \
     libpq5 \
     postgresql-client \
     netcat-traditional \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -122,9 +123,10 @@ WORKDIR /app
 # Switch to non-root user
 USER aiuser
 
-# Copy entrypoint script
+# Copy entrypoint script and health check
 COPY --chown=aiuser:aiuser ai_entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/ai_entrypoint.sh
+COPY --from=builder --chown=aiuser:aiuser /usr/local/bin/healthcheck.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/ai_entrypoint.sh /usr/local/bin/healthcheck.sh
 
 # Set entrypoint
 ENTRYPOINT ["/usr/local/bin/ai_entrypoint.sh"]

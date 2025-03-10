@@ -36,20 +36,20 @@ services:
         - CI_BUILD=true
     platform: linux/amd64
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      - SECRET_KEY=${SECRET_KEY}
-      - OWM_API_KEY=${OWM_API_KEY}
-      - FLASK_ENV=testing
-      - FLASK_APP=ai_server.py
-      - FLASK_DEBUG=1
-      - PORT=5002
-      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
-      - CI_BUILD=true
-      - CI_MODE=true
-      - PYTHONUNBUFFERED=1
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      SECRET_KEY: ${SECRET_KEY}
+      OWM_API_KEY: ${OWM_API_KEY}
+      FLASK_ENV: testing
+      FLASK_APP: ai_server.py
+      FLASK_DEBUG: 1
+      PORT: 5002
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY}
+      CI_BUILD: true
+      CI_MODE: true
+      PYTHONUNBUFFERED: 1
     volumes:
       - .:/app
       - ./logs:/app/logs
@@ -74,20 +74,20 @@ services:
         - PYTHON_VERSION=3.10-slim
     platform: linux/amd64
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      - SECRET_KEY=${SECRET_KEY}
-      - OWM_API_KEY=${OWM_API_KEY}
-      - FLASK_ENV=testing
-      - FLASK_APP=app.py
-      - FLASK_DEBUG=1
-      - PORT=${PORT}
-      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
-      - AI_SERVER_URL=http://ai_server:5002
-      - CI_MODE=true
-      - PYTHONUNBUFFERED=1
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      SECRET_KEY: ${SECRET_KEY}
+      OWM_API_KEY: ${OWM_API_KEY}
+      FLASK_ENV: testing
+      FLASK_APP: app.py
+      FLASK_DEBUG: 1
+      PORT: ${PORT}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY}
+      AI_SERVER_URL: http://ai_server:5002
+      CI_MODE: true
+      PYTHONUNBUFFERED: 1
     volumes:
       - ./logs:/app/logs
     ports:
