@@ -11,6 +11,7 @@ services:
       POSTGRES_PASSWORD_ENCRYPTION: scram-sha-256
       POSTGRES_INITDB_WALDIR: /var/lib/postgresql/wal
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --wal-segsize=64
+      CI_MODE: "true"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./ci-init-scripts:/docker-entrypoint-initdb.d:ro
@@ -122,4 +123,8 @@ volumes:
 
 networks:
   app_network:
-    driver: bridge 
+    driver: bridge
+
+# Add environment variables that should be set for all services
+x-environment: &default-environment
+  CI_MODE: "true" 

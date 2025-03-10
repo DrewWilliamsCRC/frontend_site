@@ -16,12 +16,16 @@ WORKDIR /build
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpq-dev \
     gcc \
+    g++ \
+    make \
+    libpq-dev \
     python3-dev \
-    wget \
+    postgresql-client \
     curl \
+    procps \
+    vim \
+    wget \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -80,9 +84,10 @@ RUN if [ "$SKIP_ML_FRAMEWORKS" = "true" ]; then \
         echo "Installed enhanced mock packages for CI build"; \
     fi
 
-# Add a health check script for CI builds
-RUN echo '#!/bin/bash\n\
-curl -s http://localhost:5002/health > /dev/null || exit 1' > /usr/local/bin/healthcheck.sh && \
+# Create health check script
+RUN echo '#!/bin/sh\n\
+curl -fs http://localhost:5002/health >/dev/null || exit 1\n\
+' > /usr/local/bin/healthcheck.sh && \
     chmod +x /usr/local/bin/healthcheck.sh
 
 # Final stage - runtime
