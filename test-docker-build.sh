@@ -65,8 +65,37 @@ if [ -d "data" ]; then
     rm -rf data/*
 fi
 
-# Build and start the services
-echo "Building and starting services..."
+# Create test files
+echo "Creating test files..."
+
+# Create test file for frontend
+mkdir -p data
+mkdir -p logs
+mkdir -p templates
+
+# Make sure we have requirements-frontend.txt
+if [ ! -f requirements-frontend.txt ]; then
+    echo "Creating requirements-frontend.txt"
+    cat > requirements-frontend.txt << EOF
+Flask
+Werkzeug==3.1.3
+requests==2.32.2
+flask-caching
+Flask-WTF
+Flask-Limiter
+python-dotenv~=0.19.0
+psycopg2-binary
+gunicorn
+click
+zipp==3.21.0
+urllib3==2.2.2
+pandas>=2.0.0
+numpy>=1.24.0
+EOF
+fi
+
+# Build test frontend docker image directly
+echo "Building frontend image..."
 export PYTHON_VERSION=3.10-alpine
 # We'll use an explicit command instead of docker compose to have more control
 docker build -t frontend:test -f dockerfile --build-arg TARGETPLATFORM=linux/amd64 --build-arg BUILDPLATFORM=linux/amd64 .

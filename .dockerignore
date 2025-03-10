@@ -28,7 +28,6 @@ ENV/
 
 # Logs and databases
 *.log
-data/
 logs/
 
 # Testing
@@ -39,7 +38,6 @@ htmlcov/
 
 # Documentation
 docs/
-*.md
 LICENSE
 
 # Node.js
@@ -58,6 +56,8 @@ yarn-error.log
 .dockerignore
 docker-compose.*.yml
 Dockerfile.*
+!requirements-frontend.txt
+!build-helpers/
 
 # BFG (Git history cleaner)
 *.jar
