@@ -141,7 +141,7 @@ The application now includes a comprehensive AI Financial Dashboard with the fol
 ├── ai_experiments/        # AI functionality and analysis modules
 ├── src/                   # Core application modules
 ├── Dockerfile             # Production-ready Docker configuration
-├── docker-compose.yml     # Production Docker Compose configuration
+├── docker-compose.prod.yml     # Production Docker Compose configuration
 ├── docker-compose.dev.yml # Development Docker Compose configuration
 └── dev.sh                 # Development environment management script
 ```

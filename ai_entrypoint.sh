@@ -18,4 +18,6 @@ done
 
 # Start the Flask application with gunicorn
 echo "Starting Flask application with gunicorn..."
+cd /app
+export PYTHONPATH=/app:$PYTHONPATH
 exec gunicorn --bind 0.0.0.0:5002 --workers 2 --timeout 120 --graceful-timeout 60 ai_server:app

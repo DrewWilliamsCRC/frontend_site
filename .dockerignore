@@ -56,9 +56,11 @@ yarn-error.log
 
 # Docker
 .dockerignore
-docker-compose.yml
-docker-compose.dev.yml
+docker-compose.*.yml
 Dockerfile.*
+docker-entrypoint.sh
+ai_entrypoint.sh
+frontend_entrypoint.sh
 
 # BFG (Git history cleaner)
 *.jar

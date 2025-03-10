@@ -13,7 +13,7 @@ chmod 700 "${SOCKET_DIR}"
 
 # Essential files and directories to sync
 ESSENTIAL_FILES=(
-    "docker-compose.yml"
+    "docker-compose.prod.yml"
     "Dockerfile.ai"
     "dockerfile"
     ".env"
@@ -66,7 +66,7 @@ validate_critical_files() {
     local missing_files=()
     local critical_files=(
         "Dockerfile.ai"
-        "docker-compose.yml"
+        "docker-compose.prod.yml"
         "ai_entrypoint.sh"
         "ai_server.py"
         "build-helpers/ai-critical-requirements.txt"

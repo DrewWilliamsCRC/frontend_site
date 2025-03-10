@@ -58,10 +58,10 @@ case "$1" in
     "up")
         if prompt_ai_server_rebuild; then
             echo -e "${GREEN}Starting all services with AI server rebuild...${NC}"
-            docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+            docker-compose -f docker-compose.prod.yml -f docker-compose.dev.yml up --build
         else
             echo -e "${GREEN}Starting services without rebuilding AI server...${NC}"
-            docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --no-build ai_server --build frontend db
+            docker-compose -f docker-compose.prod.yml -f docker-compose.dev.yml up --no-build ai_server --build frontend db
         fi
         ;;
     "down")
@@ -76,7 +76,7 @@ case "$1" in
         ;;
     "restart-ui")
         echo -e "${GREEN}Restarting only frontend service...${NC}"
-        docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build frontend
+        docker-compose -f docker-compose.prod.yml -f docker-compose.dev.yml up --build frontend
         ;;
     *)
         echo "Usage: $0 {up|down|restart-ui}"

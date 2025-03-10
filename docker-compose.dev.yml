@@ -30,7 +30,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.ai
-      target: builder
       args:
         - TARGETPLATFORM=linux/amd64
         - BUILDPLATFORM=linux/amd64
@@ -57,7 +56,7 @@ services:
       db:
         condition: service_healthy
     # Run the AI server with gunicorn
-    command: gunicorn --bind 0.0.0.0:5002 --workers 2 --timeout 120 --graceful-timeout 60 ai_server:app
+    command: sh -c "cd /app && gunicorn --bind 0.0.0.0:5002 --workers 2 --timeout 120 --graceful-timeout 60 ai_server:app"
     networks:
       - app_network
 
