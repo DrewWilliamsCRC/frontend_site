@@ -64,6 +64,8 @@ python3 -c "from app import init_db; init_db()"
 docker compose up -d
 ```
 
+The application uses PostgreSQL 16 (Debian-based) for better compatibility with PostgreSQL client tools. This configuration is consistent across development, CI, and production environments.
+
 ### Docker Development Environment
 
 This project includes a local Docker development setup that's optimized for fast iteration and easy setup.
@@ -139,7 +141,7 @@ The application now includes a comprehensive AI Financial Dashboard with the fol
 ├── ai_experiments/        # AI functionality and analysis modules
 ├── src/                   # Core application modules
 ├── Dockerfile             # Production-ready Docker configuration
-├── docker-compose.yml     # Production Docker Compose configuration
+├── docker-compose.prod.yml     # Production Docker Compose configuration
 ├── docker-compose.dev.yml # Development Docker Compose configuration
 └── dev.sh                 # Development environment management script
 ```

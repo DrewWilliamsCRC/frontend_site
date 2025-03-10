@@ -1,7 +1,7 @@
 -- Create alert_rules table
 CREATE TABLE IF NOT EXISTS alert_rules (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     rule_type VARCHAR(50) NOT NULL,
     rule_params JSONB NOT NULL,
@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS alert_history_rule_id_idx ON alert_history(alert_rule
 -- Create notification_channels table
 CREATE TABLE IF NOT EXISTS notification_channels (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     channel_type VARCHAR(50) NOT NULL,
     channel_config JSONB NOT NULL,
@@ -44,7 +44,7 @@ CREATE INDEX IF NOT EXISTS notification_channels_user_id_idx ON notification_cha
 -- Create user_alert_preferences table to store user preferences for alerts
 CREATE TABLE IF NOT EXISTS user_alert_preferences (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     notify_email BOOLEAN NOT NULL DEFAULT TRUE,
     notify_web BOOLEAN NOT NULL DEFAULT TRUE,
     notify_mobile BOOLEAN NOT NULL DEFAULT FALSE,

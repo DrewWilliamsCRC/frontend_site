@@ -48,15 +48,21 @@ class MockTensorFlowModel:
     def save(self, filepath):
         """Mock save method."""
         logger.info(f"Saving mock model to {filepath}")
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        # Save a simple JSON file instead of a real model
-        with open(f"{filepath}.json", "w") as f:
-            json.dump({
-                "model_type": "mock",
-                "name": self.name,
-                "is_trained": self.is_trained
-            }, f)
-        return True
+        if not os.path.exists(os.path.dirname(filepath)):
+            logger.warning(f"Directory {os.path.dirname(filepath)} does not exist or is not writable, skipping model save")
+            return False
+        try:
+            # Save a simple JSON file instead of a real model
+            with open(f"{filepath}.json", "w") as f:
+                json.dump({
+                    "model_type": "mock",
+                    "name": self.name,
+                    "is_trained": self.is_trained
+                }, f)
+            return True
+        except Exception as e:
+            logger.warning(f"Error saving mock model: {e}")
+            return False
     
     @classmethod
     def load(cls, filepath):

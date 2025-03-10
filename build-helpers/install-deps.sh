@@ -24,7 +24,11 @@ if [ -f /etc/alpine-release ]; then
     
     # First, attempt to install all packages at once
     echo "Batch installing packages..."
-    pip install --no-cache-dir -r build-helpers/requirements-alpine.txt || true
+    if [ -f build-helpers/requirements-alpine.txt ]; then
+        pip install --no-cache-dir -r build-helpers/requirements-alpine.txt || true
+    else
+        echo "Warning: build-helpers/requirements-alpine.txt not found"
+    fi
     
     # If dev requirements exist, install them too
     if [ -f requirements-dev.txt ]; then
@@ -34,7 +38,15 @@ if [ -f /etc/alpine-release ]; then
 else
     echo "Non-Alpine Linux detected, using standard requirements"
     pip install --upgrade pip setuptools wheel
-    pip install --no-cache-dir -r requirements-frontend.txt
+    
+    # Check if requirements-frontend.txt exists
+    if [ -f requirements-frontend.txt ]; then
+        echo "Installing requirements from requirements-frontend.txt"
+        pip install --no-cache-dir -r requirements-frontend.txt
+    else
+        echo "Warning: requirements-frontend.txt not found, installing critical packages directly"
+        pip install --no-cache-dir Flask flask-caching Flask-WTF Flask-Limiter gunicorn python-dotenv psycopg2-binary requests pandas numpy
+    fi
     
     # If dev requirements exist, install them too
     if [ -f requirements-dev.txt ]; then

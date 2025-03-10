@@ -35,7 +35,6 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("logs/ai_server.log", mode='a+'),
         logging.StreamHandler()
     ]
 )

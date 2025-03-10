@@ -1,7 +1,8 @@
 services:
   db:
-    image: postgres:16-alpine
-    platform: linux/amd64  # Use amd64 for better local compatibility, can be adjusted as needed
+    # Using Debian-based image for better compatibility with PostgreSQL client tools
+    image: postgres:16
+    platform: linux/amd64
     user: postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -10,7 +11,7 @@ services:
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
       POSTGRES_PASSWORD_ENCRYPTION: scram-sha-256
-      PGDATA: /var/lib/postgresql/data/pgdata
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d:ro
@@ -29,7 +30,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.ai
-      target: builder  # Use the builder stage for development
+      args:
+        - TARGETPLATFORM=linux/amd64
+        - BUILDPLATFORM=linux/amd64
+    platform: linux/amd64
     volumes:
       - .:/app  # Mount the project to the /app directory
       - ./logs:/app/logs  # Persist logs
@@ -51,9 +55,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # Run the AI server in development mode
-    command: >
-      sh -c "cd /app && python -m flask run --host=0.0.0.0 --port=5002 --debug"
+    # Run the AI server with gunicorn
+    command: sh -c "cd /app && gunicorn --bind 0.0.0.0:5002 --workers 2 --timeout 120 --graceful-timeout 60 ai_server:app"
     networks:
       - app_network
 
@@ -61,9 +64,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-      target: builder  # Use the builder stage which has all compilers and build tools
+      target: builder
       args:
-        - PYTHON_VERSION=${PYTHON_VERSION:-3.10-alpine}
+        - TARGETPLATFORM=linux/amd64
+        - BUILDPLATFORM=linux/amd64
+        - PYTHON_VERSION=3.10-slim
+    platform: linux/amd64
     volumes:
       - .:/build  # Mount the project to the /build directory in the builder stage
       - /build/.venv  # Exclude the virtual environment directory

@@ -1,27 +1,27 @@
 services:
   db:
-    image: postgres:16-alpine
+    # Using Debian-based image for better compatibility with PostgreSQL client tools
+    image: postgres:16
     platform: linux/amd64
     user: postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: frontend
+      POSTGRES_USER: frontend
+      POSTGRES_PASSWORD: frontend
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
-      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
       POSTGRES_PASSWORD_ENCRYPTION: scram-sha-256
-      PGDATA: /var/lib/postgresql/data/pgdata
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+      - ./init-scripts:/docker-entrypoint-initdb.d
     ports:
-      - "127.0.0.1:5432:5432"
+      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U frontend"]
+      interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 30s
     deploy:
       resources:
         limits:
@@ -52,6 +52,7 @@ services:
         - TARGETPLATFORM=linux/amd64
         - BUILDPLATFORM=linux/amd64
     platform: linux/amd64
+    user: aiuser
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -59,8 +60,8 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - SECRET_KEY=${SECRET_KEY}
       - OWM_API_KEY=${OWM_API_KEY}
-      - FLASK_DEBUG=${FLASK_DEBUG}
-      - FLASK_ENV=${FLASK_ENV}
+      - FLASK_DEBUG=0
+      - FLASK_ENV=production
       - PORT=5002
       - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
     ports:
@@ -68,31 +69,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5002/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
+    volumes:
+      - ai_data:/app/ai_experiments/data
+      - ai_models:/app/ai_experiments/models
+      - ai_cache:/tmp/ai_cache
     tmpfs:
       - /tmp:exec,mode=1777,size=512M
       - /run:mode=1777,size=64M
       - /var/run:mode=1777,size=64M
       - /app/logs:mode=1777,size=128M
-      - /app/ai_experiments/data:mode=1777,size=128M
-      - /app/ai_experiments/models:mode=1777,size=128M
-      - /tmp/ai_cache:mode=1777,size=256M
     logging:
       driver: "json-file"
       options:
@@ -107,9 +92,9 @@ services:
       context: .
       dockerfile: dockerfile
       args:
-        - PYTHON_VERSION=${PYTHON_VERSION:-3.10-alpine}
         - TARGETPLATFORM=linux/amd64
         - BUILDPLATFORM=linux/amd64
+        - PYTHON_VERSION=3.10-slim
     platform: linux/amd64
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
@@ -117,42 +102,22 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       - SECRET_KEY=${SECRET_KEY}
-      - OWM_API_KEY=${OWM_API_KEY}
-      - FLASK_DEBUG=${FLASK_DEBUG}
-      - FLASK_ENV=${FLASK_ENV}
-      - PORT=${PORT}
-      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
-      - AI_SERVER_URL=http://ai_server:5002
+      - FLASK_DEBUG=0
+      - FLASK_ENV=production
+      - PORT=5000
     ports:
-      - "127.0.0.1:${PORT}:${PORT}"
+      - "127.0.0.1:5000:5000"
     depends_on:
       db:
         condition: service_healthy
       ai_server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:${PORT}/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-    security_opt:
-      - no-new-privileges:true
+        condition: service_started
     read_only: true
     tmpfs:
       - /tmp:exec,mode=1777,size=512M
       - /run:mode=1777,size=64M
       - /var/run:mode=1777,size=64M
       - /app/logs:mode=1777,size=128M
-      - /app/static/uploads:mode=1777,size=64M
     logging:
       driver: "json-file"
       options:
@@ -165,6 +130,12 @@ services:
 volumes:
   postgres_data:
     driver: local
+  ai_data:
+    driver: local
+  ai_models:
+    driver: local
+  ai_cache:
+    driver: local
 
 networks:
   app_network:
@@ -172,4 +143,5 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: 172.28.0.0/16
+        - subnet: 172.50.0.0/16
+          gateway: 172.50.0.1

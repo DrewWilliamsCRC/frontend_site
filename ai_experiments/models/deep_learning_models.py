@@ -40,9 +40,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger('deep_learning_models')
 
-# Directory to save model checkpoints
-MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "saved_models")
-os.makedirs(MODELS_DIR, exist_ok=True)
+# Directory to save model checkpoints - use pre-existing directory
+MODELS_DIR = "/app/ai_experiments/models"
+if not os.path.exists(MODELS_DIR):
+    logger.warning(f"Models directory {MODELS_DIR} does not exist, model saving will be disabled")
 
 
 # Utility Functions
@@ -259,7 +260,11 @@ class LSTMModel:
     
     def save_model(self, filepath: str) -> None:
         """Save the model to disk."""
-        self.model.save(filepath)
+        try:
+            self.model.save(filepath)
+            logger.info(f"Saved model to {filepath}")
+        except Exception as e:
+            logger.warning(f"Could not save model to {filepath}: {e}")
     
     @classmethod
     def load_model(cls, filepath: str) -> 'LSTMModel':
@@ -399,7 +404,11 @@ class BiLSTMAttentionModel:
     
     def save_model(self, filepath: str) -> None:
         """Save the model to disk."""
-        self.model.save(filepath)
+        try:
+            self.model.save(filepath)
+            logger.info(f"Saved model to {filepath}")
+        except Exception as e:
+            logger.warning(f"Could not save model to {filepath}: {e}")
     
     @classmethod
     def load_model(cls, filepath: str) -> 'BiLSTMAttentionModel':
@@ -587,7 +596,11 @@ class TransformerModel:
     
     def save_model(self, filepath: str) -> None:
         """Save the model to disk."""
-        self.model.save(filepath)
+        try:
+            self.model.save(filepath)
+            logger.info(f"Saved model to {filepath}")
+        except Exception as e:
+            logger.warning(f"Could not save model to {filepath}: {e}")
     
     @classmethod
     def load_model(cls, filepath: str) -> 'TransformerModel':

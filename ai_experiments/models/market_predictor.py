@@ -42,9 +42,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger('market_predictor')
 
-# Constants
-MODELS_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(os.path.dirname(MODELS_DIR), "data")
+# Constants - use pre-existing directories
+MODELS_DIR = "/app/ai_experiments/models"
+DATA_DIR = "/app/ai_experiments/data"
 ML_READY_DIR = os.path.join(DATA_DIR, "ml_ready")
 
 
@@ -59,7 +59,8 @@ class ModelManager:
         """
         self.index_name = index_name
         self.models_dir = os.path.join(MODELS_DIR, index_name)
-        os.makedirs(self.models_dir, exist_ok=True)
+        if not os.path.exists(self.models_dir):
+            logger.warning(f"Models directory {self.models_dir} does not exist, model saving will be disabled")
         
         # Initialize scalers and models
         self.scaler = StandardScaler()
@@ -409,10 +410,17 @@ class ModelManager:
             model: Trained model
             name (str): Name to save the model under
         """
-        model_path = os.path.join(self.models_dir, f'{name}.pkl')
-        with open(model_path, 'wb') as f:
-            pickle.dump(model, f)
-        logger.info(f"Saved model to {model_path}")
+        if not self.models_dir:
+            logger.warning("No models directory available, skipping model save")
+            return
+            
+        try:
+            model_path = os.path.join(self.models_dir, f'{name}.pkl')
+            with open(model_path, 'wb') as f:
+                pickle.dump(model, f)
+            logger.info(f"Saved model to {model_path}")
+        except Exception as e:
+            logger.warning(f"Could not save model to {name}: {e}")
     
     def load_model(self, model_type, name):
         """Load a model from disk.
