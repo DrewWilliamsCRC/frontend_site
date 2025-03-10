@@ -47,6 +47,7 @@ services:
       - PORT=5002
       - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
       - CI_BUILD=true
+      - CI_MODE=true
       - PYTHONUNBUFFERED=1
     volumes:
       - .:/app
@@ -85,6 +86,7 @@ services:
       - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
       - AI_SERVER_URL=http://ai_server:5002
       - CI_MODE=true
+      - PYTHONUNBUFFERED=1
     volumes:
       - ./logs:/app/logs
     ports:

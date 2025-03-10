@@ -58,5 +58,9 @@ exec "$@" || {
     if [ -f "/app/logs/gunicorn.log" ]; then
         tail -20 /app/logs/gunicorn.log
     fi
+    if [ -f "/app/logs/gunicorn-error.log" ]; then
+        echo "Error log contents:"
+        tail -20 /app/logs/gunicorn-error.log
+    fi
     exit 1
 } 

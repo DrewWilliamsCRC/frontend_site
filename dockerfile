@@ -69,6 +69,10 @@ app = Flask(__name__)\n\
 def health():\n\
     return jsonify({"status": "ok"})\n\
 \n\
+@app.route("/")\n\
+def index():\n\
+    return jsonify({"status": "ok", "message": "CI test server running"})\n\
+\n\
 if __name__ == "__main__":\n\
     app.run(host="0.0.0.0", port=5001)\n\
 ' > /app/app.py.ci
@@ -87,4 +91,4 @@ USER appuser
 
 # Set entrypoint
 ENTRYPOINT ["/usr/local/bin/frontend_entrypoint.sh"]
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--log-level", "debug", "--error-logfile", "/app/logs/gunicorn-error.log", "--access-logfile", "/app/logs/gunicorn-access.log", "app:app"] 
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "1", "--log-level", "debug", "--error-logfile", "/app/logs/gunicorn-error.log", "--access-logfile", "/app/logs/gunicorn-access.log", "app:app"] 
