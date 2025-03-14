@@ -10,15 +10,15 @@ BEGIN
 END
 $do$;
 
--- Create frontend database if it doesn't exist
-SELECT 'CREATE DATABASE frontend'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'frontend')\gexec
+-- Create frontend_db database if it doesn't exist
+SELECT 'CREATE DATABASE frontend_db'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'frontend_db')\gexec
 
--- Connect to frontend database to grant permissions
-\c frontend
+-- Connect to frontend_db database to grant permissions
+\c frontend_db
 
 -- Grant necessary permissions
-GRANT CONNECT ON DATABASE frontend TO netdata;
+GRANT CONNECT ON DATABASE frontend_db TO netdata;
 GRANT USAGE ON SCHEMA public TO netdata;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO netdata;
 GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO netdata;

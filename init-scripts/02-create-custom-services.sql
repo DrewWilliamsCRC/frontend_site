@@ -36,5 +36,5 @@ CREATE TRIGGER update_custom_services_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Grant permissions
-GRANT ALL ON custom_services TO app_role;
+GRANT ALL ON custom_services TO db;
 GRANT SELECT ON custom_services TO readonly; 

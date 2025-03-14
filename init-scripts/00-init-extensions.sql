@@ -3,21 +3,35 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Set default transaction isolation level
-ALTER DATABASE frontend SET default_transaction_isolation TO 'read committed';
+ALTER DATABASE frontend_db SET default_transaction_isolation TO 'read committed';
 
 -- Set statement timeout (5 minutes)
-ALTER DATABASE frontend SET statement_timeout = '300s';
+ALTER DATABASE frontend_db SET statement_timeout = '300s';
 
--- Create roles
-CREATE ROLE readonly;
-CREATE ROLE app_role WITH LOGIN PASSWORD 'app_password';
+-- Create roles if they don't exist
+DO
+$do$
+BEGIN
+   IF NOT EXISTS (
+      SELECT FROM pg_catalog.pg_roles
+      WHERE rolname = 'readonly') THEN
+      CREATE ROLE readonly;
+   END IF;
+   
+   IF NOT EXISTS (
+      SELECT FROM pg_catalog.pg_roles
+      WHERE rolname = 'db') THEN
+      CREATE ROLE db WITH LOGIN PASSWORD 'XJ0reUuQS3TXSH4';
+   END IF;
+END
+$do$;
 
 -- Grant necessary permissions
-GRANT CONNECT ON DATABASE frontend TO app_role;
-GRANT USAGE ON SCHEMA public TO app_role;
+GRANT CONNECT ON DATABASE frontend_db TO db;
+GRANT USAGE ON SCHEMA public TO db;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO readonly;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO app_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO app_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO db;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO db;
 
 -- Create audit function
 CREATE OR REPLACE FUNCTION audit_trigger_func() RETURNS trigger AS $$
@@ -125,6 +139,6 @@ ALTER TABLE audit_log SET (
 );
 
 -- Grant execute permission on functions
-GRANT EXECUTE ON FUNCTION cleanup_old_records() TO app_role;
-GRANT EXECUTE ON FUNCTION update_updated_at_column() TO app_role;
-GRANT EXECUTE ON FUNCTION audit_trigger_func() TO app_role;
+GRANT EXECUTE ON FUNCTION cleanup_old_records() TO db;
+GRANT EXECUTE ON FUNCTION update_updated_at_column() TO db;
+GRANT EXECUTE ON FUNCTION audit_trigger_func() TO db;
