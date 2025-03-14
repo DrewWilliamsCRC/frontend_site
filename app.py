@@ -980,7 +980,7 @@ def add_service():
             
     return render_template('add_service.html')
 
-@app.route('/services/delete/<int:service_id>', methods=['POST'])
+@app.route('/services/delete/<string:service_id>', methods=['POST'])
 def delete_service(service_id):
     if 'user' not in session:
         return redirect(url_for('login'))
@@ -1008,7 +1008,7 @@ def delete_service(service_id):
         conn.close()
     return redirect(url_for('home'))
 
-@app.route('/services/edit/<int:service_id>', methods=['GET', 'POST'])
+@app.route('/services/edit/<string:service_id>', methods=['GET', 'POST'])
 def edit_service(service_id):
     if 'user' not in session:
         return redirect(url_for('login'))
