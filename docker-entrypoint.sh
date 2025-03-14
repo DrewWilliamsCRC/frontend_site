@@ -60,6 +60,7 @@ except ImportError as e:
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             city_name TEXT,
             button_width INTEGER DEFAULT 200,
@@ -93,6 +94,49 @@ except ImportError as e:
     print('Basic schema created successfully')
 except Exception as e:
     print(f'Warning: Could not initialize database: {str(e)}')
+    print('Continuing with startup anyway...')
+"
+
+# Create admin user
+echo "Ensuring admin user exists..."
+python3 -c "
+try:
+    from werkzeug.security import generate_password_hash
+    import psycopg2
+    import os
+
+    # Admin credentials
+    username = 'admin'
+    password = 'admin123'  # Should be changed after first login
+    email = 'admin@localhost'
+    
+    # Generate password hash
+    password_hash = generate_password_hash(password)
+    
+    # Connect to database
+    conn = psycopg2.connect(os.environ.get('DATABASE_URL'))
+    
+    with conn.cursor() as cur:
+        # Check if admin exists
+        cur.execute(\"\"\"
+            SELECT username FROM users 
+            WHERE username = %s
+        \"\"\", (username,))
+        
+        if cur.fetchone() is None:
+            # Create admin user
+            cur.execute(\"\"\"
+                INSERT INTO users (username, email, password_hash, news_categories)
+                VALUES (%s, %s, %s, %s)
+            \"\"\", (username, email, password_hash, 'general,technology,business'))
+            conn.commit()
+            print('Admin user created successfully')
+        else:
+            print('Admin user already exists')
+            
+    conn.close()
+except Exception as e:
+    print(f'Warning: Could not create admin user: {e}')
     print('Continuing with startup anyway...')
 "
 

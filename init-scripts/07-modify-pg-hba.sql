@@ -2,6 +2,9 @@
 ALTER SYSTEM SET password_encryption = 'scram-sha-256';
 ALTER SYSTEM SET password_encryption = 'md5';
 
+-- NOTE: The manual modification of pg_hba.conf doesn't work in Docker
+-- Left for reference but commented out
+/*
 -- Create a new pg_hba.conf entry for netdata user
 CREATE OR REPLACE FUNCTION modify_pg_hba()
 RETURNS void AS $$
@@ -16,4 +19,5 @@ END;
 $$ LANGUAGE plpgsql;
 
 SELECT modify_pg_hba();
-DROP FUNCTION modify_pg_hba(); 
+DROP FUNCTION modify_pg_hba();
+*/ 

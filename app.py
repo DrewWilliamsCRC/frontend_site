@@ -153,11 +153,12 @@ def get_db_connection():
 
 def init_db():
     """
-    Initializes the database schema by creating the required tables if they don't exist.
+    Initializes the database schema by creating required tables.
     
     Creates tables:
     - users: User account information and preferences
     - api_usage: Tracks API calls and limits for various services
+    - custom_services: User-defined service shortcuts
     """
     try:
         conn = get_db_connection()
@@ -165,13 +166,14 @@ def init_db():
             # Create users table
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    username VARCHAR(255) UNIQUE NOT NULL,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
                     city_name TEXT,
                     button_width INTEGER DEFAULT 200,
                     button_height INTEGER DEFAULT 200,
-                    news_categories TEXT DEFAULT 'general'
+                    news_categories VARCHAR(255) DEFAULT 'general'
                 );
             """)
             
@@ -179,21 +181,35 @@ def init_db():
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS api_usage (
                     id SERIAL PRIMARY KEY,
-                    api_name TEXT NOT NULL,
-                    endpoint TEXT NOT NULL,
+                    api_name VARCHAR(50) NOT NULL,
+                    endpoint VARCHAR(100) NOT NULL,
                     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
                     request_params JSONB,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 );
             """)
             
-            # Create indexes in separate statements
+            # Create custom_services table
             cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_api_usage_timestamp 
-                ON api_usage (api_name, timestamp);
+                CREATE TABLE IF NOT EXISTS custom_services (
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                    name VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    url VARCHAR(255) NOT NULL,
+                    icon_url VARCHAR(255),
+                    category VARCHAR(100),
+                    section VARCHAR(100),
+                    display_order INTEGER,
+                    is_active BOOLEAN DEFAULT true,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
             """)
             
+            # Create indexes
             cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_api_usage_timestamp 
                 CREATE INDEX IF NOT EXISTS idx_api_usage_request_params 
                 ON api_usage USING GIN (request_params);
             """)
@@ -3800,6 +3816,87 @@ def call_ai_api(endpoint, params=None, method='get', data=None):
     except requests.exceptions.RequestException as e:
         app.logger.error(f"Error calling AI API: {e}")
         return None
+
+@app.cli.command("create-admin")
+def create_admin():
+    """Create an admin user."""
+    username = 'admin'
+    password = 'admin123'
+    email = 'admin@localhost'
+    
+    # Generate password hash
+    password_hash = generate_password_hash(password)
+    
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            # Check if admin exists
+            cur.execute("SELECT username FROM users WHERE username = %s", (username,))
+            if cur.fetchone() is None:
+                # Create admin user
+                cur.execute("""
+                    INSERT INTO users (username, email, password_hash, news_categories)
+                    VALUES (%s, %s, %s, %s)
+                """, (username, email, password_hash, 'general,technology,business'))
+                conn.commit()
+                print("Admin user created successfully")
+            else:
+                # Update admin password
+                cur.execute("""
+                    UPDATE users 
+                    SET password_hash = %s,
+                        email = %s
+                    WHERE username = %s
+                """, (password_hash, email, username))
+                conn.commit()
+                print("Admin user password updated")
+    except Exception as e:
+        print(f"Error creating admin user: {e}")
+    finally:
+        conn.close()
+
+@app.cli.command("change-admin-password")
+def change_admin_password():
+    """Change the admin user password."""
+    import getpass
+    
+    try:
+        # Get new password from user input (won't be shown in terminal)
+        new_password = getpass.getpass("Enter new admin password: ")
+        confirm_password = getpass.getpass("Confirm new password: ")
+        
+        if new_password != confirm_password:
+            print("Error: Passwords do not match")
+            return
+            
+        if len(new_password) < 8:
+            print("Error: Password must be at least 8 characters long")
+            return
+            
+        # Generate password hash
+        password_hash = generate_password_hash(new_password)
+        
+        # Update in database
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            # Check if admin exists
+            cur.execute("SELECT username FROM users WHERE username = 'admin'")
+            if cur.fetchone() is None:
+                print("Error: Admin user doesn't exist. Create it first with create-admin command")
+                return
+                
+            # Update password
+            cur.execute(
+                "UPDATE users SET password_hash = %s WHERE username = 'admin'",
+                (password_hash,)
+            )
+            conn.commit()
+            print("Admin password updated successfully")
+    except Exception as e:
+        print(f"Error changing admin password: {e}")
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.
