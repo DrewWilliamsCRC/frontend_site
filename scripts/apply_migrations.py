@@ -96,6 +96,26 @@ def ensure_admin_user():
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
+            # First check if the required columns exist
+            required_columns = ['username', 'email', 'password_hash', 'news_categories', 'city_name']
+            missing_columns = []
+            
+            for column in required_columns:
+                cur.execute("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.columns 
+                        WHERE table_name = 'users' AND column_name = %s
+                    );
+                """, (column,))
+                
+                if not cur.fetchone()['exists']:
+                    missing_columns.append(column)
+            
+            if missing_columns:
+                print(f"Cannot create admin user: missing columns {', '.join(missing_columns)}")
+                print("Run ensure_user_columns() first.")
+                return
+            
             # Check if admin exists
             cur.execute("SELECT username FROM users WHERE username = 'admin'")
             if cur.fetchone() is None:

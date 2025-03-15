@@ -157,7 +157,25 @@ jobs:
           
       - name: Initialize database schema
         run: |
+          # Wait for the database container to be fully ready
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U db; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            
+            if [ $i -eq 30 ]; then
+              echo "Timed out waiting for PostgreSQL to become ready"
+              exit 1
+            fi
+            
+            echo "Waiting for PostgreSQL to become ready (attempt $i)..."
+            sleep 2
+          done
+          
           # Create basic tables needed for migration tests
+          echo "Creating database schema..."
           psql postgresql://db:testing123@localhost:5432/frontend_db -c "
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -178,6 +196,10 @@ jobs:
             );
           "
           
+          # Verify tables were created successfully
+          echo "Verifying tables were created..."
+          psql postgresql://db:testing123@localhost:5432/frontend_db -c "\dt"
+          
       - name: Run migration tests
         run: |
           echo "Running database migration tests..."
@@ -188,7 +210,31 @@ jobs:
       - name: Test migration script directly
         run: |
           echo "Testing migration script directly..."
-          python scripts/apply_migrations.py
+          # Check that the script exists
+          if [ ! -f "scripts/apply_migrations.py" ]; then
+            echo "Error: Migration script not found"
+            ls -la scripts/
+            exit 1
+          fi
+          
+          # Verify database connection
+          echo "Verifying database connection..."
+          if ! psql $DATABASE_URL -c "SELECT 1;"; then
+            echo "Database connection failed. Check connection details."
+            exit 1
+          fi
+          
+          # Run the migration script with proper error handling
+          echo "Running apply_migrations.py..."
+          python scripts/apply_migrations.py || {
+            echo "Migration script failed with exit code $?"
+            # Show database state for debugging
+            echo "Current database tables:"
+            psql $DATABASE_URL -c "\dt"
+            echo "Migrations table content:"
+            psql $DATABASE_URL -c "SELECT * FROM migrations;" || true
+            exit 1
+          }
         env:
           DATABASE_URL: postgresql://db:testing123@localhost:5432/frontend_db
 
@@ -272,6 +318,7 @@ jobs:
           POSTGRES_HOST_AUTH_METHOD=scram-sha-256
           POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
           POSTGRES_PASSWORD_ENCRYPTION=scram-sha-256
+          CI_MODE=true
           EOF
           
       - name: Modify test-docker-build.sh for CI
@@ -453,19 +500,56 @@ jobs:
           docker compose -f docker-compose.ci.yml up -d db
           sleep 10
           
-          # Copy schema file into container and apply it
+          # Start services with better error handling
+          echo "Starting services..."
+          if ! docker compose -f docker-compose.ci.yml up -d db; then
+            echo "Failed to start database service"
+            docker compose -f docker-compose.ci.yml ps
+            docker compose -f docker-compose.ci.yml logs db
+            exit 1
+          fi
+          
+          # Wait specifically for the database to be fully initialized before copying files
+          echo "Waiting for database to be ready..."
+          for i in {1..30}; do
+            if docker compose -f docker-compose.ci.yml exec -T db pg_isready -U db -d frontend_db; then
+              echo "Database is ready!"
+              break
+            fi
+            
+            if [ $i -eq 30 ]; then
+              echo "Timed out waiting for database to become ready"
+              docker compose -f docker-compose.ci.yml logs db
+              exit 1
+            fi
+            
+            echo "Waiting for database to become ready (attempt $i)..."
+            sleep 5
+          done
+          
+          # Copying schema file into container and apply it
           echo "Copying and applying schema..."
-          docker compose -f docker-compose.ci.yml cp test_init_db.sql db:/test_init_db.sql
+          docker compose -f docker-compose.ci.yml cp test_init_db.sql db:/test_init_db.sql || {
+            echo "Failed to copy SQL file to container"
+            docker compose -f docker-compose.ci.yml ps
+            docker compose -f docker-compose.ci.yml logs db
+            exit 1
+          }
           
           # Verify file was copied successfully
           echo "Verifying SQL file in container..."
-          docker compose -f docker-compose.ci.yml exec -T db ls -l /test_init_db.sql
+          docker compose -f docker-compose.ci.yml exec -T db ls -l /test_init_db.sql || {
+            echo "SQL file not found in container"
+            docker compose -f docker-compose.ci.yml exec -T db ls -la /
+            docker compose -f docker-compose.ci.yml logs db
+            exit 1
+          }
           
           # Apply schema with error checking
           echo "Applying schema..."
           if ! docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -f /test_init_db.sql; then
             echo "Failed to apply database schema"
-            docker compose -f docker-compose.ci.yml exec -T db cat /test_init_db.sql
+            docker compose -f docker-compose.ci.yml exec -T db cat /test_init_db.sql || true
             docker compose -f docker-compose.ci.yml logs db
             exit 1
           fi
