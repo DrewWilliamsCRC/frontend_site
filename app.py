@@ -173,7 +173,7 @@ def init_db():
                     city_name TEXT,
                     button_width INTEGER DEFAULT 200,
                     button_height INTEGER DEFAULT 200,
-                    news_categories VARCHAR(255) DEFAULT 'general'
+                    news_categories JSONB
                 );
             """)
             
@@ -225,30 +225,20 @@ def init_db():
 # -----------------------------------------------------------------------------------
 
 def get_user_settings(username):
-    """
-    Retrieves user-specific settings from the database.
-    
-    Args:
-        username (str): The username whose settings should be retrieved
-        
-    Returns:
-        tuple: A tuple containing (city_name, button_width, button_height)
-               If no settings are found, returns default values:
-               - Default city: "New York"
-               - Default button dimensions: 200x200
-    """
-    default_city = "New York"
+    """Get user settings from the database."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT city_name, button_width, button_height, news_categories FROM users WHERE username=%s;", (username,))
+            cur.execute("SELECT button_width, button_height, news_categories FROM users WHERE username=%s;", (username,))
             row = cur.fetchone()
-            if row and row['city_name']:
-                return row['city_name'], row['button_width'], row['button_height'], row['news_categories'].split(',') if row['news_categories'] else ['general']
-            return default_city, 200, 200, ['general']
+            if row:
+                # Extract categories from JSONB
+                categories = row['news_categories'].get('categories', ['general', 'technology']) if isinstance(row['news_categories'], dict) else ['general', 'technology']
+                return 'New York', row['button_width'], row['button_height'], categories
+            return 'New York', 200, 200, ['general', 'technology']
     except Exception as e:
         print("Error retrieving user settings:", e)
-        return default_city, 200, 200, ['general']
+        return 'New York', 200, 200, ['general', 'technology']
     finally:
         conn.close()
 
@@ -1313,63 +1303,8 @@ def api_usage():
 
 @app.route('/api/news')
 def get_news():
-    print("\n=== Starting /api/news endpoint ===")
-    print(f"Session data: {session}")
-    
-    if 'user' not in session:
-        print("No user in session, returning unauthorized")
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    print(f"User authenticated: {session['user']}")
-    
-    # Check if Guardian API key is configured
-    guardian_api_key = os.environ.get('GUARDIAN_API_KEY')
-    print(f"Guardian API key loaded: {'Yes' if guardian_api_key else 'No'}")
-    
-    if not guardian_api_key:
-        print("Guardian API key not found in environment, returning mock news data")
-        # Return mock news data instead of failing with 500 error
-        mock_articles = [
-            {
-                'title': 'S&P 500 Hits New Record as Tech Stocks Rally',
-                'url': 'https://example.com/sp500-record'
-            },
-            {
-                'title': 'Federal Reserve Signals Potential Rate Cuts',
-                'url': 'https://example.com/fed-rate-cuts'
-            },
-            {
-                'title': 'Global Markets React to Economic Data',
-                'url': 'https://example.com/global-markets'
-            },
-            {
-                'title': 'Tech Giants Announce New AI Initiatives',
-                'url': 'https://example.com/tech-ai'
-            },
-            {
-                'title': 'Retail Sales Exceed Expectations in Q1',
-                'url': 'https://example.com/retail-sales'
-            },
-            {
-                'title': 'Energy Sector Faces Challenges Amid Price Volatility',
-                'url': 'https://example.com/energy-sector'
-            },
-            {
-                'title': 'Housing Market Shows Signs of Cooling',
-                'url': 'https://example.com/housing-market'
-            },
-            {
-                'title': 'New Regulations Impact Financial Services',
-                'url': 'https://example.com/financial-regulations'
-            }
-        ]
-        return jsonify({
-            'articles': mock_articles,
-            'source': 'Mock Data (Guardian API key not configured)'
-        })
-
+    """Get news articles from The Guardian API."""
     try:
-        # The rest of the function remains unchanged
         # Get user's preferred news sections
         conn = get_db_connection()
         try:
@@ -1379,7 +1314,8 @@ def get_news():
                     (session['user'],)
                 )
                 result = cur.fetchone()
-                user_sections = result['news_categories'].split(',') if result and result['news_categories'] else ['news']
+                # Handle JSONB format
+                user_sections = result['news_categories'].get('categories', ['news']) if result and isinstance(result['news_categories'], dict) else ['news']
                 print(f"User sections retrieved: {user_sections}")
         finally:
             conn.close()

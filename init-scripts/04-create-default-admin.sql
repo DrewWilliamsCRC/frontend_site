@@ -10,7 +10,7 @@ INSERT INTO users (
     'admin',
     (SELECT var_value FROM init_vars WHERE var_name = 'admin_email'),
     (SELECT var_value FROM init_vars WHERE var_name = 'admin_password'),
-    'general,technology,business',
+    '{"categories": ["general", "technology", "business"]}'::jsonb,
     'admin'
 )
 WHERE NOT EXISTS (
