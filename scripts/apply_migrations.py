@@ -173,9 +173,9 @@ def main():
     # Ensure migrations table exists
     ensure_migrations_table()
     
-    # Apply all migrations
-    ensure_admin_user()
+    # Apply all migrations - ensure columns exist before creating admin user
     ensure_user_columns()
+    ensure_admin_user()
     
     print("Database migrations completed successfully")
 

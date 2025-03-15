@@ -106,9 +106,13 @@ class TestMigrations(unittest.TestCase):
         # Reset the migration tracking
         with self.conn.cursor() as cur:
             cur.execute("DELETE FROM migrations WHERE migration_name = 'ensure_admin_user';")
+            cur.execute("DELETE FROM migrations WHERE migration_name = 'ensure_user_columns';")
             self.conn.commit()
         
-        # Create the admin user
+        # First ensure required columns exist before creating admin user
+        ensure_user_columns()
+        
+        # Then create the admin user
         ensure_admin_user()
         
         # Check if the admin user exists
