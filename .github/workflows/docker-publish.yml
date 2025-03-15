@@ -111,11 +111,138 @@ jobs:
             echo "Python tests failed but we'll continue with Docker tests"
           fi
 
+  # Database migration tests
+  db-migration-tests:
+    runs-on: ubuntu-latest
+    needs: python-tests
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: db
+          POSTGRES_PASSWORD: testing123
+          POSTGRES_DB: frontend_db
+          POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install psycopg2-binary
+          
+      - name: Create test .env file
+        run: |
+          cp .env.example .env
+          echo "SECRET_KEY=test-secret-key" >> .env
+          echo "FLASK_ENV=testing" >> .env
+          echo "DATABASE_URL=postgresql://db:testing123@localhost:5432/frontend_db" >> .env
+          
+      - name: Initialize database schema
+        run: |
+          # Wait for the database container to be fully ready
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U db; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            
+            if [ $i -eq 30 ]; then
+              echo "Timed out waiting for PostgreSQL to become ready"
+              exit 1
+            fi
+            
+            echo "Waiting for PostgreSQL to become ready (attempt $i)..."
+            sleep 2
+          done
+          
+          # Create basic tables needed for migration tests
+          echo "Creating database schema..."
+          psql postgresql://db:testing123@localhost:5432/frontend_db -c "
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) UNIQUE NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                password_hash TEXT NOT NULL,
+                news_categories TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            CREATE TABLE IF NOT EXISTS api_usage (
+                id SERIAL PRIMARY KEY,
+                api_name VARCHAR(50) NOT NULL,
+                endpoint VARCHAR(255) NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                details JSONB
+            );
+          "
+          
+          # Verify tables were created successfully
+          echo "Verifying tables were created..."
+          psql postgresql://db:testing123@localhost:5432/frontend_db -c "\dt"
+          
+      - name: Run migration tests
+        run: |
+          echo "Running database migration tests..."
+          python -m tests.test_migrations
+        env:
+          DATABASE_URL: postgresql://db:testing123@localhost:5432/frontend_db
+          
+      - name: Test migration script directly
+        run: |
+          echo "Testing migration script directly..."
+          # Check that the script exists
+          if [ ! -f "scripts/apply_migrations.py" ]; then
+            echo "Error: Migration script not found"
+            ls -la scripts/
+            exit 1
+          fi
+          
+          # Verify database connection
+          echo "Verifying database connection..."
+          if ! psql $DATABASE_URL -c "SELECT 1;"; then
+            echo "Database connection failed. Check connection details."
+            exit 1
+          fi
+          
+          # Run the migration script with proper error handling
+          echo "Running apply_migrations.py..."
+          python scripts/apply_migrations.py || {
+            echo "Migration script failed with exit code $?"
+            # Show database state for debugging
+            echo "Current database tables:"
+            psql $DATABASE_URL -c "\dt"
+            echo "Migrations table content:"
+            psql $DATABASE_URL -c "SELECT * FROM migrations;" || true
+            exit 1
+          }
+        env:
+          DATABASE_URL: postgresql://db:testing123@localhost:5432/frontend_db
+
   # Test job only runs on PRs
   test:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    needs: python-tests
+    needs: [python-tests, db-migration-tests]
     # Add extended timeout for Docker build operations
     timeout-minutes: 45
     permissions:
@@ -179,7 +306,7 @@ jobs:
           OWM_API_KEY="test-key"
           FLASK_DEBUG=0
           FLASK_ENV=testing
-          PORT=5001
+          PORT=5000
           POSTGRES_USER=db
           POSTGRES_PASSWORD=testing123
           POSTGRES_DB=frontend_db
@@ -191,6 +318,7 @@ jobs:
           POSTGRES_HOST_AUTH_METHOD=scram-sha-256
           POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
           POSTGRES_PASSWORD_ENCRYPTION=scram-sha-256
+          CI_MODE=true
           EOF
           
       - name: Modify test-docker-build.sh for CI
@@ -309,7 +437,7 @@ jobs:
               return jsonify({"message": "CI Test Flask App"})
           
           if __name__ == "__main__":
-              app.run(host="0.0.0.0", port=5001)
+              app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
           EOL
           
           # Create test database initialization script
@@ -372,19 +500,56 @@ jobs:
           docker compose -f docker-compose.ci.yml up -d db
           sleep 10
           
-          # Copy schema file into container and apply it
+          # Start services with better error handling
+          echo "Starting services..."
+          if ! docker compose -f docker-compose.ci.yml up -d db; then
+            echo "Failed to start database service"
+            docker compose -f docker-compose.ci.yml ps
+            docker compose -f docker-compose.ci.yml logs db
+            exit 1
+          fi
+          
+          # Wait specifically for the database to be fully initialized before copying files
+          echo "Waiting for database to be ready..."
+          for i in {1..30}; do
+            if docker compose -f docker-compose.ci.yml exec -T db pg_isready -U db -d frontend_db; then
+              echo "Database is ready!"
+              break
+            fi
+            
+            if [ $i -eq 30 ]; then
+              echo "Timed out waiting for database to become ready"
+              docker compose -f docker-compose.ci.yml logs db
+              exit 1
+            fi
+            
+            echo "Waiting for database to become ready (attempt $i)..."
+            sleep 5
+          done
+          
+          # Copying schema file into container and apply it
           echo "Copying and applying schema..."
-          docker compose -f docker-compose.ci.yml cp test_init_db.sql db:/test_init_db.sql
+          docker compose -f docker-compose.ci.yml cp test_init_db.sql db:/test_init_db.sql || {
+            echo "Failed to copy SQL file to container"
+            docker compose -f docker-compose.ci.yml ps
+            docker compose -f docker-compose.ci.yml logs db
+            exit 1
+          }
           
           # Verify file was copied successfully
           echo "Verifying SQL file in container..."
-          docker compose -f docker-compose.ci.yml exec -T db ls -l /test_init_db.sql
+          docker compose -f docker-compose.ci.yml exec -T db ls -l /test_init_db.sql || {
+            echo "SQL file not found in container"
+            docker compose -f docker-compose.ci.yml exec -T db ls -la /
+            docker compose -f docker-compose.ci.yml logs db
+            exit 1
+          }
           
           # Apply schema with error checking
           echo "Applying schema..."
           if ! docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -f /test_init_db.sql; then
             echo "Failed to apply database schema"
-            docker compose -f docker-compose.ci.yml exec -T db cat /test_init_db.sql
+            docker compose -f docker-compose.ci.yml exec -T db cat /test_init_db.sql || true
             docker compose -f docker-compose.ci.yml logs db
             exit 1
           fi
@@ -517,7 +682,7 @@ jobs:
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: python-tests
+    needs: [python-tests, db-migration-tests]
     # Add timeout to prevent CI from abandoning long-running builds
     timeout-minutes: 45
     env:

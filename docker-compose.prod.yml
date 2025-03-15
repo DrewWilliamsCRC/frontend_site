@@ -5,16 +5,19 @@ services:
     platform: linux/amd64
     user: postgres
     environment:
-      POSTGRES_DB: frontend
-      POSTGRES_USER: frontend
-      POSTGRES_PASSWORD: frontend
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
       POSTGRES_PASSWORD_ENCRYPTION: scram-sha-256
       PGDATA: /var/lib/postgresql/data
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@localhost}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-pbkdf2:sha256:600000$vf9Ul3qpDdGQDSxs$f3cd8235cc3b562c523e08b885c66dd6c7c34c0ccd527b4a6e8cc9e10d39f9e9}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
+      - ./.env:/tmp/.env:ro  # Mount .env file to allow access to variables
     ports:
       - "5432:5432"
     healthcheck:
@@ -86,6 +89,7 @@ services:
   frontend:
     image: dawttu00/dawttu_private:frontend
     platform: linux/amd64
+    command: ["gunicorn", "--bind", "0.0.0.0:${PORT}", "--workers", "1", "--log-level", "debug", "--error-logfile", "/app/logs/gunicorn-error.log", "--access-logfile", "/app/logs/gunicorn-access.log", "app:app"]
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -98,7 +102,7 @@ services:
     volumes:
       - ./.env:/app/.env:ro  # Mount .env file from project root
     ports:
-      - "127.0.0.1:5000:5000"
+      - "127.0.0.1:${PORT}:${PORT}"
     depends_on:
       db:
         condition: service_healthy
