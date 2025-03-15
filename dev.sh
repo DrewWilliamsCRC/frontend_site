@@ -118,7 +118,7 @@ case "$1" in
         echo -e "${GREEN}Starting development environment...${NC}"
         ${DOCKER_COMPOSE} -f docker-compose.dev.yml up -d
         echo -e "${GREEN}Development environment started!${NC}"
-        echo "Frontend available at: http://localhost:5001"
+        echo "Frontend available at: http://localhost:${PORT}"
         echo "AI Server available at: http://localhost:5002"
         echo "PostgreSQL available at: localhost:5432"
         ;;
@@ -133,7 +133,7 @@ case "$1" in
         echo -e "${YELLOW}Starting containers...${NC}"
         ${DOCKER_COMPOSE} -f docker-compose.dev.yml up -d
         echo -e "${GREEN}Development environment restarted!${NC}"
-        echo "Frontend available at: http://localhost:5001"
+        echo "Frontend available at: http://localhost:${PORT}"
         echo "AI Server available at: http://localhost:5002"
         echo "PostgreSQL available at: localhost:5432"
         ;;

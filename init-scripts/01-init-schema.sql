@@ -3,17 +3,17 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Set default transaction isolation level
-ALTER DATABASE frontend_db SET default_transaction_isolation TO 'read committed';
+ALTER DATABASE frontend SET default_transaction_isolation TO 'read committed';
 
 -- Set statement timeout (5 minutes)
-ALTER DATABASE frontend_db SET statement_timeout = '300s';
+ALTER DATABASE frontend SET statement_timeout = '300s';
 
 -- Grant necessary permissions
-GRANT CONNECT ON DATABASE frontend_db TO db;
-GRANT USAGE ON SCHEMA public TO db;
+GRANT CONNECT ON DATABASE frontend TO frontend;
+GRANT USAGE ON SCHEMA public TO frontend;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO readonly;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO db;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO db;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO frontend;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO frontend;
 
 -- Create audit function
 CREATE OR REPLACE FUNCTION audit_trigger_func() RETURNS trigger AS $$
@@ -35,6 +35,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Create updated_at trigger function
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 -- Create audit log table
 CREATE TABLE IF NOT EXISTS audit_log (
     id SERIAL PRIMARY KEY,
@@ -52,6 +61,9 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     news_categories VARCHAR(255) DEFAULT 'general',
+    city_name TEXT,
+    button_width INTEGER DEFAULT 200,
+    button_height INTEGER DEFAULT 200,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -73,15 +85,6 @@ CREATE INDEX IF NOT EXISTS idx_api_usage_timestamp ON api_usage(timestamp);
 CREATE INDEX IF NOT EXISTS idx_api_usage_api_name ON api_usage(api_name);
 CREATE INDEX IF NOT EXISTS idx_api_usage_user_id ON api_usage(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(changed_at);
-
--- Create updated_at trigger function
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
 
 -- Add triggers
 CREATE TRIGGER update_users_updated_at
@@ -121,6 +124,6 @@ ALTER TABLE audit_log SET (
 );
 
 -- Grant execute permission on functions
-GRANT EXECUTE ON FUNCTION cleanup_old_records() TO db;
-GRANT EXECUTE ON FUNCTION update_updated_at_column() TO db;
-GRANT EXECUTE ON FUNCTION audit_trigger_func() TO db;
+GRANT EXECUTE ON FUNCTION cleanup_old_records() TO frontend;
+GRANT EXECUTE ON FUNCTION update_updated_at_column() TO frontend;
+GRANT EXECUTE ON FUNCTION audit_trigger_func() TO frontend; 

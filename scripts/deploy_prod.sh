@@ -48,7 +48,7 @@ else
     echo "Containers are already running."
 fi
 
-# Wait for database to be fully initialized
+# Wait for database to be ready...
 echo "Waiting for database to be ready..."
 for i in $(seq 1 $MAX_WAIT); do
     if docker compose -f $COMPOSE_FILE exec -T $DB_CONTAINER pg_isready -U db -d frontend_db > /dev/null 2>&1; then
@@ -63,9 +63,9 @@ for i in $(seq 1 $MAX_WAIT); do
     sleep 1
 done
 
-# Create admin user
-echo "Ensuring admin user exists..."
-docker compose -f $COMPOSE_FILE exec -T $FRONTEND_CONTAINER flask create-admin
+# Replace the admin user creation with our migration script
+echo "Running database migrations..."
+docker compose -f $COMPOSE_FILE exec -T $FRONTEND_CONTAINER python /app/scripts/apply_migrations.py
 
 # Run any pending migrations (if needed)
 echo "Running any pending migrations..."

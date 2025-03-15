@@ -839,14 +839,26 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        
+        # Debug print statements
+        print(f"Login attempt for user: {username}")
+        print(f"Password provided: {password}")
 
         conn = get_db_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute("SELECT password_hash FROM users WHERE username=%s;", (username,))
                 row = cur.fetchone()
+                
+                # Debug check if user exists
+                if row:
+                    print(f"User found in database. Stored hash: {row['password_hash']}")
+                else:
+                    print(f"No user found with username: {username}")
+                    
         except Exception as e:
             app.logger.error(f"Database error during login: {e}")
+            print(f"Database error: {e}")
             return "Internal server error", 500
         finally:
             conn.close()
@@ -854,7 +866,14 @@ def login():
         if row:
             # With RealDictCursor, 'row' is a dict containing the column names.
             stored_hash = row["password_hash"]
-            if check_password_hash(stored_hash, password):
+            validation_result = check_password_hash(stored_hash, password)
+            
+            # Debug validation result
+            print(f"Password validation result: {validation_result}")
+            print(f"Stored hash: {stored_hash}")
+            print(f"Input password: {password}")
+            
+            if validation_result:
                 session['user'] = username
                 flash("Login successful!", "success")
                 return redirect(url_for('home'))
@@ -3898,13 +3917,82 @@ def change_admin_password():
         if 'conn' in locals():
             conn.close()
 
+# -----------------------------------------------------------------------------------
+# Debug routes - remove in production
+# -----------------------------------------------------------------------------------
+
+@app.route('/debug/admin-check', methods=['GET'])
+def debug_admin_check():
+    """Debug endpoint to check admin credentials and update if needed."""
+    # Only allow local access
+    if request.remote_addr not in ['127.0.0.1', 'localhost']:
+        return "Access denied", 403
+        
+    # Check if admin exists and fix if needed
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # Check if admin exists
+            cur.execute("SELECT * FROM users WHERE username=%s;", ('admin',))
+            admin_user = cur.fetchone()
+            
+            result = {
+                'exists': admin_user is not None,
+                'fixed': False,
+                'message': ''
+            }
+            
+            if admin_user:
+                result['admin_data'] = {
+                    'username': admin_user['username'],
+                    'email': admin_user['email'],
+                    'hash_starts_with': admin_user['password_hash'][:20] + '...',
+                }
+                
+                # Generate a new hash for admin123
+                new_hash = generate_password_hash('admin123')
+                
+                # Update the admin password hash
+                cur.execute("""
+                    UPDATE users
+                    SET password_hash = %s
+                    WHERE username = 'admin'
+                """, (new_hash,))
+                conn.commit()
+                
+                result['fixed'] = True
+                result['message'] = 'Admin password hash updated to work with admin123'
+                result['new_hash_starts_with'] = new_hash[:20] + '...'
+            else:
+                # Create admin user
+                password_hash = generate_password_hash('admin123')
+                cur.execute("""
+                    INSERT INTO users (username, email, password_hash, news_categories, city_name)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, ('admin', 'admin@localhost', password_hash, 'general,technology,business', 'San Francisco'))
+                conn.commit()
+                
+                result['fixed'] = True
+                result['message'] = 'Admin user created with password admin123'
+                result['new_hash_starts_with'] = password_hash[:20] + '...'
+    except Exception as e:
+        result = {
+            'exists': False,
+            'fixed': False,
+            'error': str(e)
+        }
+    finally:
+        conn.close()
+        
+    return jsonify(result)
+
 if __name__ == '__main__':
     # Determine if debug mode should be on. By default, it's off.
     # Set FLASK_DEBUG=1 (or "true"/"on") in your development environment.
     debug_mode = os.environ.get("FLASK_DEBUG", "0").lower() in ("1", "true", "on")
     
     # Optionally, read the port from an environment variable.
-    port = int(os.environ.get("PORT", "5001"))
+    port = int(os.environ.get("PORT", "5000"))
     
     # Run the Flask app with the appropriate settings.
     app.run(host='0.0.0.0', port=port, debug=debug_mode)

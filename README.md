@@ -47,7 +47,7 @@ GUARDIAN_API_KEY="your-guardian-api-key"
 ALPHA_VANTAGE_API_KEY="your-alpha-vantage-api-key"
 FLASK_DEBUG=1
 FLASK_ENV=development
-PORT=5001
+PORT=5000
 DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 ```
 
@@ -85,7 +85,7 @@ chmod +x dev.sh
 ```
 
 3. Access the application:
-   - Frontend: http://localhost:5001
+   - Frontend: http://localhost:5000
    - PostgreSQL: localhost:5432 (using credentials from .env)
 
 4. Other useful commands:

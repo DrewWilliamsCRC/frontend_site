@@ -12,9 +12,12 @@ services:
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
       POSTGRES_PASSWORD_ENCRYPTION: scram-sha-256
       PGDATA: /var/lib/postgresql/data
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@localhost}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d:ro
+      - ./scripts:/scripts:ro
     ports:
       - "5432:5432"  # Expose to host machine without restriction
     healthcheck:
@@ -89,7 +92,7 @@ services:
       - FLASK_APP=app.py
       - AI_SERVER_URL=http://ai_server:5002
     ports:
-      - "${PORT}:${PORT}"  # Expose without restriction for easier local development
+      - "127.0.0.1:${PORT}:${PORT}"  # Expose without restriction for easier local development
     depends_on:
       db:
         condition: service_healthy

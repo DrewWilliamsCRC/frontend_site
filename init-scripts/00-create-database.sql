@@ -1,24 +1,31 @@
--- Create netdata user if it doesn't exist
+-- Create necessary monitoring user
 DO
 $do$
 BEGIN
    IF NOT EXISTS (
       SELECT FROM pg_catalog.pg_roles
-      WHERE  rolname = 'netdata') THEN
+      WHERE rolname = 'netdata') THEN
       CREATE ROLE netdata WITH LOGIN PASSWORD 'netdata';
    END IF;
 END
 $do$;
 
--- Create frontend_db database if it doesn't exist
-SELECT 'CREATE DATABASE frontend_db'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'frontend_db')\gexec
+-- Create readonly role if it doesn't exist
+DO
+$do$
+BEGIN
+   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'readonly') THEN
+      CREATE ROLE readonly;
+   END IF;
+END
+$do$;
 
--- Connect to frontend_db database to grant permissions
-\c frontend_db
+-- Create database if it doesn't exist
+-- Note: This database should be created by Docker using POSTGRES_DB environment variable
+-- This script assumes the database already exists and is being run within that database context
 
 -- Grant necessary permissions
-GRANT CONNECT ON DATABASE frontend_db TO netdata;
+GRANT CONNECT ON DATABASE frontend TO netdata;
 GRANT USAGE ON SCHEMA public TO netdata;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO netdata;
 GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO netdata;
