@@ -45,12 +45,7 @@ services:
       - app_network
 
   ai_server:
-    build:
-      context: .
-      dockerfile: Dockerfile.ai
-      args:
-        - TARGETPLATFORM=linux/amd64
-        - BUILDPLATFORM=linux/amd64
+    image: dawttu00/dawttu_private:ai_server
     platform: linux/amd64
     user: aiuser
     environment:
@@ -89,13 +84,7 @@ services:
       - app_network
 
   frontend:
-    build:
-      context: .
-      dockerfile: dockerfile
-      args:
-        - TARGETPLATFORM=linux/amd64
-        - BUILDPLATFORM=linux/amd64
-        - PYTHON_VERSION=3.10-slim
+    image: dawttu00/dawttu_private:frontend
     platform: linux/amd64
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
