@@ -141,7 +141,7 @@ def index():
     return jsonify({"status": "ok", "message": "CI test server running"})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
 EOF
 
     # No need to overwrite app.py directly since we'll use the CI mode flag
@@ -421,7 +421,7 @@ while [ $elapsed -lt $timeout ]; do
         fi
     else
         # For non-CI, we can try using wget
-        if wget -q -O- http://localhost:5001/health > /dev/null 2>&1; then
+        if wget -q -O- http://localhost:${PORT}/health > /dev/null 2>&1; then
             echo "Frontend service is ready!"
             break
         fi
@@ -465,7 +465,7 @@ if [ "$IS_CI" = "true" ]; then
     fi
 else
     # For non-CI, use wget
-    if ! wget -q -O- http://localhost:5001/health; then
+    if ! wget -q -O- http://localhost:${PORT}/health; then
         echo "Error: Frontend health check failed"
         docker compose logs
         exit 1

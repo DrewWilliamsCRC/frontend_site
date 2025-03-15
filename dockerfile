@@ -74,7 +74,7 @@ def index():\n\
     return jsonify({"status": "ok", "message": "CI test server running"})\n\
 \n\
 if __name__ == "__main__":\n\
-    app.run(host="0.0.0.0", port=5001)\n\
+    app.run(host="0.0.0.0", port=5000)\n\
 ' > /app/app.py.ci && \
     chown appuser:appuser /app/app.py.ci && \
     chmod 644 /app/app.py.ci
@@ -92,7 +92,7 @@ RUN if [ ! -f /app/app.py ]; then \
 # Create health check script
 RUN echo '#!/bin/sh\n\
 echo "Checking frontend health..."\n\
-curl -fs http://localhost:5001/health >/dev/null || {\n\
+curl -fs http://localhost:${PORT}/health >/dev/null || {\n\
   echo "Health check failed"\n\
   exit 1\n\
 }\n\
@@ -100,9 +100,12 @@ echo "Health check passed"\n\
 ' > /usr/local/bin/healthcheck.sh && \
     chmod +x /usr/local/bin/healthcheck.sh
 
+# Expose the port from environment variable
+EXPOSE ${PORT}
+
 # Switch to non-root user
 USER appuser
 
 # Set entrypoint
 ENTRYPOINT ["/usr/local/bin/frontend_entrypoint.sh"]
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "1", "--log-level", "debug", "--error-logfile", "/app/logs/gunicorn-error.log", "--access-logfile", "/app/logs/gunicorn-access.log", "app:app"] 
+CMD ["gunicorn", "--bind", "0.0.0.0:${PORT}", "--workers", "1", "--log-level", "debug", "--error-logfile", "/app/logs/gunicorn-error.log", "--access-logfile", "/app/logs/gunicorn-access.log", "app:app"] 
