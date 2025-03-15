@@ -9,11 +9,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
-      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
       POSTGRES_PASSWORD_ENCRYPTION: scram-sha-256
       PGDATA: /var/lib/postgresql/data
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@localhost}
-      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-pbkdf2:sha256:600000$vf9Ul3qpDdGQDSxs$f3cd8235cc3b562c523e08b885c66dd6c7c34c0ccd527b4a6e8cc9e10d39f9e9}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
