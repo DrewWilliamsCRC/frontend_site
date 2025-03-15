@@ -833,64 +833,38 @@ def settings():
                          button_height=button_height,
                          news_categories=news_categories)
 
-@app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute", methods=["POST"], error_message="Too many login attempts, please try again in a minute.")
+@app.route('/login', methods=['POST'])
 def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+    username = request.form.get('username')
+    password = request.form.get('password')
+    
+    print(f"Login attempt for user: {username}")
+    print(f"Password provided: {password}")
+    
+    try:
+        cur = get_db().cursor()
+        cur.execute("SELECT password_hash FROM users WHERE username=%s;", (username,))
+        row = cur.fetchone()
         
-        # Debug print statements
-        print(f"Login attempt for user: {username}")
-        print(f"Password provided: {password}")
-
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT password_hash FROM users WHERE username=%s;", (username,))
-                row = cur.fetchone()
-                
-                # Debug check if user exists
-                if row:
-                    print(f"User found in database. Stored hash: {row['password_hash']}")
-                else:
-                    print(f"No user found with username: {username}")
-                    
-        except Exception as e:
-            app.logger.error(f"Database error during login: {e}")
-            print(f"Database error: {e}")
-            return "Internal server error", 500
-        finally:
-            conn.close()
-
-        if row:
-            # With RealDictCursor, 'row' is a dict containing the column names.
-            stored_hash = row["password_hash"]
-            validation_result = check_password_hash(stored_hash, password)
+        if row is None:
+            print("User not found in database")
+            return jsonify({'error': 'Invalid username or password'}), 401
             
-            # Debug validation result
-            print(f"Password validation result: {validation_result}")
-            print(f"Stored hash: {stored_hash}")
-            print(f"Input password: {password}")
-            
-            if validation_result:
-                session['user'] = username
-                flash("Login successful!", "success")
-                return redirect(url_for('home'))
-            else:
-                app.logger.warning(
-                    f"Failed login attempt for existing user {username} from {request.remote_addr}"
-                )
-                flash("Invalid credentials", "danger")
-                return "Invalid credentials", 401
+        print(f"User found in database. Stored hash: {row['password_hash']}")
+        stored_hash = row["password_hash"]
+        validation_result = check_password_hash(stored_hash, password)
+        
+        if validation_result:
+            print("Password validated successfully")
+            session['username'] = username
+            return jsonify({'success': True}), 200
         else:
-            app.logger.warning(
-                f"Failed login attempt for non-existent user {username} from {request.remote_addr}"
-            )
-            flash("Invalid credentials", "danger")
-            return "Invalid credentials", 401
-
-    return render_template('login.html')
+            print("Password validation failed")
+            return jsonify({'error': 'Invalid username or password'}), 401
+            
+    except Exception as e:
+        print(f"Database error: {str(e)}")
+        return jsonify({'error': 'Database error occurred'}), 500
 
 @app.route('/logout')
 def logout():
