@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS users (
     layout VARCHAR(50) DEFAULT 'default',
     button_width INTEGER DEFAULT 220,
     button_height INTEGER DEFAULT 60,
+    city_name VARCHAR(255) DEFAULT 'New York',
     news_categories JSONB DEFAULT '{"categories": ["business", "technology"]}'::jsonb,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

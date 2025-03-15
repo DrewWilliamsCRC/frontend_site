@@ -229,12 +229,12 @@ def get_user_settings(username):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT button_width, button_height, news_categories FROM users WHERE username=%s;", (username,))
+            cur.execute("SELECT city_name, button_width, button_height, news_categories FROM users WHERE username=%s;", (username,))
             row = cur.fetchone()
             if row:
                 # Extract categories from JSONB
                 categories = row['news_categories'].get('categories', ['general', 'technology']) if isinstance(row['news_categories'], dict) else ['general', 'technology']
-                return 'New York', row['button_width'], row['button_height'], categories
+                return row['city_name'] or 'New York', row['button_width'], row['button_height'], categories
             return 'New York', 200, 200, ['general', 'technology']
     except Exception as e:
         print("Error retrieving user settings:", e)
@@ -777,20 +777,20 @@ def settings():
         button_height = request.form.get('button_height', '200')
         news_categories = request.form.getlist('news_categories')  # Get multiple selected values
         
-        # Convert list to comma-separated string for storage
-        categories_str = ','.join(news_categories) if news_categories else 'general'
+        # Convert list to JSONB format
+        categories_json = {'categories': news_categories if news_categories else ['general', 'technology']}
         
         conn = get_db_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute(
                     """UPDATE users 
-                       SET city_name = %s, 
+                       SET city_name = %s,
                            button_width = %s,
                            button_height = %s,
                            news_categories = %s
                        WHERE username = %s""",
-                    (city_name, button_width, button_height, categories_str, session['user'])
+                    (city_name, button_width, button_height, Json(categories_json), session['user'])
                 )
                 conn.commit()
             flash('Settings updated successfully!', 'success')
@@ -810,10 +810,10 @@ def settings():
                 (session['user'],)
             )
             user_settings = cur.fetchone()
-            city_name = user_settings['city_name'] if user_settings else ''
+            city_name = user_settings['city_name'] if user_settings else 'New York'
             button_width = user_settings.get('button_width', 200)
             button_height = user_settings.get('button_height', 200)
-            news_categories = user_settings.get('news_categories', 'general').split(',')
+            news_categories = user_settings.get('news_categories', {}).get('categories', ['general', 'technology']) if user_settings else ['general', 'technology']
     finally:
         conn.close()
     
@@ -833,20 +833,20 @@ def login():
     
     try:
         cur = get_db().cursor()
-        cur.execute("SELECT password_hash FROM users WHERE username=%s;", (username,))
+        cur.execute("SELECT password FROM users WHERE username=%s;", (username,))
         row = cur.fetchone()
         
         if row is None:
             print("User not found in database")
             return jsonify({'error': 'Invalid username or password'}), 401
             
-        print(f"User found in database. Stored hash: {row['password_hash']}")
-        stored_hash = row["password_hash"]
+        print(f"User found in database. Stored hash: {row['password']}")
+        stored_hash = row["password"]
         validation_result = check_password_hash(stored_hash, password)
         
         if validation_result:
             print("Password validated successfully")
-            session['username'] = username
+            session['user'] = username  # Fixed: using 'user' instead of 'username'
             return jsonify({'success': True}), 200
         else:
             print("Password validation failed")
