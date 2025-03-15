@@ -19,6 +19,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     procps \
     vim \
+    python3 \
+    python3-pip \
+    && pip3 install werkzeug \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

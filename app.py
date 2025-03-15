@@ -173,7 +173,7 @@ def init_db():
                     city_name TEXT,
                     button_width INTEGER DEFAULT 200,
                     button_height INTEGER DEFAULT 200,
-                    news_categories VARCHAR(255) DEFAULT 'general'
+                    news_categories JSONB
                 );
             """)
             
@@ -225,30 +225,20 @@ def init_db():
 # -----------------------------------------------------------------------------------
 
 def get_user_settings(username):
-    """
-    Retrieves user-specific settings from the database.
-    
-    Args:
-        username (str): The username whose settings should be retrieved
-        
-    Returns:
-        tuple: A tuple containing (city_name, button_width, button_height)
-               If no settings are found, returns default values:
-               - Default city: "New York"
-               - Default button dimensions: 200x200
-    """
-    default_city = "New York"
+    """Get user settings from the database."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT city_name, button_width, button_height, news_categories FROM users WHERE username=%s;", (username,))
             row = cur.fetchone()
-            if row and row['city_name']:
-                return row['city_name'], row['button_width'], row['button_height'], row['news_categories'].split(',') if row['news_categories'] else ['general']
-            return default_city, 200, 200, ['general']
+            if row:
+                # Extract categories from JSONB
+                categories = row['news_categories'].get('categories', ['general', 'technology']) if isinstance(row['news_categories'], dict) else ['general', 'technology']
+                return row['city_name'] or 'New York', row['button_width'], row['button_height'], categories
+            return 'New York', 200, 200, ['general', 'technology']
     except Exception as e:
         print("Error retrieving user settings:", e)
-        return default_city, 200, 200, ['general']
+        return 'New York', 200, 200, ['general', 'technology']
     finally:
         conn.close()
 
@@ -787,20 +777,20 @@ def settings():
         button_height = request.form.get('button_height', '200')
         news_categories = request.form.getlist('news_categories')  # Get multiple selected values
         
-        # Convert list to comma-separated string for storage
-        categories_str = ','.join(news_categories) if news_categories else 'general'
+        # Convert list to JSONB format
+        categories_json = {'categories': news_categories if news_categories else ['general', 'technology']}
         
         conn = get_db_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute(
                     """UPDATE users 
-                       SET city_name = %s, 
+                       SET city_name = %s,
                            button_width = %s,
                            button_height = %s,
                            news_categories = %s
                        WHERE username = %s""",
-                    (city_name, button_width, button_height, categories_str, session['user'])
+                    (city_name, button_width, button_height, Json(categories_json), session['user'])
                 )
                 conn.commit()
             flash('Settings updated successfully!', 'success')
@@ -820,10 +810,10 @@ def settings():
                 (session['user'],)
             )
             user_settings = cur.fetchone()
-            city_name = user_settings['city_name'] if user_settings else ''
+            city_name = user_settings['city_name'] if user_settings else 'New York'
             button_width = user_settings.get('button_width', 200)
             button_height = user_settings.get('button_height', 200)
-            news_categories = user_settings.get('news_categories', 'general').split(',')
+            news_categories = user_settings.get('news_categories', {}).get('categories', ['general', 'technology']) if user_settings else ['general', 'technology']
     finally:
         conn.close()
     
@@ -833,64 +823,38 @@ def settings():
                          button_height=button_height,
                          news_categories=news_categories)
 
-@app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute", methods=["POST"], error_message="Too many login attempts, please try again in a minute.")
+@app.route('/login', methods=['POST'])
 def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+    username = request.form.get('username')
+    password = request.form.get('password')
+    
+    print(f"Login attempt for user: {username}")
+    print(f"Password provided: {password}")
+    
+    try:
+        cur = get_db().cursor()
+        cur.execute("SELECT password FROM users WHERE username=%s;", (username,))
+        row = cur.fetchone()
         
-        # Debug print statements
-        print(f"Login attempt for user: {username}")
-        print(f"Password provided: {password}")
-
-        conn = get_db_connection()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT password_hash FROM users WHERE username=%s;", (username,))
-                row = cur.fetchone()
-                
-                # Debug check if user exists
-                if row:
-                    print(f"User found in database. Stored hash: {row['password_hash']}")
-                else:
-                    print(f"No user found with username: {username}")
-                    
-        except Exception as e:
-            app.logger.error(f"Database error during login: {e}")
-            print(f"Database error: {e}")
-            return "Internal server error", 500
-        finally:
-            conn.close()
-
-        if row:
-            # With RealDictCursor, 'row' is a dict containing the column names.
-            stored_hash = row["password_hash"]
-            validation_result = check_password_hash(stored_hash, password)
+        if row is None:
+            print("User not found in database")
+            return jsonify({'error': 'Invalid username or password'}), 401
             
-            # Debug validation result
-            print(f"Password validation result: {validation_result}")
-            print(f"Stored hash: {stored_hash}")
-            print(f"Input password: {password}")
-            
-            if validation_result:
-                session['user'] = username
-                flash("Login successful!", "success")
-                return redirect(url_for('home'))
-            else:
-                app.logger.warning(
-                    f"Failed login attempt for existing user {username} from {request.remote_addr}"
-                )
-                flash("Invalid credentials", "danger")
-                return "Invalid credentials", 401
+        print(f"User found in database. Stored hash: {row['password']}")
+        stored_hash = row["password"]
+        validation_result = check_password_hash(stored_hash, password)
+        
+        if validation_result:
+            print("Password validated successfully")
+            session['user'] = username  # Fixed: using 'user' instead of 'username'
+            return jsonify({'success': True}), 200
         else:
-            app.logger.warning(
-                f"Failed login attempt for non-existent user {username} from {request.remote_addr}"
-            )
-            flash("Invalid credentials", "danger")
-            return "Invalid credentials", 401
-
-    return render_template('login.html')
+            print("Password validation failed")
+            return jsonify({'error': 'Invalid username or password'}), 401
+            
+    except Exception as e:
+        print(f"Database error: {str(e)}")
+        return jsonify({'error': 'Database error occurred'}), 500
 
 @app.route('/logout')
 def logout():
@@ -1339,63 +1303,8 @@ def api_usage():
 
 @app.route('/api/news')
 def get_news():
-    print("\n=== Starting /api/news endpoint ===")
-    print(f"Session data: {session}")
-    
-    if 'user' not in session:
-        print("No user in session, returning unauthorized")
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    print(f"User authenticated: {session['user']}")
-    
-    # Check if Guardian API key is configured
-    guardian_api_key = os.environ.get('GUARDIAN_API_KEY')
-    print(f"Guardian API key loaded: {'Yes' if guardian_api_key else 'No'}")
-    
-    if not guardian_api_key:
-        print("Guardian API key not found in environment, returning mock news data")
-        # Return mock news data instead of failing with 500 error
-        mock_articles = [
-            {
-                'title': 'S&P 500 Hits New Record as Tech Stocks Rally',
-                'url': 'https://example.com/sp500-record'
-            },
-            {
-                'title': 'Federal Reserve Signals Potential Rate Cuts',
-                'url': 'https://example.com/fed-rate-cuts'
-            },
-            {
-                'title': 'Global Markets React to Economic Data',
-                'url': 'https://example.com/global-markets'
-            },
-            {
-                'title': 'Tech Giants Announce New AI Initiatives',
-                'url': 'https://example.com/tech-ai'
-            },
-            {
-                'title': 'Retail Sales Exceed Expectations in Q1',
-                'url': 'https://example.com/retail-sales'
-            },
-            {
-                'title': 'Energy Sector Faces Challenges Amid Price Volatility',
-                'url': 'https://example.com/energy-sector'
-            },
-            {
-                'title': 'Housing Market Shows Signs of Cooling',
-                'url': 'https://example.com/housing-market'
-            },
-            {
-                'title': 'New Regulations Impact Financial Services',
-                'url': 'https://example.com/financial-regulations'
-            }
-        ]
-        return jsonify({
-            'articles': mock_articles,
-            'source': 'Mock Data (Guardian API key not configured)'
-        })
-
+    """Get news articles from The Guardian API."""
     try:
-        # The rest of the function remains unchanged
         # Get user's preferred news sections
         conn = get_db_connection()
         try:
@@ -1405,7 +1314,8 @@ def get_news():
                     (session['user'],)
                 )
                 result = cur.fetchone()
-                user_sections = result['news_categories'].split(',') if result and result['news_categories'] else ['news']
+                # Handle JSONB format
+                user_sections = result['news_categories'].get('categories', ['news']) if result and isinstance(result['news_categories'], dict) else ['news']
                 print(f"User sections retrieved: {user_sections}")
         finally:
             conn.close()
