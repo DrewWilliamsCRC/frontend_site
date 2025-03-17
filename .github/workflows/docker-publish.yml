@@ -152,25 +152,12 @@ jobs:
           done
           
           # Initialize database schema and create admin user
-          docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend << 'EOSQL'
-          CREATE TABLE IF NOT EXISTS users (
-              id SERIAL PRIMARY KEY,
-              username VARCHAR(255) UNIQUE NOT NULL,
-              email VARCHAR(255) NOT NULL,
-              password_hash TEXT NOT NULL,
-              news_categories TEXT,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          );
+          echo "Initializing database schema..."
+          docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend < init-scripts/01-init-schema.sql
           
-          -- Insert test admin user with known password
-          INSERT INTO users (username, email, password_hash)
-          VALUES (
-              'admin',
-              'admin@localhost',
-              'pbkdf2:sha256:600000$vf9Ul3qpDdGQDSxs$f3cd8235cc3b562c523e08b885c66dd6c7c34c0ccd527b4a6e8cc9e10d39f9e9'
-          ) ON CONFLICT (username) DO NOTHING;
-          EOSQL
+          # Create admin user with correct bcrypt hash
+          echo "Creating admin user..."
+          docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend < init-scripts/04-create-default-admin.sql
           
           # Start frontend
           docker compose -f docker-compose.ci.yml up -d frontend
@@ -190,19 +177,77 @@ jobs:
             sleep 2
           done
           
-          # Test login functionality with form data (matching production)
+          # Test login functionality with form data and CSRF token
           echo "Testing login functionality..."
-          response=$(curl -s -X POST \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            -d "username=admin&password=admin123" \
-            http://localhost:5000/login)
           
-          if ! echo "$response" | grep -q "success\|token"; then
-            echo "Login endpoint not responding correctly"
-            echo "Response: $response"
+          # First get the login page and extract CSRF token
+          echo "Getting login page and CSRF token..."
+          LOGIN_PAGE=$(curl -s -c cookies.txt http://localhost:5000/login)
+          
+          if [ -z "$LOGIN_PAGE" ]; then
+            echo "Error: Empty response from login page"
             docker compose -f docker-compose.ci.yml logs frontend
             exit 1
           fi
+          
+          echo "Extracting CSRF token..."
+          CSRF_TOKEN=$(echo "$LOGIN_PAGE" | grep -o 'name=\"csrf_token\" value=\"[^\"]*\"' | cut -d'"' -f4)
+          
+          if [ -z "$CSRF_TOKEN" ]; then
+            echo "Error: Could not extract CSRF token"
+            echo "Login page response:"
+            echo "$LOGIN_PAGE"
+            exit 1
+          fi
+          
+          echo "Got CSRF token: ${CSRF_TOKEN}"
+          
+          # Now try login with form data and CSRF token
+          echo "Attempting login with credentials..."
+          echo "Using form data: username=admin&password=admin123&csrf_token=${CSRF_TOKEN}"
+          
+          # Make the login request and save both headers and response
+          LOGIN_RESPONSE=$(curl -s -D headers.txt -L -X POST \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            -H "X-CSRFToken: ${CSRF_TOKEN}" \
+            -b cookies.txt \
+            -c cookies.txt \
+            -d "username=admin&password=admin123&csrf_token=${CSRF_TOKEN}" \
+            http://localhost:5000/login)
+          
+          # Debug: Show response headers
+          echo "Response headers:"
+          cat headers.txt
+          
+          # Debug: Show response body
+          echo "Response body:"
+          echo "$LOGIN_RESPONSE"
+          
+          # Check if response is JSON
+          if echo "$LOGIN_RESPONSE" | grep -q '^{'; then
+            # Parse JSON response
+            if echo "$LOGIN_RESPONSE" | grep -q '"success":true'; then
+              echo "Admin login test successful!"
+            else
+              echo "Error: Admin login failed - Invalid response"
+              echo "Response: $LOGIN_RESPONSE"
+              docker compose -f docker-compose.ci.yml logs frontend
+              exit 1
+            fi
+          else
+            # Check for HTML response with success indicators
+            if echo "$LOGIN_RESPONSE" | grep -q "success.*true\|login.*successful\|redirect.*dashboard"; then
+              echo "Admin login test successful!"
+            else
+              echo "Error: Admin login failed - Unexpected response format"
+              echo "Response: $LOGIN_RESPONSE"
+              docker compose -f docker-compose.ci.yml logs frontend
+              exit 1
+            fi
+          fi
+          
+          # Clean up cookies and headers
+          rm -f cookies.txt headers.txt
 
   # Publish job only runs on push to main
   publish:
