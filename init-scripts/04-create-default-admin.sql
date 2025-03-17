@@ -12,7 +12,4 @@ INSERT INTO users (
     (SELECT var_value FROM init_vars WHERE var_name = 'admin_password'),
     '{"categories": ["general", "technology", "business"]}'::jsonb,
     'admin'
-)
-WHERE NOT EXISTS (
-    SELECT 1 FROM users WHERE username = 'admin'
-); 
+) ON CONFLICT (username) DO NOTHING; 
