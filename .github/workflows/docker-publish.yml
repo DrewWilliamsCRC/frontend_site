@@ -69,9 +69,8 @@ jobs:
         id: pytest
         run: pytest tests/ -v || echo "TESTS_FAILED=true" >> $GITHUB_OUTPUT
 
-  # Docker testing - only run on PRs
+  # Docker testing - run on all PRs and pushes
   docker-test:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
