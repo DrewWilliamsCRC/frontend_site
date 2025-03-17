@@ -2,12 +2,10 @@ name: Docker Build and Test
 
 # Separate triggers for different events
 on:
-  # PR events only trigger tests
+  # PR events trigger tests
   pull_request:
-    branches: [ "main" ]
-  # Push to main only triggers publish
+  # Push events trigger tests
   push:
-    branches: [ "main" ]
 
 # Add permissions block
 permissions:
@@ -23,9 +21,8 @@ env:
   PYTHON_VERSION: 3.10-alpine
 
 jobs:
-  # Python unit testing - only run on PRs
+  # Python unit testing - run on all PRs and pushes
   python-tests:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     services:
       postgres:
