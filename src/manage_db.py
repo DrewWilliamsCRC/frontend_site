@@ -239,9 +239,12 @@ def init_db():
     """
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
+            # Enable UUID extension if not already enabled
+            cur.execute("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";")
+            
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                     username TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
                     city_name TEXT
@@ -251,8 +254,8 @@ def init_db():
 
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS custom_services (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
                     name TEXT NOT NULL,
                     url TEXT NOT NULL,
                     icon TEXT NOT NULL,

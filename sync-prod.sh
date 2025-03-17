@@ -356,18 +356,16 @@ if [ -z "$DB_USER" ]; then
 fi
 echo -e "${GREEN}Using database user: ${DB_USER}${NC}"
 
-# Check if database exists
-DB_EXISTS=$(run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} postgres -tAc \"SELECT 1 FROM pg_database WHERE datname = 'frontend'\"")
-
-if [ -z "$DB_EXISTS" ]; then
-    echo -e "${YELLOW}Database does not exist. Creating new database...${NC}"
-    run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} postgres -c 'CREATE DATABASE frontend;'" || {
-        echo -e "${RED}Failed to create database.${NC}"
-        exit 1
-    }
-else
-    echo -e "${GREEN}Database already exists. Skipping creation.${NC}"
-fi
+# Drop and recreate the database to ensure a clean slate
+echo -e "${YELLOW}Dropping and recreating database...${NC}"
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} postgres -c 'DROP DATABASE IF EXISTS frontend;'" || {
+    echo -e "${RED}Failed to drop database.${NC}"
+    exit 1
+}
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} postgres -c 'CREATE DATABASE frontend;'" || {
+    echo -e "${RED}Failed to create database.${NC}"
+    exit 1
+}
 
 # Initialize database schema
 echo -e "${YELLOW}Initializing database schema...${NC}"
