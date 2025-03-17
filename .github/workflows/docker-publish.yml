@@ -124,7 +124,22 @@ jobs:
           POSTGRES_HOST_AUTH_METHOD=scram-sha-256
           POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
           POSTGRES_PASSWORD_ENCRYPTION=scram-sha-256
+          ALPHA_VANTAGE_API_KEY=test-key
+          GUARDIAN_API_KEY=test-key
+          AI_SERVER_URL=http://ai_server:5001
+          AI_SERVER_TIMEOUT=30
+          AI_SERVER_RETRIES=3
+          AI_SERVER_BATCH_SIZE=10
+          AI_SERVER_MAX_WORKERS=2
+          AI_SERVER_LOG_LEVEL=DEBUG
+          AI_SERVER_CACHE_DIR=/app/data/ai_cache
+          AI_SERVER_MODEL_DIR=/app/data/ai_models
+          AI_SERVER_DATA_DIR=/app/data/ai_data
           EOF
+
+          # Create CI-specific frontend configuration
+          cp docker-compose.ci.yml docker-compose.ci.yml.bak
+          sed -i 's/command: \[".\/frontend_entrypoint.sh"\]/command: [".\/frontend_entrypoint.sh", "--ci"]/' docker-compose.ci.yml
 
       # Run critical functionality tests
       - name: Test critical functionality
@@ -155,7 +170,27 @@ jobs:
           echo "Creating admin user..."
           docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend < init-scripts/04-create-default-admin.sql
           
+          # Start AI server
+          echo "Starting AI server..."
+          docker compose -f docker-compose.ci.yml up -d ai_server
+          
+          # Wait for AI server
+          echo "Waiting for AI server to be ready..."
+          for i in {1..30}; do
+            if curl -s http://localhost:5001/health > /dev/null; then
+              echo "AI server is ready!"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "AI server failed to start"
+              docker compose -f docker-compose.ci.yml logs ai_server
+              exit 1
+            fi
+            sleep 2
+          done
+          
           # Start frontend
+          echo "Starting frontend..."
           docker compose -f docker-compose.ci.yml up -d frontend
           
           # Wait for frontend
