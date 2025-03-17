@@ -72,16 +72,15 @@ jobs:
         id: pytest
         run: pytest tests/ -v || echo "TESTS_FAILED=true" >> $GITHUB_OUTPUT
 
-  # Publish job only runs on push to main
-  publish:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  # Docker testing - only run on PRs
+  docker-test:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
       DOCKER_CLI_EXPERIMENTAL: enabled
       DOCKER_BUILDKIT: 1
       COMPOSE_DOCKER_CLI_BUILD: 1
-      DOCKER_PUSH: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -205,16 +204,36 @@ jobs:
             exit 1
           fi
 
-      # Only proceed with push if tests pass
+  # Publish job only runs on push to main
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [python-tests]  # Ensure tests pass before publishing
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DOCKER_CLI_EXPERIMENTAL: enabled
+      DOCKER_BUILDKIT: 1
+      COMPOSE_DOCKER_CLI_BUILD: 1
+      DOCKER_PUSH: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          buildkitd-flags: --debug
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
+
       - name: Log into Docker Hub
-        if: success()
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push production image
-        if: success()
         uses: docker/build-push-action@v6
         with:
           context: .
