@@ -181,7 +181,7 @@ jobs:
           # Wait for AI server
           echo "Waiting for AI server to be ready..."
           for i in {1..30}; do
-            if curl -s http://localhost:5001/health > /dev/null; then
+            if curl -s http://localhost:5002/health > /dev/null; then
               echo "AI server is ready!"
               break
             fi
