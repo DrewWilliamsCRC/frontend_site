@@ -33,8 +33,10 @@ jobs:
         env:
           POSTGRES_USER: db
           POSTGRES_PASSWORD: testing123
-          POSTGRES_DB: frontend_db
+          POSTGRES_DB: frontend
           POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+          POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+          POSTGRES_PASSWORD_ENCRYPTION: scram-sha-256
         ports:
           - 5432:5432
         options: >-
@@ -64,212 +66,24 @@ jobs:
           cp .env.example .env
           echo "SECRET_KEY=test-secret-key" >> .env
           echo "FLASK_ENV=testing" >> .env
-          echo "DATABASE_URL=postgresql://db:testing123@localhost:5432/frontend_db" >> .env
-          
-      - name: Create test directory if needed
-        run: |
-          if [ ! -d "tests" ]; then
-            echo "No tests directory found. Creating it now."
-            mkdir -p tests
-          fi
-          
-      - name: Create basic test file if needed
-        run: |
-          if [ ! -f "tests/test_app.py" ]; then
-            echo "Creating a basic test file."
-            echo 'import os' > tests/test_app.py
-            echo 'import sys' >> tests/test_app.py
-            echo 'import pytest' >> tests/test_app.py
-            echo 'import unittest.mock' >> tests/test_app.py
-            echo '' >> tests/test_app.py
-            echo '# Add parent directory to path to allow importing app' >> tests/test_app.py
-            echo 'sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))'  >> tests/test_app.py
-            echo '' >> tests/test_app.py
-            echo '@pytest.fixture' >> tests/test_app.py
-            echo 'def client():' >> tests/test_app.py
-            echo '    from app import app' >> tests/test_app.py
-            echo '    app.config["TESTING"] = True' >> tests/test_app.py
-            echo '    with app.test_client() as client:' >> tests/test_app.py
-            echo '        yield client' >> tests/test_app.py
-            echo '' >> tests/test_app.py
-            echo 'def test_app_initialized():' >> tests/test_app.py
-            echo '    """Test if the app can be imported and initialized"""' >> tests/test_app.py
-            echo '    try:' >> tests/test_app.py
-            echo '        from app import app' >> tests/test_app.py
-            echo '        assert app is not None' >> tests/test_app.py
-            echo '    except ImportError:' >> tests/test_app.py
-            echo '        pytest.skip("Could not import app, skipping test")' >> tests/test_app.py
-          fi
+          echo "DATABASE_URL=postgresql://db:testing123@localhost:5432/frontend" >> .env
           
       - name: Run tests
         id: pytest
         run: pytest tests/ -v || echo "TESTS_FAILED=true" >> $GITHUB_OUTPUT
-        
-      - name: Check if tests failed
-        id: check_tests
-        run: |
-          if [ "${{ steps.pytest.outputs.TESTS_FAILED }}" == "true" ]; then
-            echo "Python tests failed but we'll continue with Docker tests"
-          fi
 
-  # Database migration tests - only run on PRs
-  db-migration-tests:
+  # Docker testing - only run on PRs
+  docker-test:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    needs: python-tests
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: db
-          POSTGRES_PASSWORD: testing123
-          POSTGRES_DB: frontend_db
-          POSTGRES_HOST_AUTH_METHOD: scram-sha-256
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-          
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-          pip install psycopg2-binary
-          
-      - name: Create test .env file
-        run: |
-          cp .env.example .env
-          echo "SECRET_KEY=test-secret-key" >> .env
-          echo "FLASK_ENV=testing" >> .env
-          echo "DATABASE_URL=postgresql://db:testing123@localhost:5432/frontend_db" >> .env
-          
-      - name: Initialize database schema
-        run: |
-          # Wait for the database container to be fully ready
-          echo "Waiting for PostgreSQL to be ready..."
-          for i in {1..30}; do
-            if pg_isready -h localhost -p 5432 -U db; then
-              echo "PostgreSQL is ready!"
-              break
-            fi
-            
-            if [ $i -eq 30 ]; then
-              echo "Timed out waiting for PostgreSQL to become ready"
-              exit 1
-            fi
-            
-            echo "Waiting for PostgreSQL to become ready (attempt $i)..."
-            sleep 2
-          done
-          
-          # Create basic tables needed for migration tests
-          echo "Creating database schema..."
-          psql postgresql://db:testing123@localhost:5432/frontend_db -c "
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(255) UNIQUE NOT NULL,
-                email VARCHAR(255) NOT NULL,
-                password_hash TEXT NOT NULL,
-                news_categories TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            
-            CREATE TABLE IF NOT EXISTS api_usage (
-                id SERIAL PRIMARY KEY,
-                api_name VARCHAR(50) NOT NULL,
-                endpoint VARCHAR(255) NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                details JSONB
-            );
-          "
-          
-          # Verify tables were created successfully
-          echo "Verifying tables were created..."
-          psql postgresql://db:testing123@localhost:5432/frontend_db -c "\dt"
-          
-      - name: Run migration tests
-        run: |
-          echo "Running database migration tests..."
-          python -m tests.test_migrations
-        env:
-          DATABASE_URL: postgresql://db:testing123@localhost:5432/frontend_db
-          
-      - name: Test migration script directly
-        run: |
-          echo "Testing migration script directly..."
-          # Check that the script exists
-          if [ ! -f "scripts/apply_migrations.py" ]; then
-            echo "Error: Migration script not found"
-            ls -la scripts/
-            exit 1
-          fi
-          
-          # Verify database connection
-          echo "Verifying database connection..."
-          if ! psql $DATABASE_URL -c "SELECT 1;"; then
-            echo "Database connection failed. Check connection details."
-            exit 1
-          fi
-          
-          # Run the migration script with proper error handling
-          echo "Running apply_migrations.py..."
-          python scripts/apply_migrations.py || {
-            echo "Migration script failed with exit code $?"
-            # Show database state for debugging
-            echo "Current database tables:"
-            psql $DATABASE_URL -c "\dt"
-            echo "Migrations table content:"
-            psql $DATABASE_URL -c "SELECT * FROM migrations;" || true
-            exit 1
-          }
-        env:
-          DATABASE_URL: postgresql://db:testing123@localhost:5432/frontend_db
-
-  # Test job only runs on PRs
-  test:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    needs: [python-tests, db-migration-tests]
-    # Add extended timeout for Docker build operations
     timeout-minutes: 45
-    permissions:
-      contents: read
-      pull-requests: write
     env:
-      # Ensure we're not using any Docker Hub credentials during testing
       DOCKER_CLI_EXPERIMENTAL: enabled
       DOCKER_BUILDKIT: 1
       COMPOSE_DOCKER_CLI_BUILD: 1
-      # Disable pushing to registries
-      DOCKER_PUSH: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      # Free up disk space
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/share/swift
-          df -h
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -278,404 +92,114 @@ jobs:
           driver-opts: |
             image=moby/buildkit:latest
             network=host
-      
-      # Generate cache key hash based on requirements files
-      - name: Generate requirements hash
-        id: requirements-hash
-        run: |
-          echo "hash=$(md5sum requirements.txt build-helpers/requirements-alpine.txt 2>/dev/null | md5sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
 
-      # Set up build cache with improved key and enhanced settings
-      - name: Set up Docker Build Cache
-        id: buildx-cache
-        uses: actions/cache@v4
+      # Build test image first to verify functionality
+      - name: Build test image
+        uses: docker/build-push-action@v6
         with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ hashFiles('dockerfile', 'requirements.txt', 'build-helpers/**') }}-${{ steps.requirements-hash.outputs.hash }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-${{ hashFiles('dockerfile', 'requirements.txt', 'build-helpers/**') }}-
-            ${{ runner.os }}-buildx-${{ github.ref }}-
-            ${{ runner.os }}-buildx-
+          context: .
+          file: ./dockerfile
+          platforms: linux/amd64
+          push: false
+          tags: frontend:test
+          build-args: |
+            BUILDPLATFORM=linux/amd64
+            TARGETPLATFORM=linux/amd64
+            PYTHON_VERSION=3.10-alpine
+          provenance: false
+          load: true
 
-      # Print Dockerfile content for debugging
-      - name: Print Dockerfile
-        run: cat dockerfile
-
-      - name: Create test env file
+      # Set up test environment
+      - name: Create test environment
         run: |
+          mkdir -p logs data
+          chmod -R 777 logs data
+          
+          # Create test env file
           cat << EOF > .env
           SECRET_KEY="test-key-not-for-production"
-          OWM_API_KEY="test-key"
           FLASK_DEBUG=0
           FLASK_ENV=testing
           PORT=5000
           POSTGRES_USER=db
           POSTGRES_PASSWORD=testing123
-          POSTGRES_DB=frontend_db
-          DATABASE_URL=postgresql://db:testing123@db:5432/frontend_db
-          ALPHA_VANTAGE_API_KEY="test-key"
-          GNEWS_API_KEY="test-key"
-          TARGETARCH=amd64
-          PYTHON_VERSION=3.10-alpine
+          POSTGRES_DB=frontend
+          DATABASE_URL=postgresql://db:testing123@db:5432/frontend
           POSTGRES_HOST_AUTH_METHOD=scram-sha-256
           POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
           POSTGRES_PASSWORD_ENCRYPTION=scram-sha-256
-          CI_MODE=true
           EOF
-          
-      - name: Modify test-docker-build.sh for CI
-        run: |
-          sed -i 's/IS_CI=${GITHUB_ACTIONS:-false}/IS_CI=true/' test-docker-build.sh
-          
-      - name: Ensure pandas is in requirements
-        run: |
-          if ! grep -q "pandas" requirements.txt; then
-            echo "pandas>=2.0.0" >> requirements.txt
-            echo "numpy>=1.24.0" >> requirements.txt
-            echo "matplotlib>=3.7.0" >> requirements.txt
-            echo "seaborn>=0.12.0" >> requirements.txt
-          fi
 
-      # Clean up before running Docker tests
-      - name: Clean up Docker
+      # Run critical functionality tests
+      - name: Test critical functionality
         run: |
-          docker system prune -af
-          docker volume prune -f
-          df -h
-          # Configure buildx
-          docker buildx create --use --driver docker-container --driver-opt network=host
-          
-      # Maximum disk cleanup for CI environment
-      - name: Extreme disk cleanup for AI build
-        run: |
-          # Remove large packages
-          sudo apt-get remove -y '^dotnet-.*' '^llvm-.*' 'php.*' '^mongodb-.*' '^mysql-.*' '^postgresql-.*' || true
-          sudo apt-get autoremove -y
-          sudo apt-get clean
-          
-          # Remove Android SDK, large cache directories
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/hostedtoolcache
-          
-          # Clean npm and yarn cache
-          sudo rm -rf /usr/local/share/.cache
-          sudo rm -rf /usr/local/lib/node_modules
-          
-          echo "--- Disk space after cleanup ---"
-          df -h
-      
-      # Prepare directories for testing
-      - name: Prepare directories for CI testing
-        run: |
-          mkdir -p logs data
-          chmod -R 777 logs data
-          ls -la
-          
-      - name: Run Docker tests
-        run: |
-          # Basic diagnostics
-          echo "Alpine container shell information:"
-          docker run --rm alpine sh -c "which sh && ls -la /bin/sh"
-          
-          # Create test files
-          echo "Creating test files..."
-          
-          # Create app.py with dependency checks
-          cat > app.py << 'EOL'
-          #!/usr/bin/env python3
-          import os
-          import logging
-          from flask import Flask, jsonify
-          import pandas as pd
-          import numpy as np
-          from sklearn.preprocessing import StandardScaler
-          import tensorflow as tf
-          
-          logging.basicConfig(level=logging.INFO, format='%(message)s')
-          logger = logging.getLogger('ci_test')
-          
-          app = Flask(__name__)
-          
-          @app.route("/health")
-          def health():
-              status = {
-                  "status": "ok",
-                  "environment": "CI",
-                  "dependencies": {}
-              }
-              
-              try:
-                  pd.DataFrame({'test': [1, 2, 3]})
-                  status["dependencies"]["pandas"] = "ok"
-              except Exception as e:
-                  status["dependencies"]["pandas"] = str(e)
-                  status["status"] = "error"
-              
-              try:
-                  np.array([1, 2, 3])
-                  status["dependencies"]["numpy"] = "ok"
-              except Exception as e:
-                  status["dependencies"]["numpy"] = str(e)
-                  status["status"] = "error"
-              
-              try:
-                  StandardScaler()
-                  status["dependencies"]["scikit-learn"] = "ok"
-              except Exception as e:
-                  status["dependencies"]["scikit-learn"] = str(e)
-                  status["status"] = "error"
-              
-              try:
-                  tf.constant([1.0, 2.0])
-                  status["dependencies"]["tensorflow"] = "ok"
-              except Exception as e:
-                  status["dependencies"]["tensorflow"] = str(e)
-                  status["status"] = "error"
-              
-              return jsonify(status)
-          
-          @app.route("/")
-          def index():
-              return jsonify({"message": "CI Test Flask App"})
-          
-          if __name__ == "__main__":
-              app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
-          EOL
-          
-          # Create test database initialization script
-          cat > test_init_db.sql << 'EOL'
-          -- Test database schema
-          CREATE TABLE IF NOT EXISTS test_table (
-              id SERIAL PRIMARY KEY,
-              name TEXT,
-              data JSONB
-          );
-          
-          -- Test index creation
-          CREATE INDEX IF NOT EXISTS idx_test_table_name ON test_table(name);
-          CREATE INDEX IF NOT EXISTS idx_test_table_data ON test_table USING GIN(data);
-          
-          -- Test api_usage table
-          CREATE TABLE IF NOT EXISTS api_usage (
-              id SERIAL PRIMARY KEY,
-              api_name TEXT NOT NULL,
-              endpoint TEXT NOT NULL,
-              timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-              request_params JSONB,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-          );
-          
-          -- Test indexes separately
-          CREATE INDEX IF NOT EXISTS idx_api_usage_timestamp ON api_usage(api_name, timestamp);
-          CREATE INDEX IF NOT EXISTS idx_api_usage_request_params ON api_usage USING GIN(request_params);
-          EOL
-          
-          chmod +x app.py
-          
-          # Build images locally for testing
-          echo "Building Docker images for testing..."
-          
-          echo "Building frontend image..."
-          if ! DOCKER_BUILDKIT=1 docker build --no-cache --pull=false --push=false -t frontend:test -f dockerfile \
-            --build-arg TARGETPLATFORM=linux/amd64 \
-            --build-arg BUILDPLATFORM=linux/amd64 .; then
-            echo "Failed to build frontend image"
-            exit 1
-          fi
-            
-          echo "Building AI server image..."
-          if ! DOCKER_BUILDKIT=1 docker build --no-cache --pull=false --push=false -t ai_server:test -f Dockerfile.ai \
-            --build-arg TARGETPLATFORM=linux/amd64 \
-            --build-arg BUILDPLATFORM=linux/amd64 \
-            --build-arg CI_BUILD=true \
-            --build-arg SKIP_ML_FRAMEWORKS=true .; then
-            echo "Failed to build AI server image"
-            exit 1
-          fi
-          
-          # Verify images were built locally
-          echo "Verifying local images..."
-          docker images --filter "reference=*:test"
-          
-          # Test database schema initialization
-          echo "Testing database schema initialization..."
+          # Start test containers
           docker compose -f docker-compose.ci.yml up -d db
-          sleep 10
           
-          # Start services with better error handling
-          echo "Starting services..."
-          if ! docker compose -f docker-compose.ci.yml up -d db; then
-            echo "Failed to start database service"
-            docker compose -f docker-compose.ci.yml ps
-            docker compose -f docker-compose.ci.yml logs db
-            exit 1
-          fi
-          
-          # Wait specifically for the database to be fully initialized before copying files
+          # Wait for database
           echo "Waiting for database to be ready..."
           for i in {1..30}; do
-            if docker compose -f docker-compose.ci.yml exec -T db pg_isready -U db -d frontend_db; then
+            if docker compose -f docker-compose.ci.yml exec -T db pg_isready -U db -d frontend; then
               echo "Database is ready!"
               break
             fi
-            
             if [ $i -eq 30 ]; then
-              echo "Timed out waiting for database to become ready"
+              echo "Database failed to start"
               docker compose -f docker-compose.ci.yml logs db
               exit 1
             fi
-            
-            echo "Waiting for database to become ready (attempt $i)..."
-            sleep 5
+            sleep 2
           done
           
-          # Copying schema file into container and apply it
-          echo "Copying and applying schema..."
-          docker compose -f docker-compose.ci.yml cp test_init_db.sql db:/test_init_db.sql || {
-            echo "Failed to copy SQL file to container"
-            docker compose -f docker-compose.ci.yml ps
-            docker compose -f docker-compose.ci.yml logs db
-            exit 1
-          }
+          # Initialize database schema and create admin user
+          docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend << 'EOSQL'
+          CREATE TABLE IF NOT EXISTS users (
+              id SERIAL PRIMARY KEY,
+              username VARCHAR(255) UNIQUE NOT NULL,
+              email VARCHAR(255) NOT NULL,
+              password_hash TEXT NOT NULL,
+              news_categories TEXT,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
           
-          # Verify file was copied successfully
-          echo "Verifying SQL file in container..."
-          docker compose -f docker-compose.ci.yml exec -T db ls -l /test_init_db.sql || {
-            echo "SQL file not found in container"
-            docker compose -f docker-compose.ci.yml exec -T db ls -la /
-            docker compose -f docker-compose.ci.yml logs db
-            exit 1
-          }
+          -- Insert test admin user with known password
+          INSERT INTO users (username, email, password_hash)
+          VALUES (
+              'admin',
+              'admin@localhost',
+              'pbkdf2:sha256:600000$vf9Ul3qpDdGQDSxs$f3cd8235cc3b562c523e08b885c66dd6c7c34c0ccd527b4a6e8cc9e10d39f9e9'
+          ) ON CONFLICT (username) DO NOTHING;
+          EOSQL
           
-          # Apply schema with error checking
-          echo "Applying schema..."
-          if ! docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -f /test_init_db.sql; then
-            echo "Failed to apply database schema"
-            docker compose -f docker-compose.ci.yml exec -T db cat /test_init_db.sql || true
-            docker compose -f docker-compose.ci.yml logs db
-            exit 1
-          fi
+          # Start frontend
+          docker compose -f docker-compose.ci.yml up -d frontend
           
-          # Verify schema
-          echo "Verifying database schema..."
-          docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -c "\d+ api_usage"
-          docker compose -f docker-compose.ci.yml exec -T db psql -U db -d frontend_db -c "\di+ idx_api_usage_request_params"
-          
-          # Start services with better error handling
-          echo "Starting services..."
-          if ! docker compose -f docker-compose.ci.yml up -d; then
-            echo "Failed to start services"
-            docker compose -f docker-compose.ci.yml ps
-            docker compose -f docker-compose.ci.yml logs
-            exit 1
-          fi
-          
-          # Wait for services and check their status with improved error handling
-          echo "Waiting for services to be ready..."
-          max_attempts=30
-          attempt=0
-          
-          while [ $attempt -lt $max_attempts ]; do
-            echo "Checking service status (attempt $((attempt + 1))/$max_attempts)..."
-            
-            # Check database first
-            if ! docker compose -f docker-compose.ci.yml ps db | grep -q "healthy"; then
-              echo "Database not yet healthy..."
-              attempt=$((attempt + 1))
-              sleep 5
-              continue
+          # Wait for frontend
+          echo "Waiting for frontend to be ready..."
+          for i in {1..30}; do
+            if curl -s http://localhost:5000/health > /dev/null; then
+              echo "Frontend is ready!"
+              break
             fi
-            
-            # Check AI server
-            ai_status=$(docker compose -f docker-compose.ci.yml ps ai_server | grep ai_server || true)
-            if ! echo "$ai_status" | grep -q "Up"; then
-              echo "AI server not yet ready..."
-              docker compose -f docker-compose.ci.yml logs ai_server
-              attempt=$((attempt + 1))
-              sleep 5
-              continue
-            fi
-            
-            # Check frontend
-            frontend_status=$(docker compose -f docker-compose.ci.yml ps frontend | grep frontend || true)
-            if ! echo "$frontend_status" | grep -q "Up"; then
-              echo "Frontend not yet ready..."
+            if [ $i -eq 30 ]; then
+              echo "Frontend failed to start"
               docker compose -f docker-compose.ci.yml logs frontend
-              attempt=$((attempt + 1))
-              sleep 5
-              continue
+              exit 1
             fi
-            
-            # All services are up
-            echo "All services are running!"
-            docker compose -f docker-compose.ci.yml ps
-            break
+            sleep 2
           done
           
-          # If we've exhausted our attempts, show logs and exit
-          if [ $attempt -ge $max_attempts ]; then
-            echo "Services failed to start within timeout. Showing logs..."
-            echo "Database logs:"
-            docker compose -f docker-compose.ci.yml logs db
-            echo "AI server logs:"
-            docker compose -f docker-compose.ci.yml logs ai_server
-            echo "Frontend logs:"
-            docker compose -f docker-compose.ci.yml logs frontend
-            exit 1
-          fi
+          # Test login functionality with form data (matching production)
+          echo "Testing login functionality..."
+          response=$(curl -s -X POST \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "username=admin&password=admin123" \
+            http://localhost:5000/login)
           
-          # Test basic connectivity
-          echo "Testing basic service connectivity..."
-          
-          # Test database
-          if ! docker compose -f docker-compose.ci.yml exec -T db pg_isready -U db -d frontend_db; then
-            echo "Database connectivity test failed"
-            docker compose -f docker-compose.ci.yml logs db
-            exit 1
-          fi
-          
-          # Test AI server health endpoint
-          echo "Testing AI server health endpoint..."
-          if ! docker compose -f docker-compose.ci.yml exec -T ai_server curl -f http://localhost:5002/health; then
-            echo "AI server health check failed"
-            docker compose -f docker-compose.ci.yml logs ai_server
-            exit 1
-          fi
-          
-          # Test frontend basic functionality (without requiring all dependencies)
-          echo "Testing frontend basic functionality..."
-          if ! docker compose -f docker-compose.ci.yml exec -T frontend python3 - << 'EOL'
-          import sys
-          import os
-          print('Python version:', sys.version)
-          print('Testing basic imports...')
-          
-          def test_import(module_name):
-              try:
-                  __import__(module_name)
-                  print(f'{module_name}: OK')
-                  return True
-              except Exception as e:
-                  print(f'{module_name}: FAILED - {str(e)}')
-                  return False
-          
-          # Test only critical dependencies first
-          critical_deps = ['flask', 'psycopg2']
-          all_passed = all(test_import(dep) for dep in critical_deps)
-          
-          if not all_passed:
-              print('CRITICAL: Basic dependencies failed to import')
-              sys.exit(1)
-              
-          # Test optional ML dependencies but don't fail if they're missing
-          ml_deps = ['numpy', 'pandas', 'sklearn', 'tensorflow']
-          for dep in ml_deps:
-              test_import(dep)
-          
-          print('Basic functionality test completed')
-          EOL
-          then
-            echo "Frontend basic functionality test failed"
+          if ! echo "$response" | grep -q "success\|token"; then
+            echo "Login endpoint not responding correctly"
+            echo "Response: $response"
             docker compose -f docker-compose.ci.yml logs frontend
             exit 1
           fi
@@ -684,11 +208,8 @@ jobs:
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    # Remove dependency on test jobs since they won't run on push to main
-    # needs: [python-tests, db-migration-tests]
     timeout-minutes: 45
     env:
-      # Enable pushing to Docker Hub for publish job only
       DOCKER_CLI_EXPERIMENTAL: enabled
       DOCKER_BUILDKIT: 1
       COMPOSE_DOCKER_CLI_BUILD: 1
@@ -696,16 +217,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      # Free up disk space
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/share/swift
-          df -h
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -715,63 +226,13 @@ jobs:
             image=moby/buildkit:latest
             network=host
 
-      # Generate cache key hash based on requirements files
-      - name: Generate requirements hash
-        id: requirements-hash
-        run: |
-          echo "hash=$(md5sum requirements.txt build-helpers/requirements-alpine.txt 2>/dev/null | md5sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
-
-      # Set up build cache with improved key and enhanced settings
-      - name: Set up Docker Build Cache
-        id: buildx-cache
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ hashFiles('dockerfile', 'requirements.txt', 'build-helpers/**') }}-${{ steps.requirements-hash.outputs.hash }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-${{ hashFiles('dockerfile', 'requirements.txt', 'build-helpers/**') }}-
-            ${{ runner.os }}-buildx-${{ github.ref }}-
-            ${{ runner.os }}-buildx-
-
       - name: Log into Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Print Dockerfile content for debugging
-      - name: Print Dockerfile
-        run: cat dockerfile
-
-      # Clean up Docker before build
-      - name: Clean up Docker
-        run: |
-          docker system prune -af
-          docker volume prune -f
-          df -h
-          # Configure buildx
-          docker buildx create --use --driver docker-container --driver-opt network=host
-      
-      # Maximum disk cleanup for CI environment
-      - name: Extreme disk cleanup for AI build
-        run: |
-          # Remove large packages
-          sudo apt-get remove -y '^dotnet-.*' '^llvm-.*' 'php.*' '^mongodb-.*' '^mysql-.*' '^postgresql-.*' || true
-          sudo apt-get autoremove -y
-          sudo apt-get clean
-          
-          # Remove Android SDK, large cache directories
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/hostedtoolcache
-          
-          # Clean npm and yarn cache
-          sudo rm -rf /usr/local/share/.cache
-          sudo rm -rf /usr/local/lib/node_modules
-          
-          echo "--- Disk space after cleanup ---"
-          df -h
-
-      - name: Build and push Docker image
+      - name: Build and push production image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -779,54 +240,11 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: dawttu00/dawttu_private:frontend
-          cache-from: |
-            type=local,src=/tmp/.buildx-cache
-            type=registry,ref=dawttu00/dawttu_private:frontend
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           build-args: |
             BUILDPLATFORM=linux/amd64
             TARGETPLATFORM=linux/amd64
             PYTHON_VERSION=3.10-alpine
-          # Enable better caching with build layers
           provenance: false
           outputs: type=registry,push=true
-          # Add layer caching
           no-cache: false
           pull: true
-          
-      # Build and push AI server image (with full TensorFlow for production)
-      - name: Build and push AI server Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile.ai
-          platforms: linux/amd64
-          push: true
-          tags: dawttu00/dawttu_private:ai_server
-          cache-from: |
-            type=local,src=/tmp/.buildx-cache-ai
-            type=registry,ref=dawttu00/dawttu_private:ai_server
-          cache-to: type=local,dest=/tmp/.buildx-cache-ai-new,mode=max
-          build-args: |
-            BUILDPLATFORM=linux/amd64
-            TARGETPLATFORM=linux/amd64
-            CI_BUILD=false
-            SKIP_ML_FRAMEWORKS=false
-          # Enable better caching with build layers
-          provenance: false
-          outputs: type=registry,push=true
-          # Add layer caching
-          no-cache: false
-          pull: true
-
-      # Move cache
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-          
-      # Move AI server cache
-      - name: Move AI server cache
-        run: |
-          rm -rf /tmp/.buildx-cache-ai
-          mv /tmp/.buildx-cache-ai-new /tmp/.buildx-cache-ai

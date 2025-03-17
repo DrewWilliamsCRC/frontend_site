@@ -175,7 +175,7 @@ case "$1" in
         ;;
     db)
         echo -e "${GREEN}Opening PostgreSQL CLI in database container...${NC}"
-        ${DOCKER_COMPOSE} -f docker-compose.dev.yml exec db psql -U ${POSTGRES_USER:-db} -d ${POSTGRES_DB:-frontend_db}
+        ${DOCKER_COMPOSE} -f docker-compose.dev.yml exec db psql -U ${POSTGRES_USER:-db} -d ${POSTGRES_DB:-frontend}
         ;;
     help|*)
         show_help

@@ -227,3 +227,4 @@ For security-related information, please see [SECURITY.md](SECURITY.md).
 - Bootstrap and Font Awesome for UI components
 - Chart.js for data visualization
 
+.
