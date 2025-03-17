@@ -29,7 +29,7 @@ torch==2.2.1
 prophet==1.1.5
 fredapi==0.5.1
 newsapi-python==0.2.7
-apscheduler==3.10.4
+apscheduler==3.11.0
 arch==6.3.0
 statsmodels==0.14.1
 pmdarima==2.0.4
