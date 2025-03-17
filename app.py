@@ -823,8 +823,11 @@ def settings():
                          button_height=button_height,
                          news_categories=news_categories)
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
+    if request.method == 'GET':
+        return render_template('login.html')
+        
     username = request.form.get('username')
     password = request.form.get('password')
     
@@ -832,29 +835,32 @@ def login():
     print(f"Password provided: {password}")
     
     try:
-        cur = get_db().cursor()
-        cur.execute("SELECT password FROM users WHERE username=%s;", (username,))
-        row = cur.fetchone()
-        
-        if row is None:
-            print("User not found in database")
-            return jsonify({'error': 'Invalid username or password'}), 401
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("SELECT password_hash FROM users WHERE username=%s;", (username,))
+            row = cur.fetchone()
             
-        print(f"User found in database. Stored hash: {row['password']}")
-        stored_hash = row["password"]
-        validation_result = check_password_hash(stored_hash, password)
-        
-        if validation_result:
-            print("Password validated successfully")
-            session['user'] = username  # Fixed: using 'user' instead of 'username'
-            return jsonify({'success': True}), 200
-        else:
-            print("Password validation failed")
-            return jsonify({'error': 'Invalid username or password'}), 401
+            if row is None:
+                print("User not found in database")
+                return jsonify({'error': 'Invalid username or password'}), 401
+                
+            print(f"User found in database. Stored hash: {row['password_hash']}")
+            stored_hash = row["password_hash"]
+            validation_result = check_password_hash(stored_hash, password)
             
+            if validation_result:
+                print("Password validated successfully")
+                session['user'] = username  # Fixed: using 'user' instead of 'username'
+                return jsonify({'success': True}), 200
+            else:
+                print("Password validation failed")
+                return jsonify({'error': 'Invalid username or password'}), 401
     except Exception as e:
         print(f"Database error: {str(e)}")
         return jsonify({'error': 'Database error occurred'}), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
 
 @app.route('/logout')
 def logout():

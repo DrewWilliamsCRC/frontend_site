@@ -25,7 +25,7 @@ $do$;
 -- This script assumes the database already exists and is being run within that database context
 
 -- Grant necessary permissions
-GRANT CONNECT ON DATABASE frontend_db TO netdata;
+GRANT CONNECT ON DATABASE frontend TO netdata;
 GRANT USAGE ON SCHEMA public TO netdata;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO netdata;
 GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO netdata;

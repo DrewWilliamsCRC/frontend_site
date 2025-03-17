@@ -404,7 +404,7 @@ fi
 
 # Test database connection
 echo "Testing database connection..."
-docker compose exec db psql -U db -d frontend_db -c "\dt"
+docker compose exec db psql -U db -d frontend -c "\dt"
 
 # Wait for frontend service to be ready
 echo "Waiting for frontend service to be ready..."

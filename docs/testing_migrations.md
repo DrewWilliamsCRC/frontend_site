@@ -12,17 +12,23 @@ To test the database migrations locally, follow these steps:
 
    ```bash
    # Start a PostgreSQL container
-   docker run --name test-postgres -e POSTGRES_PASSWORD=testing123 -e POSTGRES_USER=db -e POSTGRES_DB=frontend_db -p 5432:5432 -d postgres:16
+   docker run --name test-postgres -e POSTGRES_PASSWORD=testing123 -e POSTGRES_USER=db -e POSTGRES_DB=frontend -p 5432:5432 -d postgres:16
    ```
 
-2. **Set environment variables**
+2. **Wait for the container to be ready**
+
+   ```bash
+   sleep 5
+   ```
+
+3. **Set environment variables**
 
    ```bash
    # Export the database URL
-   export DATABASE_URL=postgresql://db:testing123@localhost:5432/frontend_db
+   export DATABASE_URL=postgresql://db:testing123@localhost:5432/frontend
    ```
 
-3. **Initialize the database schema**
+4. **Initialize the database schema**
 
    ```bash
    # Connect to the database and create tables
@@ -47,7 +53,7 @@ To test the database migrations locally, follow these steps:
    "
    ```
 
-4. **Run the migration tests**
+5. **Run the migration tests**
 
    ```bash
    # Run the test suite

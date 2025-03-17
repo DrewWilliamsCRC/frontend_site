@@ -51,7 +51,7 @@ fi
 # Wait for database to be ready...
 echo "Waiting for database to be ready..."
 for i in $(seq 1 $MAX_WAIT); do
-    if docker compose -f $COMPOSE_FILE exec -T $DB_CONTAINER pg_isready -U db -d frontend_db > /dev/null 2>&1; then
+    if docker compose -f $COMPOSE_FILE exec -T $DB_CONTAINER pg_isready -U db -d frontend > /dev/null 2>&1; then
         echo "Database is ready!"
         break
     fi
