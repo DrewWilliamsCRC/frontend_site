@@ -126,7 +126,7 @@ jobs:
           POSTGRES_PASSWORD_ENCRYPTION=scram-sha-256
           ALPHA_VANTAGE_API_KEY=test-key
           GUARDIAN_API_KEY=test-key
-          AI_SERVER_URL=http://ai_server:5001
+          AI_SERVER_URL=http://ai_server:5002
           AI_SERVER_TIMEOUT=30
           AI_SERVER_RETRIES=3
           AI_SERVER_BATCH_SIZE=10
@@ -135,11 +135,15 @@ jobs:
           AI_SERVER_CACHE_DIR=/app/data/ai_cache
           AI_SERVER_MODEL_DIR=/app/data/ai_models
           AI_SERVER_DATA_DIR=/app/data/ai_data
+          OWM_API_KEY=test-key
+          CI_BUILD=true
+          CI_MODE=true
+          PYTHONUNBUFFERED=1
           EOF
 
           # Create CI-specific frontend configuration
           cp docker-compose.ci.yml docker-compose.ci.yml.bak
-          sed -i 's/command: \[".\/frontend_entrypoint.sh"\]/command: [".\/frontend_entrypoint.sh", "--ci"]/' docker-compose.ci.yml
+          sed -i 's/command: \[".\/frontend_entrypoint.sh"\]/command: [".\/frontend_entrypoint.sh"]/' docker-compose.ci.yml
 
       # Run critical functionality tests
       - name: Test critical functionality

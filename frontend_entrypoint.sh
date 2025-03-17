@@ -60,9 +60,11 @@ wait_for_ai_server() {
     local max_attempts=15
     local attempt=1
     local wait_time=2
+    local ai_server_url="${AI_SERVER_URL:-http://ai_server:5002}"
 
     while [ $attempt -le $max_attempts ]; do
-        if curl -s http://ai_server:5001/health > /dev/null; then
+        echo "Attempting to connect to AI server at $ai_server_url... (Attempt $attempt/$max_attempts)"
+        if curl -s "$ai_server_url/health" > /dev/null; then
             echo "AI server is ready!"
             return 0
         fi
@@ -72,6 +74,7 @@ wait_for_ai_server() {
     done
 
     echo "Error: Could not connect to AI server after $max_attempts attempts"
+    echo "Last attempt was to: $ai_server_url/health"
     return 1
 }
 
