@@ -255,10 +255,14 @@
             e.preventDefault();
             
             const formData = new FormData(this);
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
             
             fetch(this.action, {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
             })
             .then(response => response.json())
             .then(data => {
