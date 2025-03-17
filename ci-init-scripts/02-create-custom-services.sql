@@ -24,12 +24,14 @@ CREATE INDEX IF NOT EXISTS idx_custom_services_user_id ON custom_services(user_i
 CREATE INDEX IF NOT EXISTS idx_custom_services_section_order ON custom_services(section, display_order);
 
 -- Add audit trigger
+DROP TRIGGER IF EXISTS audit_custom_services_trigger ON custom_services;
 CREATE TRIGGER audit_custom_services_trigger
     AFTER INSERT OR UPDATE OR DELETE ON custom_services
     FOR EACH ROW
     EXECUTE FUNCTION audit_trigger_func();
 
 -- Add updated_at trigger
+DROP TRIGGER IF EXISTS update_custom_services_updated_at ON custom_services;
 CREATE TRIGGER update_custom_services_updated_at
     BEFORE UPDATE ON custom_services
     FOR EACH ROW

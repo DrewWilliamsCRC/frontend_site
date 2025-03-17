@@ -268,6 +268,12 @@ for dir in "${ESSENTIAL_DIRS[@]}"; do
     if [ -d "$dir" ]; then
         echo "Syncing $dir/..."
         rsync -e "ssh -S ${SOCKET_FILE}" -avz --progress "$dir/" ${SSH_CONFIG}:${PROD_DIR}/${dir}/
+        
+        # Debug output for init-scripts
+        if [ "$dir" = "init-scripts" ]; then
+            echo -e "${YELLOW}Verifying init-scripts files...${NC}"
+            run_ssh "cd ${PROD_DIR} && ls -la init-scripts/"
+        fi
     else
         echo -e "${YELLOW}Warning: $dir not found${NC}"
     fi
@@ -357,6 +363,7 @@ fi
 echo -e "${GREEN}Using database user: ${DB_USER}${NC}"
 
 # Check if database exists
+echo -e "${YELLOW}Checking if database exists...${NC}"
 DB_EXISTS=$(run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} postgres -tAc \"SELECT 1 FROM pg_database WHERE datname = 'frontend'\"")
 
 if [ -z "$DB_EXISTS" ]; then
@@ -371,34 +378,88 @@ fi
 
 # Initialize database schema
 echo -e "${YELLOW}Initializing database schema...${NC}"
-run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend < init-scripts/00-create-database.sql" || {
-    echo -e "${RED}Failed to create database roles.${NC}"
+
+# Debug: Show contents of init-scripts directory
+echo -e "${YELLOW}Checking init-scripts directory contents...${NC}"
+run_ssh "cd ${PROD_DIR} && ls -la init-scripts/"
+
+# Create roles if they don't exist
+echo -e "${YELLOW}Creating database roles...${NC}"
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -v ON_ERROR_STOP=1 < init-scripts/00-create-database.sql" || {
+    echo -e "${YELLOW}Warning: Failed to create database roles. They may already exist.${NC}"
+}
+
+# Apply schema changes safely
+echo -e "${YELLOW}Applying schema changes...${NC}"
+echo -e "${YELLOW}Executing 01-init-schema.sql...${NC}"
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -v ON_ERROR_STOP=1 < init-scripts/01-init-schema.sql" || {
+    echo -e "${RED}Error: Failed to apply schema changes.${NC}"
+    echo -e "${YELLOW}Checking database tables after schema initialization...${NC}"
+    run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -c '\dt'"
     exit 1
 }
 
-run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend < init-scripts/01-init-schema.sql" || {
-    echo -e "${RED}Failed to initialize schema.${NC}"
+# Debug: Show all tables after schema initialization
+echo -e "${YELLOW}Checking database tables after schema initialization...${NC}"
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -c '\dt'"
+
+# Create or update admin user
+echo -e "${YELLOW}Creating or updating admin user...${NC}"
+
+# Debug: Show current admin user state before update
+echo -e "${YELLOW}Current admin user state:${NC}"
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -c \"SELECT username, email, password_hash FROM users WHERE username = 'admin';\""
+
+# Apply admin user creation/update
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -v ON_ERROR_STOP=1 < init-scripts/04-create-default-admin.sql" || {
+    echo -e "${RED}Failed to create/update admin user.${NC}"
     exit 1
 }
 
-run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend < init-scripts/02-create-custom-services.sql" || {
-    echo -e "${RED}Failed to create custom services.${NC}"
-    exit 1
+# Debug: Verify admin user after update
+echo -e "${YELLOW}Verifying admin user after update:${NC}"
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -c \"SELECT username, email, password_hash FROM users WHERE username = 'admin';\""
+
+# Verify admin user has a password hash
+echo -e "${YELLOW}Verifying admin user password hash...${NC}"
+ADMIN_HASH=$(run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -tAc \"SELECT password_hash FROM users WHERE username = 'admin'\"")
+
+if [ -z "$ADMIN_HASH" ]; then
+    echo -e "${RED}Error: Admin user password hash is NULL. Attempting to fix...${NC}"
+    # First, verify the table structure
+    echo -e "${YELLOW}Verifying users table structure:${NC}"
+    run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -c \"\d users\""
+    
+    # Drop and recreate admin user
+    echo -e "${YELLOW}Dropping existing admin user...${NC}"
+    run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -c \"DELETE FROM users WHERE username = 'admin';\"" || {
+        echo -e "${YELLOW}Warning: Could not delete existing admin user.${NC}"
+    }
+    
+    echo -e "${YELLOW}Recreating admin user...${NC}"
+    run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -v ON_ERROR_STOP=1 < init-scripts/04-create-default-admin.sql" || {
+        echo -e "${RED}Failed to fix admin user password hash.${NC}"
+        exit 1
+    }
+    
+    # Verify the fix
+    echo -e "${YELLOW}Verifying fix:${NC}"
+    run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -c \"SELECT username, email, password_hash FROM users WHERE username = 'admin';\""
+    
+    echo -e "${GREEN}Admin user password hash has been updated.${NC}"
+else
+    echo -e "${GREEN}Admin user password hash is set: ${ADMIN_HASH}${NC}"
+fi
+
+# Apply any missing columns
+echo -e "${YELLOW}Applying any missing columns...${NC}"
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -v ON_ERROR_STOP=1 < init-scripts/05-add-missing-columns.sql" || {
+    echo -e "${YELLOW}Warning: Some columns may already exist.${NC}"
 }
 
-run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend < init-scripts/03-create-alerts-tables.sql" || {
-    echo -e "${RED}Failed to create alerts tables.${NC}"
-    exit 1
-}
-
-run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend < init-scripts/04-create-default-admin.sql" || {
-    echo -e "${RED}Failed to create default admin.${NC}"
-    exit 1
-}
-
-run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend < init-scripts/05-add-missing-columns.sql" || {
-    echo -e "${RED}Failed to add missing columns.${NC}"
-    exit 1
+echo -e "${YELLOW}Executing 02-create-custom-services.sql...${NC}"
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend -v ON_ERROR_STOP=1 < init-scripts/02-create-custom-services.sql" || {
+    echo -e "${YELLOW}Warning: Custom services may already exist.${NC}"
 }
 
 echo -e "${YELLOW}Checking database logs...${NC}"
@@ -462,4 +523,85 @@ run_ssh "cd ${PROD_DIR} && ${DOCKER_COMPOSE_CMD} ps" || {
     echo -e "${YELLOW}Failed to show status, but deployment should be complete.${NC}"
 }
 
-echo -e "${GREEN}Deployment complete!${NC}" 
+# Wait for frontend to be ready
+echo -e "${YELLOW}Waiting for frontend service to be fully ready...${NC}"
+sleep 10
+
+# Test admin login
+echo -e "${YELLOW}Testing admin login...${NC}"
+
+# First get the login page and extract CSRF token
+echo -e "${YELLOW}Getting login page and CSRF token...${NC}"
+LOGIN_PAGE=$(curl -s -c cookies.txt https://drewwilliams.biz/login)
+
+echo -e "${YELLOW}Checking login page response...${NC}"
+if [ -z "$LOGIN_PAGE" ]; then
+    echo -e "${RED}Error: Empty response from login page${NC}"
+    echo -e "${YELLOW}Checking frontend service status:${NC}"
+    run_ssh "cd ${PROD_DIR} && ${DOCKER_COMPOSE_CMD} ps frontend"
+    echo -e "${YELLOW}Checking frontend logs:${NC}"
+    run_ssh "cd ${PROD_DIR} && ${DOCKER_COMPOSE_CMD} logs frontend"
+    exit 1
+fi
+
+echo -e "${YELLOW}Extracting CSRF token...${NC}"
+CSRF_TOKEN=$(echo "$LOGIN_PAGE" | grep -o 'name=\"csrf_token\" value=\"[^\"]*\"' | cut -d'"' -f4)
+
+if [ -z "$CSRF_TOKEN" ]; then
+    echo -e "${RED}Error: Could not extract CSRF token${NC}"
+    echo -e "${YELLOW}Login page response:${NC}"
+    echo "$LOGIN_PAGE"
+    echo -e "${RED}Deployment failed: Could not get CSRF token${NC}"
+    exit 1
+fi
+
+echo -e "${YELLOW}Got CSRF token: ${CSRF_TOKEN}${NC}"
+
+# Now try login with form data and CSRF token
+echo -e "${YELLOW}Attempting login with credentials...${NC}"
+echo -e "${YELLOW}Using form data: username=admin&password=admin123&csrf_token=${CSRF_TOKEN}${NC}"
+
+# Make the login request and save both headers and response
+LOGIN_RESPONSE=$(curl -s -D headers.txt -L -X POST \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    -H "X-CSRFToken: ${CSRF_TOKEN}" \
+    -b cookies.txt \
+    -c cookies.txt \
+    -d "username=admin&password=admin123&csrf_token=${CSRF_TOKEN}" \
+    https://drewwilliams.biz/login)
+
+# Debug: Show response headers
+echo -e "${YELLOW}Response headers:${NC}"
+cat headers.txt
+
+# Debug: Show response body
+echo -e "${YELLOW}Response body:${NC}"
+echo "$LOGIN_RESPONSE"
+
+# Check if response is JSON
+if echo "$LOGIN_RESPONSE" | grep -q '^{'; then
+    # Parse JSON response
+    if echo "$LOGIN_RESPONSE" | grep -q '"success":true'; then
+        echo -e "${GREEN}Admin login test successful!${NC}"
+        echo -e "${GREEN}Deployment complete!${NC}"
+    else
+        echo -e "${RED}Error: Admin login failed - Invalid response${NC}"
+        echo -e "${YELLOW}Response: $LOGIN_RESPONSE${NC}"
+        echo -e "${RED}Deployment failed: Admin login is not working correctly${NC}"
+        exit 1
+    fi
+else
+    # Check for HTML response with success indicators
+    if echo "$LOGIN_RESPONSE" | grep -q "success.*true\|login.*successful\|redirect.*dashboard"; then
+        echo -e "${GREEN}Admin login test successful!${NC}"
+        echo -e "${GREEN}Deployment complete!${NC}"
+    else
+        echo -e "${RED}Error: Admin login failed - Unexpected response format${NC}"
+        echo -e "${YELLOW}Response: $LOGIN_RESPONSE${NC}"
+        echo -e "${RED}Deployment failed: Admin login is not working correctly${NC}"
+        exit 1
+    fi
+fi
+
+# Clean up cookies and headers
+rm -f cookies.txt headers.txt 

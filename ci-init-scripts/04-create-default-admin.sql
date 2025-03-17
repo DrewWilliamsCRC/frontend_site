@@ -10,10 +10,12 @@ INSERT INTO users (
 VALUES (
     'admin',
     'admin@localhost',
-    -- This hash is generated for 'admin123' using Werkzeug 3.1.3
-    'scrypt:32768:8:1$abcdefghijklmnop$1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+    -- This hash is generated for 'admin123' using bcrypt
+    '$2a$06$h4kpIbb60PIxm5jfYknt/ug5wLLplLYWv95HljZJVnJtTbwvzkrKi',
     'general,technology,business',
     'San Francisco'
 )
--- Do nothing if the admin user already exists (fully idempotent)
-ON CONFLICT (username) DO NOTHING; 
+-- Update password_hash if it's NULL
+ON CONFLICT (username) DO UPDATE 
+SET password_hash = EXCLUDED.password_hash
+WHERE users.password_hash IS NULL; 
