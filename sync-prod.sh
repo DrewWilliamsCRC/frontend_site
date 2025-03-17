@@ -13,7 +13,9 @@ chmod 700 "${SOCKET_DIR}"
 
 # Essential files and directories to sync
 ESSENTIAL_FILES=(
+    "docker-compose.yml"
     "docker-compose.prod.yml"
+    "docker-compose.ci.yml"
     "Dockerfile.ai"
     "dockerfile"
     "docker-entrypoint.sh"
@@ -40,6 +42,74 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
+
+# Function to check database connection
+check_db_connection() {
+    local db_user=$1
+    local db_name=$2
+    echo -e "${YELLOW}Checking database connection...${NC}"
+    if ! run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${db_user} -d ${db_name} -c '\q'"; then
+        echo -e "${RED}Error: Cannot connect to database${NC}"
+        return 1
+    fi
+    echo -e "${GREEN}Database connection successful${NC}"
+    return 0
+}
+
+# Function to validate database schema
+validate_db_schema() {
+    local db_user=$1
+    local db_name=$2
+    echo -e "${YELLOW}Validating database schema...${NC}"
+    
+    # Check for required tables
+    local required_tables=("users" "api_usage" "alert_rules" "alert_history" "audit_log")
+    for table in "${required_tables[@]}"; do
+        if ! run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${db_user} -d ${db_name} -c '\dt ${table}' | grep -q ${table}"; then
+            echo -e "${RED}Error: Required table '${table}' is missing${NC}"
+            return 1
+        fi
+    done
+    
+    # Check for required functions
+    local required_functions=("audit_trigger_func" "update_updated_at_column" "cleanup_old_records")
+    for func in "${required_functions[@]}"; do
+        if ! run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${db_user} -d ${db_name} -c '\df ${func}' | grep -q ${func}"; then
+            echo -e "${RED}Error: Required function '${func}' is missing${NC}"
+            return 1
+        fi
+    done
+    
+    echo -e "${GREEN}Database schema validation successful${NC}"
+    return 0
+}
+
+# Function to check database permissions
+check_db_permissions() {
+    local db_user=$1
+    local db_name=$2
+    echo -e "${YELLOW}Checking database permissions...${NC}"
+    
+    # Check frontend role permissions
+    if ! run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${db_user} -d ${db_name} -c '\du frontend' | grep -q 'frontend'"; then
+        echo -e "${RED}Error: Frontend role is missing or has incorrect permissions${NC}"
+        return 1
+    fi
+    
+    # Check readonly role permissions
+    if ! run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${db_user} -d ${db_name} -c '\du readonly' | grep -q 'readonly'"; then
+        echo -e "${RED}Error: Readonly role is missing or has incorrect permissions${NC}"
+        return 1
+    fi
+    
+    echo -e "${GREEN}Database permissions check successful${NC}"
+    return 0
+}
+
+# Function to run SSH commands using the control socket
+run_ssh() {
+    ssh -S "${SOCKET_FILE}" ${SSH_CONFIG} "$@"
+}
 
 # Cleanup function
 cleanup() {
@@ -99,6 +169,9 @@ validate_env_file() {
         "POSTGRES_PASSWORD"
         "POSTGRES_DB"
         "ALPHA_VANTAGE_API_KEY"
+        "SECRET_KEY"
+        "FLASK_ENV"
+        "DATABASE_URL"
     )
 
     local missing_vars=()
@@ -161,11 +234,6 @@ ssh -M -S "${SOCKET_FILE}" -o "ControlPersist=yes" -t ${SSH_CONFIG} "echo 'SSH c
 }
 
 echo -e "${GREEN}SSH connection established successfully${NC}"
-
-# Function to run SSH commands using the control socket
-run_ssh() {
-    ssh -S "${SOCKET_FILE}" ${SSH_CONFIG} "$@"
-}
 
 # Create necessary directories
 echo -e "${GREEN}Creating directories on production server...${NC}"
@@ -279,6 +347,58 @@ run_ssh "cd ${PROD_DIR} && ${DOCKER_COMPOSE_CMD} up -d db" || {
 echo -e "${YELLOW}Waiting 15 seconds for database to initialize...${NC}"
 run_ssh "sleep 15"
 
+# Get the database user from the environment file
+echo -e "${YELLOW}Getting database user from environment...${NC}"
+DB_USER=$(grep "^POSTGRES_USER=" .env.prod | cut -d'=' -f2)
+if [ -z "$DB_USER" ]; then
+    echo -e "${RED}Error: POSTGRES_USER not found in .env.prod${NC}"
+    exit 1
+fi
+echo -e "${GREEN}Using database user: ${DB_USER}${NC}"
+
+# Drop and recreate the database to ensure a clean slate
+echo -e "${YELLOW}Dropping and recreating database...${NC}"
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} postgres -c 'DROP DATABASE IF EXISTS frontend;'" || {
+    echo -e "${RED}Failed to drop database.${NC}"
+    exit 1
+}
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} postgres -c 'CREATE DATABASE frontend;'" || {
+    echo -e "${RED}Failed to create database.${NC}"
+    exit 1
+}
+
+# Initialize database schema
+echo -e "${YELLOW}Initializing database schema...${NC}"
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend < init-scripts/00-create-database.sql" || {
+    echo -e "${RED}Failed to create database roles.${NC}"
+    exit 1
+}
+
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend < init-scripts/01-init-schema.sql" || {
+    echo -e "${RED}Failed to initialize schema.${NC}"
+    exit 1
+}
+
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend < init-scripts/02-create-custom-services.sql" || {
+    echo -e "${RED}Failed to create custom services.${NC}"
+    exit 1
+}
+
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend < init-scripts/03-create-alerts-tables.sql" || {
+    echo -e "${RED}Failed to create alerts tables.${NC}"
+    exit 1
+}
+
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend < init-scripts/04-create-default-admin.sql" || {
+    echo -e "${RED}Failed to create default admin.${NC}"
+    exit 1
+}
+
+run_ssh "cd ${PROD_DIR} && docker exec -i frontend_db_1 psql -U ${DB_USER} -d frontend < init-scripts/05-add-missing-columns.sql" || {
+    echo -e "${RED}Failed to add missing columns.${NC}"
+    exit 1
+}
+
 echo -e "${YELLOW}Checking database logs...${NC}"
 run_ssh "cd ${PROD_DIR} && ${DOCKER_COMPOSE_CMD} logs db" || {
     echo -e "${YELLOW}Failed to get logs, but continuing...${NC}"
@@ -288,6 +408,27 @@ echo -e "${YELLOW}Checking database container status...${NC}"
 run_ssh "cd ${PROD_DIR} && ${DOCKER_COMPOSE_CMD} ps db" || {
     echo -e "${YELLOW}Failed to check status, but continuing...${NC}"
 }
+
+# After database initialization, add validation steps
+echo -e "${YELLOW}Validating database setup...${NC}"
+
+# Check database connection
+if ! check_db_connection "${DB_USER}" "frontend"; then
+    echo -e "${RED}Database connection check failed. Aborting deployment.${NC}"
+    exit 1
+fi
+
+# Validate database schema
+if ! validate_db_schema "${DB_USER}" "frontend"; then
+    echo -e "${RED}Database schema validation failed. Aborting deployment.${NC}"
+    exit 1
+fi
+
+# Check database permissions
+if ! check_db_permissions "${DB_USER}" "frontend"; then
+    echo -e "${RED}Database permissions check failed. Aborting deployment.${NC}"
+    exit 1
+fi
 
 # Start and check AI server
 echo -e "${YELLOW}Starting AI server...${NC}"
