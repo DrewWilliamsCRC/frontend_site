@@ -39,6 +39,6 @@ optuna==3.5.0
 mlflow==2.20.3
 tqdm==4.67.1
 praw==7.7.1  # Reddit API wrapper
-gnews==0.3.9  # Modern Google News API (replacing pygooglenews)
+gnews==0.4.1  # Modern Google News API (replacing pygooglenews)
 beautifulsoup4==4.12.3  # For web scraping
 yfinance==0.2.35  # Alternative data source
