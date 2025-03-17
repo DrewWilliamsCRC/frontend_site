@@ -52,8 +52,4 @@ CREATE TRIGGER audit_alert_history_trigger
 GRANT ALL ON alert_rules TO frontend;
 GRANT SELECT ON alert_rules TO readonly;
 GRANT ALL ON alert_history TO frontend;
-GRANT SELECT ON alert_history TO readonly;
-
--- Grant usage on sequences
-GRANT USAGE, SELECT ON SEQUENCE alert_rules_id_seq TO frontend;
-GRANT USAGE, SELECT ON SEQUENCE alert_history_id_seq TO frontend; 
+GRANT SELECT ON alert_history TO readonly; 
