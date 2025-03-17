@@ -83,27 +83,84 @@ CREATE TABLE IF NOT EXISTS api_usage (
     response_time DOUBLE PRECISION
 );
 
+-- Create alert_rules table
+DROP TABLE IF EXISTS alert_rules CASCADE;
+CREATE TABLE alert_rules (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    rule_type VARCHAR(50) NOT NULL,
+    rule_params JSONB NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    last_triggered TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Create alert_history table
+DROP TABLE IF EXISTS alert_history CASCADE;
+CREATE TABLE alert_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    alert_rule_id UUID NOT NULL REFERENCES alert_rules(id) ON DELETE CASCADE,
+    triggered_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    data JSONB,
+    notification_sent BOOLEAN NOT NULL DEFAULT FALSE
+);
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_api_usage_timestamp ON api_usage(timestamp);
 CREATE INDEX IF NOT EXISTS idx_api_usage_api_name ON api_usage(api_name);
 CREATE INDEX IF NOT EXISTS idx_api_usage_user_id ON api_usage(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(changed_at);
+CREATE INDEX IF NOT EXISTS idx_alert_rules_user_id ON alert_rules(user_id);
+CREATE INDEX IF NOT EXISTS idx_alert_history_rule_id ON alert_history(alert_rule_id);
 
 -- Add triggers
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS audit_users_trigger ON users;
 CREATE TRIGGER audit_users_trigger
     AFTER INSERT OR UPDATE OR DELETE ON users
     FOR EACH ROW
     EXECUTE FUNCTION audit_trigger_func();
 
+DROP TRIGGER IF EXISTS audit_api_usage_trigger ON api_usage;
 CREATE TRIGGER audit_api_usage_trigger
     AFTER INSERT OR UPDATE OR DELETE ON api_usage
     FOR EACH ROW
     EXECUTE FUNCTION audit_trigger_func();
+
+DROP TRIGGER IF EXISTS update_alert_rules_updated_at ON alert_rules;
+CREATE TRIGGER update_alert_rules_updated_at
+    BEFORE UPDATE ON alert_rules
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS audit_alert_rules_trigger ON alert_rules;
+CREATE TRIGGER audit_alert_rules_trigger
+    AFTER INSERT OR UPDATE OR DELETE ON alert_rules
+    FOR EACH ROW
+    EXECUTE FUNCTION audit_trigger_func();
+
+DROP TRIGGER IF EXISTS audit_alert_history_trigger ON alert_history;
+CREATE TRIGGER audit_alert_history_trigger
+    AFTER INSERT OR UPDATE OR DELETE ON alert_history
+    FOR EACH ROW
+    EXECUTE FUNCTION audit_trigger_func();
+
+-- Grant permissions
+GRANT ALL ON users TO frontend;
+GRANT SELECT ON users TO readonly;
+GRANT ALL ON api_usage TO frontend;
+GRANT SELECT ON api_usage TO readonly;
+GRANT ALL ON alert_rules TO frontend;
+GRANT SELECT ON alert_rules TO readonly;
+GRANT ALL ON alert_history TO frontend;
+GRANT SELECT ON alert_history TO readonly;
 
 -- Create maintenance function
 CREATE OR REPLACE FUNCTION cleanup_old_records() RETURNS void AS $$
