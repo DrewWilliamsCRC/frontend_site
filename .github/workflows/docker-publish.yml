@@ -178,28 +178,41 @@ jobs:
           echo "Starting AI server..."
           docker compose -f docker-compose.ci.yml up -d ai_server
           
-          # Show AI server logs immediately after startup
+          # Show container status immediately
+          echo "Container status after startup:"
+          docker compose -f docker-compose.ci.yml ps
+          
+          # Show AI server logs with timestamps
           echo "AI server startup logs:"
-          docker compose -f docker-compose.ci.yml logs ai_server
+          docker compose -f docker-compose.ci.yml logs --timestamps ai_server
           
           # Wait for AI server
           echo "Waiting for AI server to be ready..."
           for i in {1..30}; do
             echo "Attempt $i: Checking AI server health at http://localhost:5002/health"
-            if curl -v http://localhost:5002/health > /dev/null 2>&1; then
+            # Use curl with verbose output and save response
+            response=$(curl -v http://localhost:5002/health 2>&1)
+            curl_status=$?
+            echo "Curl response: $response"
+            echo "Curl status: $curl_status"
+            
+            if [ $curl_status -eq 0 ]; then
               echo "AI server is ready!"
               break
             fi
+            
             if [ $i -eq 30 ]; then
               echo "AI server failed to start"
               echo "Current container status:"
               docker compose -f docker-compose.ci.yml ps
               echo "AI server logs:"
-              docker compose -f docker-compose.ci.yml logs ai_server
+              docker compose -f docker-compose.ci.yml logs --timestamps ai_server
               echo "Network status:"
               docker network ls
               echo "Container network info:"
-              docker compose -f docker-compose.ci.yml exec ai_server netstat -tulpn
+              docker compose -f docker-compose.ci.yml exec ai_server netstat -tulpn || true
+              echo "Container environment:"
+              docker compose -f docker-compose.ci.yml exec ai_server env
               exit 1
             fi
             sleep 2
