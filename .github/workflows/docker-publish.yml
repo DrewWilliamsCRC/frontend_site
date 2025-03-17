@@ -144,6 +144,13 @@ jobs:
           # Create CI-specific frontend configuration
           cp docker-compose.ci.yml docker-compose.ci.yml.bak
           sed -i 's/command: \[".\/frontend_entrypoint.sh"\]/command: [".\/frontend_entrypoint.sh"]/' docker-compose.ci.yml
+          
+          # Create CI-specific Dockerfile without modifying the original
+          echo "Creating CI-specific Dockerfile..."
+          cp ai_server/Dockerfile ai_server/Dockerfile.ci
+          
+          # Update docker-compose.ci.yml to use the CI Dockerfile
+          sed -i 's|build: ./ai_server|build: { context: ./ai_server, dockerfile: Dockerfile.ci }|' docker-compose.ci.yml
 
       # Run critical functionality tests
       - name: Test critical functionality
@@ -308,6 +315,11 @@ jobs:
           
           # Clean up cookies and headers
           rm -f cookies.txt headers.txt
+          
+          # Clean up CI-specific files
+          echo "Cleaning up CI-specific files..."
+          rm -f ai_server/Dockerfile.ci
+          rm -f docker-compose.ci.yml.bak
 
   # Publish job only runs on push to main
   publish:
