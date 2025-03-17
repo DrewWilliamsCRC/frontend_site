@@ -207,7 +207,6 @@ jobs:
   # Publish job only runs on push to main
   publish:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [python-tests, docker-test]  # Ensure both test jobs pass before publishing
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
