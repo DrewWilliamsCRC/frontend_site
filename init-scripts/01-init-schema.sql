@@ -55,7 +55,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 
 -- Create users table
-CREATE TABLE IF NOT EXISTS users (
+DROP TABLE IF EXISTS users CASCADE;
+CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(255) NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -70,6 +71,12 @@ CREATE TABLE IF NOT EXISTS users (
     news_categories JSONB DEFAULT '{"categories": ["business", "technology"]}'::jsonb,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Create index on username for faster lookups
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+
+-- Create index on email for faster lookups
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- Create api_usage table
 CREATE TABLE IF NOT EXISTS api_usage (
