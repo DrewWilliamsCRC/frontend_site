@@ -1,4 +1,4 @@
-FROM python:3.11-slim as builder
+FROM python:3.14-slim as builder
 
 # Add build args to support CI environment
 ARG CI_BUILD=false
@@ -96,7 +96,7 @@ echo "Health check passed"\n\
     chmod +x /usr/local/bin/healthcheck.sh
 
 # Final stage - runtime
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
